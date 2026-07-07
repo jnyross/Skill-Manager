@@ -44,7 +44,7 @@ Permanently deleting a skill from the archive. The only destructive operation in
 _Avoid_: delete (ambiguous with uninstall)
 
 **Suppress**:
-Hiding a single plugin skill from both the model and slash commands without touching the plugin's files. The per-skill alternative to uninstalling a whole plugin.
+Hiding a single plugin skill from the model and slash commands while leaving its plugin installed and intact. The per-skill alternative to uninstalling a whole plugin; Skillet owns and maintains this state across plugin updates.
 _Avoid_: uninstall (plugin skills can't be individually uninstalled), block
 
 **Shortlist**:
