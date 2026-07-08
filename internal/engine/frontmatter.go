@@ -13,6 +13,9 @@ type skillFrontmatter struct {
 	Name                   string `yaml:"name"`
 	Description            string `yaml:"description"`
 	DisableModelInvocation *bool  `yaml:"disable-model-invocation"`
+	// UserInvocable is only read/written by Suppress (internal/engine/suppress.go);
+	// Personal/Codex scans don't use it (see docs/research/skill-mechanisms.md).
+	UserInvocable *bool `yaml:"user-invocable"`
 }
 
 type promptFrontmatter struct {

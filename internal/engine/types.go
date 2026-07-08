@@ -16,6 +16,7 @@ const (
 	ActivationAuto       ActivationState = "Auto"
 	ActivationManualOnly ActivationState = "Manual-only"
 	ActivationDisabled   ActivationState = "Disabled"
+	ActivationSuppressed ActivationState = "Suppressed"
 )
 
 type Kind string
@@ -60,6 +61,22 @@ type ArchiveEntry struct {
 	IsSymlink            bool                 `json:"isSymlink"`
 	SymlinkTarget        string               `json:"symlinkTarget"`
 	RemovedConfigEntries []RemovedConfigEntry `json:"removedConfigEntries,omitempty"`
+}
+
+// SuppressionRecord is Skillet-owned state recording that a Plugin skill has
+// been Suppressed (CONTEXT.md: hidden from the model and slash menu while its
+// plugin stays installed and intact). It is keyed by marketplace + plugin +
+// skill name — never by a specific cache/version directory — because plugin
+// cache directories are versioned and replaced whole on update (see
+// installed_plugins.json's installPath, which changes per version). Keying
+// this way is what lets the self-healing loop (internal/engine/suppress.go)
+// find and re-apply the suppression to a new version directory after a
+// plugin update.
+type SuppressionRecord struct {
+	Marketplace  string    `json:"marketplace"`
+	Plugin       string    `json:"plugin"`
+	SkillName    string    `json:"skillName"`
+	SuppressedAt time.Time `json:"suppressedAt"`
 }
 
 // RemovedConfigEntry records a stale Codex config.toml `[[skills.config]]`
