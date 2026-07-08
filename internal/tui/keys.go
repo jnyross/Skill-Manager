@@ -8,14 +8,18 @@ import (
 
 type keyMap struct {
 	main            bool
+	library         bool
 	move            key.Binding
 	archive         key.Binding
 	suppress        key.Binding
 	manualOnly      key.Binding
 	uninstallPlugin key.Binding
+	libraryToggle   key.Binding
 	switchView      key.Binding
+	libraryView     key.Binding
 	restore         key.Binding
 	purge           key.Binding
+	libraryRemove   key.Binding
 	showFullHelp    key.Binding
 	quit            key.Binding
 }
@@ -27,13 +31,16 @@ func mainKeyMap(selected engine.Skill, ok bool, showAll bool) keyMap {
 	m.suppress = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "suppress/un-suppress"))
 	m.manualOnly = key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "manual-only/auto-activate"))
 	m.uninstallPlugin = key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "uninstall plugin"))
+	m.libraryToggle = key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "add/remove library"))
 	m.switchView = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "archive view"))
+	m.libraryView = key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "library view"))
 
 	m.move.SetEnabled(ok)
 	m.archive.SetEnabled(ok && canArchiveSkill(selected))
 	m.suppress.SetEnabled(ok && canSuppressSkill(selected))
 	m.manualOnly.SetEnabled(ok && canToggleManualOnly(selected))
 	m.uninstallPlugin.SetEnabled(ok && canUninstallPlugin(selected))
+	m.libraryToggle.SetEnabled(ok && canToggleLibraryMembership(selected))
 	return m
 }
 
@@ -46,6 +53,17 @@ func archiveKeyMap(hasSelection bool, showAll bool) keyMap {
 	m.move.SetEnabled(hasSelection)
 	m.restore.SetEnabled(hasSelection)
 	m.purge.SetEnabled(hasSelection)
+	return m
+}
+
+func libraryKeyMap(hasSelection bool, showAll bool) keyMap {
+	m := baseKeyMap(showAll)
+	m.library = true
+	m.libraryRemove = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "remove from library"))
+	m.switchView = key.NewBinding(key.WithKeys("L", "esc"), key.WithHelp("L/esc", "main view"))
+
+	m.move.SetEnabled(hasSelection)
+	m.libraryRemove.SetEnabled(hasSelection)
 	return m
 }
 
@@ -70,6 +88,17 @@ func (m keyMap) ShortHelp() []key.Binding {
 			m.suppress,
 			m.manualOnly,
 			m.uninstallPlugin,
+			m.libraryToggle,
+			m.switchView,
+			m.libraryView,
+			m.showFullHelp,
+			m.quit,
+		}
+	}
+	if m.library {
+		return []key.Binding{
+			m.move,
+			m.libraryRemove,
 			m.switchView,
 			m.showFullHelp,
 			m.quit,
@@ -89,8 +118,14 @@ func (m keyMap) ShortHelp() []key.Binding {
 func (m keyMap) FullHelp() [][]key.Binding {
 	if m.main {
 		return [][]key.Binding{
+			{m.move, m.switchView, m.libraryView, m.showFullHelp, m.quit},
+			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle},
+		}
+	}
+	if m.library {
+		return [][]key.Binding{
 			{m.move, m.switchView, m.showFullHelp, m.quit},
-			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin},
+			{m.libraryRemove},
 		}
 	}
 
