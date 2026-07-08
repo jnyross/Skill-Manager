@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
@@ -43,25 +42,28 @@ type pendingConfirm struct {
 }
 
 type Model struct {
-	engine  *engine.Engine
-	view    viewState
-	cursor  int
-	inv     engine.Inventory
-	list    list.Model
-	help    help.Model
-	archive []engine.ArchiveEntry
-	pending *pendingConfirm
-	status  string
-	width   int
-	height  int
-	detail  detailPane
+	engine      *engine.Engine
+	view        viewState
+	cursor      int // inventory skill index for main view
+	inv         engine.Inventory
+	list        list.Model
+	archiveList list.Model
+	help        help.Model
+	archive     []engine.ArchiveEntry
+	pending     *pendingConfirm
+	status      string
+	width       int
+	height      int
+	detail      detailPane
 }
 
 func NewModel(e *engine.Engine) *Model {
 	m := &Model{
-		engine: e,
-		list:   newSkillList(nil),
-		help:   help.New(),
+		engine:      e,
+		list:        newSkillList(nil),
+		archiveList: newArchiveList(nil),
+		help:        help.New(),
+		detail:      newDetailPane(),
 	}
 	m.refreshInventory()
 	return m
@@ -104,6 +106,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.moveCursor(-1)
 	case "down", "j":
 		m.moveCursor(1)
+	case "pgup", "ctrl+u":
+		if m.view == mainView {
+			m.detail.scrollHalf(-1)
+		}
+	case "pgdown", "ctrl+d":
+		if m.view == mainView {
+			m.detail.scrollHalf(1)
+		}
 	default:
 		if m.view == mainView {
 			m.updateMain(key.String())
@@ -124,8 +134,8 @@ func (m *Model) updateMain(key string) {
 			m.status = "No skill selected."
 			return
 		}
-		if !canArchiveSkill(selected) {
-			m.status = "Only Personal and Codex skills can be archived in this version."
+		if reason := archiveUnavailableReason(selected); reason != "" {
+			m.status = reason
 			return
 		}
 		m.pending = &pendingConfirm{
@@ -139,8 +149,8 @@ func (m *Model) updateMain(key string) {
 			m.status = "No skill selected."
 			return
 		}
-		if !canSuppressSkill(selected) {
-			m.status = "Suppress is only available for Plugin and Codex skills."
+		if reason := suppressUnavailableReason(selected); reason != "" {
+			m.status = reason
 			return
 		}
 		if selected.Activation == engine.ActivationSuppressed || selected.Activation == engine.ActivationDisabled {
@@ -179,8 +189,8 @@ func (m *Model) updateMain(key string) {
 			m.status = "No skill selected."
 			return
 		}
-		if !canToggleManualOnly(selected) {
-			m.status = "Manual-only is only available for Personal and Codex skills."
+		if reason := manualOnlyUnavailableReason(selected); reason != "" {
+			m.status = reason
 			return
 		}
 		if selected.Activation == engine.ActivationManualOnly {
@@ -198,7 +208,6 @@ func (m *Model) updateMain(key string) {
 		}
 	case "a":
 		m.view = archiveView
-		m.cursor = 0
 		m.refreshArchive()
 	}
 }
@@ -210,22 +219,22 @@ func (m *Model) updateArchive(key string) {
 		m.cursor = 0
 		m.refreshInventory()
 	case "r":
-		if len(m.archive) == 0 {
+		selected, ok := m.selectedArchiveEntry()
+		if !ok {
 			m.status = "No archive entry selected."
 			return
 		}
-		selected := m.archive[m.cursor]
 		m.pending = &pendingConfirm{
 			description: fmt.Sprintf("Restore %q to %s? y to confirm, any other key to cancel.", selected.Name, selected.OriginalLocation),
 			action:      pendingRestore,
 			id:          selected.ID,
 		}
 	case "p":
-		if len(m.archive) == 0 {
+		selected, ok := m.selectedArchiveEntry()
+		if !ok {
 			m.status = "No archive entry selected."
 			return
 		}
-		selected := m.archive[m.cursor]
 		m.pending = &pendingConfirm{
 			description: fmt.Sprintf("Purge %q permanently? y to confirm, any other key to cancel.", selected.Name),
 			action:      pendingPurge,
@@ -264,7 +273,7 @@ func (m *Model) executePending() {
 			return
 		}
 		m.status = "Suppressed " + m.pending.skill.Name + "."
-		if m.pending.skill.Source == engine.SourceCodex {
+		if needsCodexRestartHint(m.pending.skill) {
 			m.status += " Restart Codex to pick up the change."
 		}
 		m.refreshInventory()
@@ -274,7 +283,7 @@ func (m *Model) executePending() {
 			return
 		}
 		m.status = "Un-suppressed " + m.pending.skill.Name + "."
-		if m.pending.skill.Source == engine.SourceCodex {
+		if needsCodexRestartHint(m.pending.skill) {
 			m.status += " Restart Codex to pick up the change."
 		}
 		m.refreshInventory()
@@ -326,19 +335,18 @@ func (m *Model) moveCursor(delta int) {
 		return
 	}
 
-	limit := len(m.archive)
-	if limit == 0 {
-		m.cursor = 0
+	items := m.archiveList.Items()
+	if len(items) == 0 {
 		return
 	}
-
-	m.cursor += delta
-	if m.cursor < 0 {
-		m.cursor = 0
+	index := m.archiveList.Index() + delta
+	if index < 0 {
+		index = 0
 	}
-	if m.cursor >= limit {
-		m.cursor = limit - 1
+	if index >= len(items) {
+		index = len(items) - 1
 	}
+	m.archiveList.Select(index)
 }
 
 func (m *Model) moveMainCursor(delta int) {
@@ -360,6 +368,7 @@ func (m *Model) moveMainCursor(delta int) {
 		}
 	}
 	m.syncMainCursor()
+	m.refreshDetail()
 }
 
 func (m *Model) refreshInventory() {
@@ -369,6 +378,7 @@ func (m *Model) refreshInventory() {
 	}
 	_ = m.list.SetItems(buildListItems(m.inv))
 	m.selectMainCursor()
+	m.refreshDetail()
 	m.resizeList()
 }
 
@@ -376,13 +386,21 @@ func (m *Model) refreshArchive() {
 	entries, err := m.engine.ListArchive()
 	if err != nil {
 		m.archive = nil
+		_ = m.archiveList.SetItems(nil)
 		m.status = "Archive read failed: " + err.Error()
 		return
 	}
 	m.archive = entries
-	if m.cursor >= len(m.archive) {
-		m.cursor = max(0, len(m.archive)-1)
+	_ = m.archiveList.SetItems(buildArchiveItems(m.archive))
+	if len(m.archive) == 0 {
+		m.archiveList.Select(0)
+		return
 	}
+	index := m.archiveList.Index()
+	if index >= len(m.archive) {
+		index = len(m.archive) - 1
+	}
+	m.archiveList.Select(index)
 }
 
 func (m *Model) View() string {
@@ -418,8 +436,7 @@ func (m *Model) renderMain(b *strings.Builder) {
 	if len(m.inv.Skills) == 0 {
 		b.WriteString("No skills found.\n")
 	} else {
-		detail := m.detail.render(m.selectedMainSkill())
-		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), " ", detail))
+		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), " ", m.detail.render()))
 		b.WriteString("\n")
 	}
 
@@ -442,13 +459,8 @@ func (m *Model) renderArchive(b *strings.Builder) {
 		b.WriteString("Archive is empty.\n")
 		return
 	}
-	for i, entry := range m.archive {
-		cursor := " "
-		if i == m.cursor {
-			cursor = ">"
-		}
-		fmt.Fprintf(b, "%s %s | %s | %s | %s\n", cursor, entry.Name, entry.Source, entry.OriginalLocation, entry.ArchivedAt.Format(time.RFC3339))
-	}
+	b.WriteString(m.archiveList.View())
+	b.WriteString("\n")
 }
 
 func newSkillList(items []list.Item) list.Model {
@@ -472,6 +484,14 @@ func (m *Model) selectedMainSkill() (engine.Skill, bool) {
 		return engine.Skill{}, false
 	}
 	return m.inv.Skills[m.cursor], true
+}
+
+func (m *Model) selectedArchiveEntry() (engine.ArchiveEntry, bool) {
+	item, ok := m.archiveList.SelectedItem().(archiveItem)
+	if !ok {
+		return engine.ArchiveEntry{}, false
+	}
+	return item.entry, true
 }
 
 func (m *Model) syncMainCursor() {
@@ -512,6 +532,11 @@ func (m *Model) selectMainCursor() {
 	m.syncMainCursor()
 }
 
+func (m *Model) refreshDetail() {
+	skill, ok := m.selectedMainSkill()
+	m.detail.setSkill(skill, ok)
+}
+
 func (m *Model) resizeList() {
 	width := m.width
 	if width < 1 {
@@ -520,7 +545,7 @@ func (m *Model) resizeList() {
 	m.help.Width = width
 
 	reserved := 3 + renderedLineCount(m.helpView()) // title, help, blank line, trailing newline after the list
-	if len(m.inv.Notices) > 0 {
+	if m.view == mainView && len(m.inv.Notices) > 0 {
 		reserved += 2 + len(m.inv.Notices) // blank line, "Notices" line, one per notice
 	}
 	if m.status != "" {
@@ -529,13 +554,23 @@ func (m *Model) resizeList() {
 
 	height := m.height - reserved
 	if height < 1 {
-		height = len(m.list.Items())
+		if m.view == archiveView {
+			height = max(1, len(m.archiveList.Items()))
+		} else {
+			height = max(1, len(m.list.Items()))
+		}
+	}
+
+	if m.view == archiveView {
+		m.archiveList.SetSize(width, height)
+		return
 	}
 
 	listWidth, detailWidth := splitPaneWidths(width)
 	m.list.SetSize(listWidth, height)
-	m.detail.width = detailWidth
-	m.detail.height = height
+	m.detail.setSize(detailWidth, height)
+	// Size change reclamps scroll; selection content is only replaced via
+	// refreshDetail when the selected skill changes.
 }
 
 func (m *Model) helpView() string {
