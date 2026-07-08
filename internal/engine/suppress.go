@@ -30,16 +30,44 @@ import (
 
 var suppressionFieldKeys = []string{"disable-model-invocation", "user-invocable"}
 
-// Suppress hides a Plugin skill from the model and slash menu by editing its
-// currently-cached SKILL.md and recording the decision in Skillet's own data
-// directory so it survives future plugin updates (see applySuppressions).
-// skill must be a Plugin skill as returned by a recent Inventory() call (its
-// Location is the current cache directory).
+// Suppress hides skill from the model and, where the mechanism supports it,
+// the slash menu, dispatching on Source to the right underlying mechanism:
+// Plugin skills get Skillet's own self-healing frontmatter-edit-plus-record
+// (suppressPlugin, this file), Codex skills get Codex's native config.toml
+// disable (suppressCodex, codex_suppress.go) — two fundamentally different
+// mechanisms on different hosts, unified behind one method so the TUI has a
+// single action to offer, mirroring how SetManualOnly (manual_only.go)
+// unifies Personal and Codex behind one method. skill must come from a
+// recent Inventory() call.
 func (e *Engine) Suppress(skill Skill) error {
-	if skill.Source != SourcePlugin || skill.Plugin == nil {
-		return fmt.Errorf("suppress skill: not a Plugin skill: %s", skill.Name)
+	switch {
+	case skill.Source == SourcePlugin && skill.Plugin != nil:
+		return e.suppressPlugin(skill)
+	case skill.Source == SourceCodex && skill.Kind == KindSkill:
+		return suppressCodex(e.roots.CodexHome, skill)
+	default:
+		return fmt.Errorf("suppress skill: not supported for %s %s %q", skill.Source, skill.Kind, skill.Name)
 	}
+}
 
+// Unsuppress reverses Suppress; see Suppress for the dispatch rationale.
+func (e *Engine) Unsuppress(skill Skill) error {
+	switch {
+	case skill.Source == SourcePlugin && skill.Plugin != nil:
+		return e.unsuppressPlugin(skill)
+	case skill.Source == SourceCodex && skill.Kind == KindSkill:
+		return unsuppressCodex(e.roots.CodexHome, skill)
+	default:
+		return fmt.Errorf("unsuppress skill: not supported for %s %s %q", skill.Source, skill.Kind, skill.Name)
+	}
+}
+
+// suppressPlugin hides a Plugin skill from the model and slash menu by
+// editing its currently-cached SKILL.md and recording the decision in
+// Skillet's own data directory so it survives future plugin updates (see
+// applySuppressions). skill must be a Plugin skill as returned by a recent
+// Inventory() call (its Location is the current cache directory).
+func (e *Engine) suppressPlugin(skill Skill) error {
 	skillMDPath := filepath.Join(skill.Location, "SKILL.md")
 	if err := applySuppressionEdit(skillMDPath); err != nil {
 		return fmt.Errorf("suppress skill: %w", err)
@@ -57,15 +85,11 @@ func (e *Engine) Suppress(skill Skill) error {
 	return nil
 }
 
-// Unsuppress removes the Skillet-owned suppression record and reverts the
-// frontmatter edit on skill's currently-cached SKILL.md. It is safe to call
-// even if the cached copy no longer carries the edit (e.g. it was never
+// unsuppressPlugin removes the Skillet-owned suppression record and reverts
+// the frontmatter edit on skill's currently-cached SKILL.md. It is safe to
+// call even if the cached copy no longer carries the edit (e.g. it was never
 // successfully applied) — reverting is a no-op in that case, not an error.
-func (e *Engine) Unsuppress(skill Skill) error {
-	if skill.Source != SourcePlugin || skill.Plugin == nil {
-		return fmt.Errorf("unsuppress skill: not a Plugin skill: %s", skill.Name)
-	}
-
+func (e *Engine) unsuppressPlugin(skill Skill) error {
 	skillMDPath := filepath.Join(skill.Location, "SKILL.md")
 	if err := revertSuppressionEdit(skillMDPath); err != nil {
 		return fmt.Errorf("unsuppress skill: %w", err)

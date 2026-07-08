@@ -15,7 +15,19 @@ type ActivationState string
 const (
 	ActivationAuto       ActivationState = "Auto"
 	ActivationManualOnly ActivationState = "Manual-only"
-	ActivationDisabled   ActivationState = "Disabled"
+	// ActivationDisabled is Codex's own native config.toml `[[skills.config]]
+	// enabled = false` disable (see docs/research/skill-mechanisms.md,
+	// "Settings-level disable exists"). Codex Suppress (internal/engine/
+	// codex_suppress.go) writes exactly this native entry, so a
+	// Skillet-initiated Codex Suppress and a config.toml entry a user (or
+	// another tool) wrote by hand are mechanistically and functionally
+	// identical — Skillet has no way to tell them apart from the file alone,
+	// and it would be misleading to claim it could by labeling one
+	// "Suppressed" and the other "Disabled". Both render as Disabled.
+	ActivationDisabled ActivationState = "Disabled"
+	// ActivationSuppressed is Skillet-owned Plugin Suppress only (suppress.go)
+	// — a genuinely Skillet-only concept with no native Claude Code
+	// equivalent, requiring a self-healing record Skillet alone maintains.
 	ActivationSuppressed ActivationState = "Suppressed"
 )
 
