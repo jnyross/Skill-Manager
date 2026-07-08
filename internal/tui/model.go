@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -47,6 +48,7 @@ type Model struct {
 	cursor  int
 	inv     engine.Inventory
 	list    list.Model
+	help    help.Model
 	archive []engine.ArchiveEntry
 	pending *pendingConfirm
 	status  string
@@ -59,6 +61,7 @@ func NewModel(e *engine.Engine) *Model {
 	m := &Model{
 		engine: e,
 		list:   newSkillList(nil),
+		help:   help.New(),
 	}
 	m.refreshInventory()
 	return m
@@ -95,6 +98,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch key.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
+	case "?":
+		m.help.ShowAll = !m.help.ShowAll
 	case "up", "k":
 		m.moveCursor(-1)
 	case "down", "j":
@@ -119,7 +124,7 @@ func (m *Model) updateMain(key string) {
 			m.status = "No skill selected."
 			return
 		}
-		if selected.Source != engine.SourcePersonal && selected.Source != engine.SourceCodex {
+		if !canArchiveSkill(selected) {
 			m.status = "Only Personal and Codex skills can be archived in this version."
 			return
 		}
@@ -134,8 +139,7 @@ func (m *Model) updateMain(key string) {
 			m.status = "No skill selected."
 			return
 		}
-		isCodexSkill := selected.Source == engine.SourceCodex && selected.Kind == engine.KindSkill
-		if selected.Source != engine.SourcePlugin && !isCodexSkill {
+		if !canSuppressSkill(selected) {
 			m.status = "Suppress is only available for Plugin and Codex skills."
 			return
 		}
@@ -158,7 +162,7 @@ func (m *Model) updateMain(key string) {
 			m.status = "No skill selected."
 			return
 		}
-		if selected.Source != engine.SourcePlugin || selected.Plugin == nil {
+		if !canUninstallPlugin(selected) {
 			m.status = "Uninstall plugin is only available for Plugin skills."
 			return
 		}
@@ -175,7 +179,7 @@ func (m *Model) updateMain(key string) {
 			m.status = "No skill selected."
 			return
 		}
-		if selected.Kind != engine.KindSkill || (selected.Source != engine.SourcePersonal && selected.Source != engine.SourceCodex) {
+		if !canToggleManualOnly(selected) {
 			m.status = "Manual-only is only available for Personal and Codex skills."
 			return
 		}
@@ -408,7 +412,8 @@ func (m *Model) renderView() string {
 
 func (m *Model) renderMain(b *strings.Builder) {
 	b.WriteString("Skillet\n")
-	b.WriteString("up/k down/j move  u archive Personal/Codex  s suppress/un-suppress Plugin/Codex skill  m manual-only/auto-activate Personal/Codex skill  x uninstall whole Plugin  a archive view  q quit\n\n")
+	b.WriteString(m.helpView())
+	b.WriteString("\n\n")
 
 	if len(m.inv.Skills) == 0 {
 		b.WriteString("No skills found.\n")
@@ -430,7 +435,8 @@ func (m *Model) renderMain(b *strings.Builder) {
 
 func (m *Model) renderArchive(b *strings.Builder) {
 	b.WriteString("Skillet Archive\n")
-	b.WriteString("up/k down/j move  r restore  p purge  a/esc main view  q quit\n\n")
+	b.WriteString(m.helpView())
+	b.WriteString("\n\n")
 
 	if len(m.archive) == 0 {
 		b.WriteString("Archive is empty.\n")
@@ -507,7 +513,13 @@ func (m *Model) selectMainCursor() {
 }
 
 func (m *Model) resizeList() {
-	reserved := 4 // title, help, blank line, trailing newline after the list
+	width := m.width
+	if width < 1 {
+		width = 100
+	}
+	m.help.Width = width
+
+	reserved := 3 + renderedLineCount(m.helpView()) // title, help, blank line, trailing newline after the list
 	if len(m.inv.Notices) > 0 {
 		reserved += 2 + len(m.inv.Notices) // blank line, "Notices" line, one per notice
 	}
@@ -520,14 +532,26 @@ func (m *Model) resizeList() {
 		height = len(m.list.Items())
 	}
 
-	width := m.width
-	if width < 1 {
-		width = 100
-	}
 	listWidth, detailWidth := splitPaneWidths(width)
 	m.list.SetSize(listWidth, height)
 	m.detail.width = detailWidth
 	m.detail.height = height
+}
+
+func (m *Model) helpView() string {
+	if m.view == archiveView {
+		return m.help.View(archiveKeyMap(len(m.archive) > 0, m.help.ShowAll))
+	}
+
+	selected, ok := m.selectedMainSkill()
+	return m.help.View(mainKeyMap(selected, ok, m.help.ShowAll))
+}
+
+func renderedLineCount(s string) int {
+	if s == "" {
+		return 0
+	}
+	return len(strings.Split(s, "\n"))
 }
 
 func splitPaneWidths(width int) (int, int) {
