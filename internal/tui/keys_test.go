@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strings"
 	"testing"
 
 	"skillet/internal/engine"
@@ -207,5 +208,60 @@ func TestArchiveKeyMapRequiresSelectedEntryForRestoreAndPurge(t *testing.T) {
 	}
 	if !selected.purge.Enabled() {
 		t.Fatalf("purge binding disabled with archive selection")
+	}
+}
+
+func TestRejectReasonsMatchGates(t *testing.T) {
+	projectClaude := engine.Skill{Source: engine.SourceProject, Tool: engine.ToolClaudeCode, Kind: engine.KindSkill}
+	if reason := archiveUnavailableReason(projectClaude); reason != "" {
+		t.Fatalf("archiveUnavailableReason(project claude) = %q, want empty", reason)
+	}
+
+	plugin := engine.Skill{Source: engine.SourcePlugin, Kind: engine.KindSkill}
+	reason := archiveUnavailableReason(plugin)
+	if reason == "" {
+		t.Fatal("archiveUnavailableReason(plugin) empty, want reject reason")
+	}
+	if !strings.Contains(reason, "Project") {
+		t.Fatalf("archiveUnavailableReason(plugin) = %q, want Project mentioned", reason)
+	}
+
+	if reason := suppressUnavailableReason(projectClaude); reason == "" {
+		t.Fatal("suppressUnavailableReason(project claude) empty, want reject reason")
+	}
+	if reason := suppressUnavailableReason(engine.Skill{Source: engine.SourceProject, Tool: engine.ToolCodex, Kind: engine.KindSkill}); reason != "" {
+		t.Fatalf("suppressUnavailableReason(project codex) = %q, want empty", reason)
+	}
+
+	manualReason := manualOnlyUnavailableReason(plugin)
+	if manualReason == "" {
+		t.Fatal("manualOnlyUnavailableReason(plugin) empty, want reject reason")
+	}
+	if !strings.Contains(manualReason, "Project") {
+		t.Fatalf("manualOnlyUnavailableReason(plugin) = %q, want Project mentioned", manualReason)
+	}
+	if reason := manualOnlyUnavailableReason(projectClaude); reason != "" {
+		t.Fatalf("manualOnlyUnavailableReason(project claude) = %q, want empty", reason)
+	}
+}
+
+func TestNeedsCodexRestartHint(t *testing.T) {
+	cases := []struct {
+		name  string
+		skill engine.Skill
+		want  bool
+	}{
+		{name: "user codex skill", skill: engine.Skill{Source: engine.SourceCodex, Tool: engine.ToolCodex, Kind: engine.KindSkill}, want: true},
+		{name: "project codex skill", skill: engine.Skill{Source: engine.SourceProject, Tool: engine.ToolCodex, Kind: engine.KindSkill}, want: true},
+		{name: "plugin skill", skill: engine.Skill{Source: engine.SourcePlugin, Tool: engine.ToolClaudeCode, Kind: engine.KindSkill}, want: false},
+		{name: "project claude skill", skill: engine.Skill{Source: engine.SourceProject, Tool: engine.ToolClaudeCode, Kind: engine.KindSkill}, want: false},
+		{name: "personal skill", skill: engine.Skill{Source: engine.SourcePersonal, Tool: engine.ToolClaudeCode, Kind: engine.KindSkill}, want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := needsCodexRestartHint(tc.skill); got != tc.want {
+				t.Fatalf("needsCodexRestartHint(%#v) = %t, want %t", tc.skill, got, tc.want)
+			}
+		})
 	}
 }

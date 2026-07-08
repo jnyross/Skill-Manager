@@ -117,3 +117,36 @@ func canUninstallPlugin(skill engine.Skill) bool {
 func canToggleManualOnly(skill engine.Skill) bool {
 	return skill.Kind == engine.KindSkill && (skill.Source == engine.SourcePersonal || skill.Source == engine.SourceCodex || skill.Source == engine.SourceProject)
 }
+
+// archiveUnavailableReason returns empty when the skill can be archived;
+// otherwise a user-facing reject reason that matches the gate.
+func archiveUnavailableReason(skill engine.Skill) string {
+	if canArchiveSkill(skill) {
+		return ""
+	}
+	return "Only Personal, Codex, and Project skills can be archived."
+}
+
+// suppressUnavailableReason returns empty when Suppress applies; otherwise a
+// user-facing reject reason that matches the gate (Plugin + Codex-mechanism).
+func suppressUnavailableReason(skill engine.Skill) string {
+	if canSuppressSkill(skill) {
+		return ""
+	}
+	return "Suppress is only available for Plugin and Codex-mechanism skills."
+}
+
+// manualOnlyUnavailableReason returns empty when Manual-only applies;
+// otherwise a user-facing reject reason that matches the gate.
+func manualOnlyUnavailableReason(skill engine.Skill) string {
+	if canToggleManualOnly(skill) {
+		return ""
+	}
+	return "Manual-only is only available for Personal, Codex, and Project skills."
+}
+
+// needsCodexRestartHint is true when Suppress/Unsuppress writes Codex
+// config.toml (user-level Codex or Project + Codex Tool).
+func needsCodexRestartHint(skill engine.Skill) bool {
+	return skill.Tool == engine.ToolCodex
+}
