@@ -101,12 +101,13 @@ func (m keyMap) FullHelp() [][]key.Binding {
 }
 
 func canArchiveSkill(skill engine.Skill) bool {
-	return skill.Source == engine.SourcePersonal || skill.Source == engine.SourceCodex
+	return skill.Source == engine.SourcePersonal || skill.Source == engine.SourceCodex || skill.Source == engine.SourceProject
 }
 
 func canSuppressSkill(skill engine.Skill) bool {
 	isCodexSkill := skill.Source == engine.SourceCodex && skill.Kind == engine.KindSkill
-	return skill.Source == engine.SourcePlugin || isCodexSkill
+	isProjectCodexSkill := skill.Source == engine.SourceProject && skill.Tool == engine.ToolCodex && skill.Kind == engine.KindSkill
+	return skill.Source == engine.SourcePlugin || isCodexSkill || isProjectCodexSkill
 }
 
 func canUninstallPlugin(skill engine.Skill) bool {
@@ -114,5 +115,5 @@ func canUninstallPlugin(skill engine.Skill) bool {
 }
 
 func canToggleManualOnly(skill engine.Skill) bool {
-	return skill.Kind == engine.KindSkill && (skill.Source == engine.SourcePersonal || skill.Source == engine.SourceCodex)
+	return skill.Kind == engine.KindSkill && (skill.Source == engine.SourcePersonal || skill.Source == engine.SourceCodex || skill.Source == engine.SourceProject)
 }

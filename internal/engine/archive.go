@@ -14,7 +14,7 @@ import (
 
 func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 	location = absolutePath(location)
-	source, kind, err := e.classifyLocation(location)
+	source, kind, tool, err := e.classifyLocation(location)
 	if err != nil {
 		return ArchiveEntry{}, err
 	}
@@ -33,7 +33,8 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 	var newConfig string
 	var removedConfig []RemovedConfigEntry
 	var configChanged bool
-	if source == SourceCodex && kind == KindSkill {
+	isCodexMechanismSkill := kind == KindSkill && (source == SourceCodex || (source == SourceProject && tool == ToolCodex))
+	if isCodexMechanismSkill {
 		skillName := name
 		if fm, err := parseSkillFrontmatter(filepath.Join(location, "SKILL.md")); err == nil {
 			skillName = fm.Name
@@ -185,24 +186,37 @@ func (e *Engine) Purge(id string) error {
 	return os.RemoveAll(filepath.Join(e.roots.DataDir, "archive", id))
 }
 
-// classifyLocation determines the Source and Kind of an archivable location
-// by checking which scan root it is an immediate child of. Archive is
-// supported for Personal skills, Codex skills (either scan root), and Codex
-// custom prompts; anything else (Plugin skills, unknown paths) is rejected.
-func (e *Engine) classifyLocation(location string) (Source, Kind, error) {
+// classifyLocation determines the Source, Kind, and Tool of an archivable
+// location by checking which scan root it is an immediate child of. Archive
+// is supported for Personal skills, Codex skills (either scan root), Codex
+// custom prompts, and Project skills (either Tool); anything else (Plugin
+// skills, unknown paths) is rejected. Tool is only meaningful to
+// disambiguate a Project location (Personal/Codex sources imply their own
+// Tool and Uninstall doesn't need it disambiguated for them).
+func (e *Engine) classifyLocation(location string) (Source, Kind, Tool, error) {
 	if _, ok := immediateChildOf(filepath.Join(e.roots.ClaudeHome, "skills"), location); ok {
-		return SourcePersonal, KindSkill, nil
+		return SourcePersonal, KindSkill, ToolClaudeCode, nil
 	}
 	if _, ok := immediateChildOf(filepath.Join(e.roots.CodexHome, "skills"), location); ok {
-		return SourceCodex, KindSkill, nil
+		return SourceCodex, KindSkill, ToolCodex, nil
 	}
 	if _, ok := immediateChildOf(filepath.Join(e.roots.AgentsHome, "skills"), location); ok {
-		return SourceCodex, KindSkill, nil
+		return SourceCodex, KindSkill, ToolCodex, nil
 	}
 	if _, ok := immediateChildOf(filepath.Join(e.roots.CodexHome, "prompts"), location); ok {
-		return SourceCodex, KindPrompt, nil
+		return SourceCodex, KindPrompt, ToolCodex, nil
 	}
-	return "", "", fmt.Errorf("archive is not supported for this location: %s", location)
+	for _, root := range e.roots.ClaudeProjectRoots {
+		if _, ok := immediateChildOf(filepath.Join(root, ".claude", "skills"), location); ok {
+			return SourceProject, KindSkill, ToolClaudeCode, nil
+		}
+	}
+	for _, root := range e.roots.ProjectRoots {
+		if _, ok := immediateChildOf(filepath.Join(root, ".agents", "skills"), location); ok {
+			return SourceProject, KindSkill, ToolCodex, nil
+		}
+	}
+	return "", "", "", fmt.Errorf("archive is not supported for this location: %s", location)
 }
 
 // immediateChildOf reports whether location is exactly one path segment

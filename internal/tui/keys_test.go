@@ -23,6 +23,16 @@ func TestCanArchiveSkillMatchesMainHandlerGate(t *testing.T) {
 			want:  true,
 		},
 		{
+			name:  "project claude skill",
+			skill: engine.Skill{Source: engine.SourceProject, Tool: engine.ToolClaudeCode, Kind: engine.KindSkill},
+			want:  true,
+		},
+		{
+			name:  "project codex skill",
+			skill: engine.Skill{Source: engine.SourceProject, Tool: engine.ToolCodex, Kind: engine.KindSkill},
+			want:  true,
+		},
+		{
 			name:  "plugin skill",
 			skill: engine.Skill{Source: engine.SourcePlugin, Kind: engine.KindSkill},
 			want:  false,
@@ -53,6 +63,16 @@ func TestCanSuppressSkillMatchesMainHandlerGate(t *testing.T) {
 			name:  "codex skill",
 			skill: engine.Skill{Source: engine.SourceCodex, Kind: engine.KindSkill},
 			want:  true,
+		},
+		{
+			name:  "project codex skill",
+			skill: engine.Skill{Source: engine.SourceProject, Tool: engine.ToolCodex, Kind: engine.KindSkill},
+			want:  true,
+		},
+		{
+			name:  "project claude skill",
+			skill: engine.Skill{Source: engine.SourceProject, Tool: engine.ToolClaudeCode, Kind: engine.KindSkill},
+			want:  false,
 		},
 		{
 			name:  "codex prompt",
@@ -123,6 +143,16 @@ func TestCanToggleManualOnlyMatchesMainHandlerGate(t *testing.T) {
 		{
 			name:  "codex skill",
 			skill: engine.Skill{Source: engine.SourceCodex, Kind: engine.KindSkill},
+			want:  true,
+		},
+		{
+			name:  "project claude skill",
+			skill: engine.Skill{Source: engine.SourceProject, Tool: engine.ToolClaudeCode, Kind: engine.KindSkill},
+			want:  true,
+		},
+		{
+			name:  "project codex skill",
+			skill: engine.Skill{Source: engine.SourceProject, Tool: engine.ToolCodex, Kind: engine.KindSkill},
 			want:  true,
 		},
 		{

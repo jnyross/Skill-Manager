@@ -101,6 +101,40 @@ func TestSuppressCodexKeysNewEntryByPathNotName(t *testing.T) {
 	}
 }
 
+func TestSuppressProjectCodexSkillDispatchesToCodexMechanism(t *testing.T) {
+	f := newFixture(t)
+	folder := writeSkill(t, filepath.Join(f.root, "repo", ".agents", "skills", "project-codex"), "project-codex", "Project Codex description", "")
+	skillMD := filepath.Join(folder, "SKILL.md")
+	configPath := filepath.Join(f.roots.CodexHome, "config.toml")
+
+	e := engine.New(f.roots)
+	skill := engine.Skill{
+		Name:     "project-codex",
+		Source:   engine.SourceProject,
+		Tool:     engine.ToolCodex,
+		Kind:     engine.KindSkill,
+		Location: folder,
+	}
+	if err := e.Suppress(skill); err != nil {
+		t.Fatalf("Suppress: %v", err)
+	}
+	got, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after suppress: %v", err)
+	}
+	want := "[[skills.config]]\npath = " + strconv.Quote(skillMD) + "\nenabled = false\n"
+	if string(got) != want {
+		t.Fatalf("config after suppress = %q, want %q", string(got), want)
+	}
+
+	if err := e.Unsuppress(skill); err != nil {
+		t.Fatalf("Unsuppress: %v", err)
+	}
+	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+		t.Fatalf("config.toml should not exist after Unsuppress round trip, got err=%v", err)
+	}
+}
+
 func TestUnsuppressCodexSkillRoundTripsConfigCreatedFromScratch(t *testing.T) {
 	f := newFixture(t)
 	writeSkill(t, filepath.Join(f.roots.CodexHome, "skills", "codex-skill"), "codex-skill", "Codex description", "")
@@ -261,6 +295,20 @@ func TestSuppressAndUnsuppressRejectNonCodexSkillSourcesAndKinds(t *testing.T) {
 	}
 	if err := e.Unsuppress(prompt); err == nil {
 		t.Fatalf("Unsuppress on a Codex prompt should return an error")
+	}
+
+	projectClaude := engine.Skill{
+		Name:     "project-claude",
+		Source:   engine.SourceProject,
+		Tool:     engine.ToolClaudeCode,
+		Kind:     engine.KindSkill,
+		Location: filepath.Join(f.root, "repo", ".claude", "skills", "project-claude"),
+	}
+	if err := e.Suppress(projectClaude); err == nil {
+		t.Fatalf("Suppress on a Project Claude Code skill should return an error")
+	}
+	if err := e.Unsuppress(projectClaude); err == nil {
+		t.Fatalf("Unsuppress on a Project Claude Code skill should return an error")
 	}
 }
 

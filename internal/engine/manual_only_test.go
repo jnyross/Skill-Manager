@@ -259,6 +259,78 @@ func TestSetManualOnlyCodexSkillPreservesInterfaceWrapperShape(t *testing.T) {
 	}
 }
 
+func TestSetManualOnlyProjectClaudeCodeSkillDispatchesToPersonalMechanism(t *testing.T) {
+	f := newFixture(t)
+	folder := writeSkill(t, filepath.Join(f.root, "repo", ".claude", "skills", "project-claude"), "project-claude", "Project Claude description", "version: \"1.0.0\"\n")
+	skillMDPath := filepath.Join(folder, "SKILL.md")
+	before, err := os.ReadFile(skillMDPath)
+	if err != nil {
+		t.Fatalf("read SKILL.md before: %v", err)
+	}
+
+	e := engine.New(f.roots)
+	skill := engine.Skill{
+		Name:     "project-claude",
+		Source:   engine.SourceProject,
+		Tool:     engine.ToolClaudeCode,
+		Kind:     engine.KindSkill,
+		Location: folder,
+	}
+	if err := e.SetManualOnly(skill, true); err != nil {
+		t.Fatalf("SetManualOnly(true): %v", err)
+	}
+	data, err := os.ReadFile(skillMDPath)
+	if err != nil {
+		t.Fatalf("read SKILL.md after SetManualOnly(true): %v", err)
+	}
+	if !strings.Contains(string(data), "disable-model-invocation: true") {
+		t.Fatalf("SKILL.md missing disable-model-invocation edit:\n%s", data)
+	}
+
+	if err := e.SetManualOnly(skill, false); err != nil {
+		t.Fatalf("SetManualOnly(false): %v", err)
+	}
+	after, err := os.ReadFile(skillMDPath)
+	if err != nil {
+		t.Fatalf("read SKILL.md after round trip: %v", err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("SKILL.md not byte-identical after round trip:\nbefore=%q\nafter=%q", before, after)
+	}
+}
+
+func TestSetManualOnlyProjectCodexSkillDispatchesToCodexMechanism(t *testing.T) {
+	f := newFixture(t)
+	folder := writeSkill(t, filepath.Join(f.root, "repo", ".agents", "skills", "project-codex"), "project-codex", "Project Codex description", "")
+	policyPath := filepath.Join(folder, "agents", "openai.yaml")
+
+	e := engine.New(f.roots)
+	skill := engine.Skill{
+		Name:     "project-codex",
+		Source:   engine.SourceProject,
+		Tool:     engine.ToolCodex,
+		Kind:     engine.KindSkill,
+		Location: folder,
+	}
+	if err := e.SetManualOnly(skill, true); err != nil {
+		t.Fatalf("SetManualOnly(true): %v", err)
+	}
+	data, err := os.ReadFile(policyPath)
+	if err != nil {
+		t.Fatalf("read policy file: %v", err)
+	}
+	if !strings.Contains(string(data), "allow_implicit_invocation: false") {
+		t.Fatalf("policy file missing allow_implicit_invocation: false:\n%s", data)
+	}
+
+	if err := e.SetManualOnly(skill, false); err != nil {
+		t.Fatalf("SetManualOnly(false): %v", err)
+	}
+	if _, err := os.Stat(policyPath); !os.IsNotExist(err) {
+		t.Fatalf("policy file should not exist after round trip, stat err = %v", err)
+	}
+}
+
 func TestSetManualOnlyRejectsCodexCustomPrompt(t *testing.T) {
 	f := newFixture(t)
 	writePrompt(t, filepath.Join(f.roots.CodexHome, "prompts", "ideas.md"), "Ideas prompt")

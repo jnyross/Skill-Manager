@@ -50,6 +50,10 @@ func (e *Engine) SetManualOnly(skill Skill, manualOnly bool) error {
 		return setPersonalManualOnly(skill, manualOnly)
 	case skill.Source == SourceCodex && skill.Kind == KindSkill:
 		return setCodexManualOnlyForSkill(skill, manualOnly)
+	case skill.Source == SourceProject && skill.Tool == ToolClaudeCode && skill.Kind == KindSkill:
+		return setPersonalManualOnly(skill, manualOnly)
+	case skill.Source == SourceProject && skill.Tool == ToolCodex && skill.Kind == KindSkill:
+		return setCodexManualOnlyForSkill(skill, manualOnly)
 	default:
 		return fmt.Errorf("manual-only toggle: not supported for %s %s %q", skill.Source, skill.Kind, skill.Name)
 	}
