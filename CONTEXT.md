@@ -9,14 +9,18 @@ Any installable unit of agent instructions the manager governs, regardless of ho
 _Avoid_: command, prompt (as an umbrella term), extension
 
 **Source**:
-Where a skill is installed from and lives — one of Personal, Project, Plugin, or Codex. Determines what uninstall and activation control mean for that skill.
+Where a skill is installed from and lives — one of Personal, Plugin, Codex, or Project. Personal, Plugin, and Codex are all user-level, one per tool/mechanism. Project is the one repo-level group and spans skills from either tool (a Claude Code project skill and a Codex repo-scoped skill are both "Project", distinguished by their **Tool**). Determines what uninstall and activation control mean for that skill.
 _Avoid_: location, origin, type
+
+**Tool**:
+Which underlying system governs a skill — Claude Code or Codex. Orthogonal to Source: every skill has exactly one of each. Only surfaced as a visible label within the Project group, where both tools' repo-scoped skills sit side by side; Personal/Plugin skills are always Claude Code and the Codex group is always Codex, so the label would be redundant there.
+_Avoid_: type (already used for Kind), platform
 
 **Personal skill**:
 A skill installed at the user level of Claude Code, following the user into every session.
 
 **Project skill**:
-A skill installed inside a single repository, applying only there.
+A skill installed inside a single repository, applying only there — either a Claude Code skill under `<repo>/.claude/skills` or a Codex skill under `<repo>/.agents/skills` (discovered via the repo-root walk-up from the current working directory, mirroring Codex's own repo-scope discovery). Grouped as one Source, tagged with its Tool.
 
 **Plugin skill**:
 A skill that arrives bundled inside a Claude Code plugin from a marketplace; it cannot be removed alone without affecting its plugin.
