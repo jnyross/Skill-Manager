@@ -51,11 +51,22 @@ type Inventory struct {
 }
 
 type ArchiveEntry struct {
-	ID               string    `json:"-"`
-	Name             string    `json:"name"`
-	Source           Source    `json:"source"`
-	OriginalLocation string    `json:"originalLocation"`
-	ArchivedAt       time.Time `json:"archivedAt"`
-	IsSymlink        bool      `json:"isSymlink"`
-	SymlinkTarget    string    `json:"symlinkTarget"`
+	ID                   string               `json:"-"`
+	Name                 string               `json:"name"`
+	Source               Source               `json:"source"`
+	Kind                 Kind                 `json:"kind"`
+	OriginalLocation     string               `json:"originalLocation"`
+	ArchivedAt           time.Time            `json:"archivedAt"`
+	IsSymlink            bool                 `json:"isSymlink"`
+	SymlinkTarget        string               `json:"symlinkTarget"`
+	RemovedConfigEntries []RemovedConfigEntry `json:"removedConfigEntries,omitempty"`
+}
+
+// RemovedConfigEntry records a stale Codex config.toml `[[skills.config]]`
+// block removed on Uninstall, so Restore can splice it back byte-identically.
+// Offset is the byte position within the config file (as it stands after
+// removal) where Raw must be reinserted.
+type RemovedConfigEntry struct {
+	Offset int    `json:"offset"`
+	Raw    string `json:"raw"`
 }
