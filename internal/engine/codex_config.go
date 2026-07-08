@@ -71,6 +71,34 @@ func writeCodexConfig(codexHome, content string) error {
 	return nil
 }
 
+// readCodexConfigOrEmpty reads <codexHome>/config.toml's raw content,
+// returning "" (not an error) when the file doesn't exist yet — the signal
+// codex_suppress.go's Suppress needs to know it's starting from nothing
+// rather than failing to read an existing file.
+func readCodexConfigOrEmpty(codexHome string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(codexHome, "config.toml"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read codex config: %w", err)
+	}
+	return string(data), nil
+}
+
+// removeCodexConfigFile deletes <codexHome>/config.toml outright. A no-op,
+// not an error, if it's already gone. Used by codex_suppress.go's Unsuppress
+// when removing the last remaining `[[skills.config]]` block leaves nothing
+// else in the file — see that file for why deleting (rather than leaving a
+// zero-byte file) is what makes a Suppress-then-Unsuppress round trip exact
+// when Suppress created config.toml from nothing.
+func removeCodexConfigFile(codexHome string) error {
+	if err := os.Remove(filepath.Join(codexHome, "config.toml")); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("remove codex config: %w", err)
+	}
+	return nil
+}
+
 // reinstateCodexConfigEntries splices previously removed blocks back into
 // <codexHome>/config.toml, one at a time, converting each entry's skeleton
 // offset into the correct position in the config file as it currently

@@ -114,11 +114,12 @@ func (m *Model) updateMain(key string) {
 			return
 		}
 		selected := m.inv.Skills[m.cursor]
-		if selected.Source != engine.SourcePlugin {
-			m.status = "Suppress is only available for Plugin skills."
+		isCodexSkill := selected.Source == engine.SourceCodex && selected.Kind == engine.KindSkill
+		if selected.Source != engine.SourcePlugin && !isCodexSkill {
+			m.status = "Suppress is only available for Plugin and Codex skills."
 			return
 		}
-		if selected.Activation == engine.ActivationSuppressed {
+		if selected.Activation == engine.ActivationSuppressed || selected.Activation == engine.ActivationDisabled {
 			m.pending = &pendingConfirm{
 				description: fmt.Sprintf("Un-suppress %q? y to confirm, any other key to cancel.", selected.Name),
 				action:      pendingUnsuppress,
@@ -222,6 +223,9 @@ func (m *Model) executePending() {
 			return
 		}
 		m.status = "Suppressed " + m.pending.skill.Name + "."
+		if m.pending.skill.Source == engine.SourceCodex {
+			m.status += " Restart Codex to pick up the change."
+		}
 		m.refreshInventory()
 	case pendingUnsuppress:
 		if err := m.engine.Unsuppress(m.pending.skill); err != nil {
@@ -229,6 +233,9 @@ func (m *Model) executePending() {
 			return
 		}
 		m.status = "Un-suppressed " + m.pending.skill.Name + "."
+		if m.pending.skill.Source == engine.SourceCodex {
+			m.status += " Restart Codex to pick up the change."
+		}
 		m.refreshInventory()
 	case pendingManualOnly:
 		if err := m.engine.SetManualOnly(m.pending.skill, true); err != nil {
@@ -310,7 +317,7 @@ func (m *Model) View() string {
 
 func (m *Model) renderMain(b *strings.Builder) {
 	b.WriteString("Skillet\n")
-	b.WriteString("up/k down/j move  u archive Personal/Codex  s suppress/un-suppress Plugin  m manual-only/auto-activate Personal/Codex skill  a archive view  q quit\n\n")
+	b.WriteString("up/k down/j move  u archive Personal/Codex  s suppress/un-suppress Plugin/Codex skill  m manual-only/auto-activate Personal/Codex skill  a archive view  q quit\n\n")
 
 	if len(m.inv.Skills) == 0 {
 		b.WriteString("No skills found.\n")
