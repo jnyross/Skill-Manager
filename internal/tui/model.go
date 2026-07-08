@@ -382,12 +382,15 @@ func (m *Model) refreshArchive() {
 }
 
 func (m *Model) View() string {
-	var b strings.Builder
+	view := m.renderView()
 	if m.pending != nil {
-		b.WriteString(m.pending.description)
-		b.WriteString("\n")
-		return b.String()
+		return renderConfirmOverlay(view, m.pending.description, m.width, m.height)
 	}
+	return view
+}
+
+func (m *Model) renderView() string {
+	var b strings.Builder
 
 	if m.view == archiveView {
 		m.renderArchive(&b)
@@ -464,7 +467,6 @@ func (m *Model) selectedMainSkill() (engine.Skill, bool) {
 	}
 	return m.inv.Skills[m.cursor], true
 }
-
 
 func (m *Model) syncMainCursor() {
 	selected, ok := m.list.SelectedItem().(skillItem)
