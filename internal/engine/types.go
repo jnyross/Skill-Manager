@@ -110,3 +110,50 @@ type RemovedConfigEntry struct {
 	Offset int    `json:"offset"`
 	Raw    string `json:"raw"`
 }
+
+// LibrarySourceKind selects which install-source descriptor fields are set on
+// a Library entry (CONTEXT.md Library; ADR 0004). Exactly one field group is
+// meaningful per kind.
+type LibrarySourceKind string
+
+const (
+	LibrarySourceSkillsSh    LibrarySourceKind = "skills.sh"
+	LibrarySourceGit         LibrarySourceKind = "git"
+	LibrarySourceMarketplace LibrarySourceKind = "marketplace"
+	LibrarySourceLocalPath   LibrarySourceKind = "local-path"
+)
+
+// LibrarySource is an install-source pointer resolved fresh on Install — not
+// a snapshot of skill content (ADR 0004).
+type LibrarySource struct {
+	Kind LibrarySourceKind `json:"kind"`
+
+	// Kind == LibrarySourceSkillsSh
+	SkillsShRepo  string `json:"skillsShRepo,omitempty"`
+	SkillsShSkill string `json:"skillsShSkill,omitempty"` // optional; empty = all skills from source
+
+	// Kind == LibrarySourceGit
+	GitURL     string `json:"gitUrl,omitempty"`
+	GitRef     string `json:"gitRef,omitempty"`
+	GitSubPath string `json:"gitSubPath,omitempty"`
+
+	// Kind == LibrarySourceMarketplace
+	Marketplace       string `json:"marketplace,omitempty"`
+	PluginName        string `json:"pluginName,omitempty"`
+	MarketplaceSource string `json:"marketplaceSource,omitempty"` // optional; for marketplace add when unknown
+
+	// Kind == LibrarySourceLocalPath
+	LocalPath string `json:"localPath,omitempty"`
+}
+
+// LibraryEntry is one item in the user's Library catalog (CONTEXT.md: spans
+// Personal/Plugin/Codex — never Project as a catalog home). Tool applies to
+// skill entries; marketplace/plugin entries leave Tool empty.
+type LibraryEntry struct {
+	ID      string        `json:"id"`
+	Name    string        `json:"name"`
+	Kind    Kind          `json:"kind,omitempty"`
+	Tool    Tool          `json:"tool,omitempty"`
+	Source  LibrarySource `json:"source"`
+	AddedAt time.Time     `json:"addedAt"`
+}

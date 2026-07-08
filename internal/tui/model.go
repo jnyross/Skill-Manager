@@ -17,6 +17,7 @@ type viewState int
 const (
 	mainView viewState = iota
 	archiveView
+	libraryView
 )
 
 type pendingAction int
@@ -48,8 +49,10 @@ type Model struct {
 	inv         engine.Inventory
 	list        list.Model
 	archiveList list.Model
+	libraryList list.Model
 	help        help.Model
 	archive     []engine.ArchiveEntry
+	library     []engine.LibraryEntry
 	pending     *pendingConfirm
 	status      string
 	width       int
@@ -62,6 +65,7 @@ func NewModel(e *engine.Engine) *Model {
 		engine:      e,
 		list:        newSkillList(nil),
 		archiveList: newArchiveList(nil),
+		libraryList: newLibraryList(nil),
 		help:        help.New(),
 		detail:      newDetailPane(),
 	}
@@ -115,10 +119,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.detail.scrollHalf(1)
 		}
 	default:
-		if m.view == mainView {
+		switch m.view {
+		case mainView:
 			m.updateMain(key.String())
-		} else {
+		case archiveView:
 			m.updateArchive(key.String())
+		case libraryView:
+			m.updateLibrary(key.String())
 		}
 	}
 
@@ -209,6 +216,11 @@ func (m *Model) updateMain(key string) {
 	case "a":
 		m.view = archiveView
 		m.refreshArchive()
+	case "L":
+		m.view = libraryView
+		m.refreshLibrary()
+	case "l":
+		m.toggleLibraryMembership()
 	}
 }
 
@@ -241,6 +253,61 @@ func (m *Model) updateArchive(key string) {
 			id:          selected.ID,
 		}
 	}
+}
+
+func (m *Model) updateLibrary(key string) {
+	switch key {
+	case "L", "esc":
+		m.view = mainView
+		m.cursor = 0
+		m.refreshInventory()
+	case "d":
+		selected, ok := m.selectedLibraryEntry()
+		if !ok {
+			m.status = "No Library entry selected."
+			return
+		}
+		if err := m.engine.RemoveLibraryEntry(selected.ID); err != nil {
+			m.status = "Remove from Library failed: " + err.Error()
+			return
+		}
+		m.status = "Removed " + selected.Name + " from Library."
+		m.refreshLibrary()
+	}
+}
+
+func (m *Model) toggleLibraryMembership() {
+	selected, ok := m.selectedMainSkill()
+	if !ok {
+		m.status = "No skill selected."
+		return
+	}
+	if reason := libraryToggleUnavailableReason(selected); reason != "" {
+		m.status = reason
+		return
+	}
+	if existing, found := m.engine.FindLibraryEntryByLocalPath(selected.Location); found {
+		if err := m.engine.RemoveLibraryEntry(existing.ID); err != nil {
+			m.status = "Remove from Library failed: " + err.Error()
+			return
+		}
+		m.status = "Removed " + selected.Name + " from Library."
+		return
+	}
+	entry, err := m.engine.AddLibraryEntry(engine.LibraryEntry{
+		Name: selected.Name,
+		Kind: selected.Kind,
+		Tool: selected.Tool,
+		Source: engine.LibrarySource{
+			Kind:      engine.LibrarySourceLocalPath,
+			LocalPath: selected.Location,
+		},
+	})
+	if err != nil {
+		m.status = "Add to Library failed: " + err.Error()
+		return
+	}
+	m.status = "Added " + entry.Name + " to Library."
 }
 
 func (m *Model) executePending() {
@@ -330,23 +397,29 @@ func pluginSkillNames(skills []engine.Skill, plugin engine.PluginInfo) []string 
 }
 
 func (m *Model) moveCursor(delta int) {
-	if m.view == mainView {
+	switch m.view {
+	case mainView:
 		m.moveMainCursor(delta)
-		return
+	case archiveView:
+		m.moveListCursor(&m.archiveList, delta)
+	case libraryView:
+		m.moveListCursor(&m.libraryList, delta)
 	}
+}
 
-	items := m.archiveList.Items()
+func (m *Model) moveListCursor(l *list.Model, delta int) {
+	items := l.Items()
 	if len(items) == 0 {
 		return
 	}
-	index := m.archiveList.Index() + delta
+	index := l.Index() + delta
 	if index < 0 {
 		index = 0
 	}
 	if index >= len(items) {
 		index = len(items) - 1
 	}
-	m.archiveList.Select(index)
+	l.Select(index)
 }
 
 func (m *Model) moveMainCursor(delta int) {
@@ -403,6 +476,27 @@ func (m *Model) refreshArchive() {
 	m.archiveList.Select(index)
 }
 
+func (m *Model) refreshLibrary() {
+	entries, err := m.engine.ListLibrary()
+	if err != nil {
+		m.library = nil
+		_ = m.libraryList.SetItems(nil)
+		m.status = "Library read failed: " + err.Error()
+		return
+	}
+	m.library = entries
+	_ = m.libraryList.SetItems(buildLibraryItems(m.library))
+	if len(m.library) == 0 {
+		m.libraryList.Select(0)
+		return
+	}
+	index := m.libraryList.Index()
+	if index >= len(m.library) {
+		index = len(m.library) - 1
+	}
+	m.libraryList.Select(index)
+}
+
 func (m *Model) View() string {
 	view := m.renderView()
 	if m.pending != nil {
@@ -414,9 +508,12 @@ func (m *Model) View() string {
 func (m *Model) renderView() string {
 	var b strings.Builder
 
-	if m.view == archiveView {
+	switch m.view {
+	case archiveView:
 		m.renderArchive(&b)
-	} else {
+	case libraryView:
+		m.renderLibrary(&b)
+	default:
 		m.renderMain(&b)
 	}
 
@@ -463,6 +560,19 @@ func (m *Model) renderArchive(b *strings.Builder) {
 	b.WriteString("\n")
 }
 
+func (m *Model) renderLibrary(b *strings.Builder) {
+	b.WriteString("Skillet Library\n")
+	b.WriteString(m.helpView())
+	b.WriteString("\n\n")
+
+	if len(m.library) == 0 {
+		b.WriteString("Library is empty.\n")
+		return
+	}
+	b.WriteString(m.libraryList.View())
+	b.WriteString("\n")
+}
+
 func newSkillList(items []list.Item) list.Model {
 	model := list.New(items, skillDelegate{}, 0, 0)
 	model.SetShowTitle(false)
@@ -490,6 +600,14 @@ func (m *Model) selectedArchiveEntry() (engine.ArchiveEntry, bool) {
 	item, ok := m.archiveList.SelectedItem().(archiveItem)
 	if !ok {
 		return engine.ArchiveEntry{}, false
+	}
+	return item.entry, true
+}
+
+func (m *Model) selectedLibraryEntry() (engine.LibraryEntry, bool) {
+	item, ok := m.libraryList.SelectedItem().(libraryItem)
+	if !ok {
+		return engine.LibraryEntry{}, false
 	}
 	return item.entry, true
 }
@@ -554,15 +672,22 @@ func (m *Model) resizeList() {
 
 	height := m.height - reserved
 	if height < 1 {
-		if m.view == archiveView {
+		switch m.view {
+		case archiveView:
 			height = max(1, len(m.archiveList.Items()))
-		} else {
+		case libraryView:
+			height = max(1, len(m.libraryList.Items()))
+		default:
 			height = max(1, len(m.list.Items()))
 		}
 	}
 
-	if m.view == archiveView {
+	switch m.view {
+	case archiveView:
 		m.archiveList.SetSize(width, height)
+		return
+	case libraryView:
+		m.libraryList.SetSize(width, height)
 		return
 	}
 
@@ -574,12 +699,15 @@ func (m *Model) resizeList() {
 }
 
 func (m *Model) helpView() string {
-	if m.view == archiveView {
+	switch m.view {
+	case archiveView:
 		return m.help.View(archiveKeyMap(len(m.archive) > 0, m.help.ShowAll))
+	case libraryView:
+		return m.help.View(libraryKeyMap(len(m.library) > 0, m.help.ShowAll))
+	default:
+		selected, ok := m.selectedMainSkill()
+		return m.help.View(mainKeyMap(selected, ok, m.help.ShowAll))
 	}
-
-	selected, ok := m.selectedMainSkill()
-	return m.help.View(mainKeyMap(selected, ok, m.help.ShowAll))
 }
 
 func renderedLineCount(s string) int {
