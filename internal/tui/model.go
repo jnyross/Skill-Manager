@@ -27,6 +27,7 @@ const (
 	pendingUnsuppress
 	pendingManualOnly
 	pendingAutoActivate
+	pendingUninstallPlugin
 )
 
 type pendingConfirm struct {
@@ -35,6 +36,7 @@ type pendingConfirm struct {
 	location    string
 	id          string
 	skill       engine.Skill
+	plugin      engine.PluginInfo
 }
 
 type Model struct {
@@ -131,6 +133,23 @@ func (m *Model) updateMain(key string) {
 				action:      pendingSuppress,
 				skill:       selected,
 			}
+		}
+	case "x":
+		if len(m.inv.Skills) == 0 {
+			m.status = "No skill selected."
+			return
+		}
+		selected := m.inv.Skills[m.cursor]
+		if selected.Source != engine.SourcePlugin || selected.Plugin == nil {
+			m.status = "Uninstall plugin is only available for Plugin skills."
+			return
+		}
+		names := pluginSkillNames(m.inv.Skills, *selected.Plugin)
+		m.pending = &pendingConfirm{
+			description: fmt.Sprintf("Uninstall plugin %q (%s@%s)? This removes all %d skills: %s. y to confirm, any other key to cancel.",
+				selected.Plugin.Plugin, selected.Plugin.Plugin, selected.Plugin.Marketplace, len(names), strings.Join(names, ", ")),
+			action: pendingUninstallPlugin,
+			plugin: *selected.Plugin,
 		}
 	case "m":
 		if len(m.inv.Skills) == 0 {
@@ -251,7 +270,32 @@ func (m *Model) executePending() {
 		}
 		m.status = "Restored Auto-activation for " + m.pending.skill.Name + "."
 		m.refreshInventory()
+	case pendingUninstallPlugin:
+		plugin := m.pending.plugin
+		if err := m.engine.UninstallPlugin(plugin); err != nil {
+			m.status = "Uninstall plugin failed: " + err.Error()
+			return
+		}
+		m.status = "Uninstalled plugin " + plugin.Plugin + "."
+		m.refreshInventory()
 	}
+}
+
+// pluginSkillNames returns the names of every skill in skills belonging to
+// plugin (matched by Marketplace+Plugin), for the Uninstall-plugin
+// confirmation to list every skill about to be removed (issue #10's
+// acceptance criterion: "the confirmation lists all N skills in the plugin
+// before proceeding"). Built client-side from the Inventory() result
+// already held by the model, rather than a new engine listing method.
+func pluginSkillNames(skills []engine.Skill, plugin engine.PluginInfo) []string {
+	var names []string
+	for _, skill := range skills {
+		if skill.Source == engine.SourcePlugin && skill.Plugin != nil &&
+			skill.Plugin.Marketplace == plugin.Marketplace && skill.Plugin.Plugin == plugin.Plugin {
+			names = append(names, skill.Name)
+		}
+	}
+	return names
 }
 
 func (m *Model) moveCursor(delta int) {
@@ -317,7 +361,7 @@ func (m *Model) View() string {
 
 func (m *Model) renderMain(b *strings.Builder) {
 	b.WriteString("Skillet\n")
-	b.WriteString("up/k down/j move  u archive Personal/Codex  s suppress/un-suppress Plugin/Codex skill  m manual-only/auto-activate Personal/Codex skill  a archive view  q quit\n\n")
+	b.WriteString("up/k down/j move  u archive Personal/Codex  s suppress/un-suppress Plugin/Codex skill  m manual-only/auto-activate Personal/Codex skill  x uninstall whole Plugin  a archive view  q quit\n\n")
 
 	if len(m.inv.Skills) == 0 {
 		b.WriteString("No skills found.\n")

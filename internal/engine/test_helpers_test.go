@@ -95,6 +95,36 @@ func writePluginManifest(t *testing.T, claudeHome string, plugins map[string][]m
 	writeFile(t, filepath.Join(claudeHome, "plugins", "installed_plugins.json"), string(data))
 }
 
+// writeSettingsJSON writes a fixture <claudeHome>/settings.json with
+// arbitrary top-level content (e.g. "enabledPlugins" alongside unrelated
+// keys like "model"), mirroring the real user-level settings.json shape
+// verified in docs/research/skill-mechanisms.md ("Enabled/disabled").
+func writeSettingsJSON(t *testing.T, claudeHome string, contents map[string]any) {
+	t.Helper()
+	data, err := json.MarshalIndent(contents, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal settings.json fixture: %v", err)
+	}
+	writeFile(t, filepath.Join(claudeHome, "settings.json"), string(data)+"\n")
+}
+
+// readJSONFile reads and unmarshals a JSON fixture file into a generic
+// map, for tests that need to assert on the raw resulting file content
+// (e.g. that unrelated keys/entries were left untouched) rather than going
+// back through the engine's own read path.
+func readJSONFile(t *testing.T, path string) map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("parse %s: %v", path, err)
+	}
+	return result
+}
+
 func sourceSkills(inv engine.Inventory, source engine.Source) []engine.Skill {
 	var skills []engine.Skill
 	for _, skill := range inv.Skills {
