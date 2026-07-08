@@ -45,6 +45,8 @@ func (e *Engine) Suppress(skill Skill) error {
 		return e.suppressPlugin(skill)
 	case skill.Source == SourceCodex && skill.Kind == KindSkill:
 		return suppressCodex(e.roots.CodexHome, skill)
+	case skill.Source == SourceProject && skill.Tool == ToolCodex && skill.Kind == KindSkill:
+		return suppressCodex(e.roots.CodexHome, skill)
 	default:
 		return fmt.Errorf("suppress skill: not supported for %s %s %q", skill.Source, skill.Kind, skill.Name)
 	}
@@ -56,6 +58,8 @@ func (e *Engine) Unsuppress(skill Skill) error {
 	case skill.Source == SourcePlugin && skill.Plugin != nil:
 		return e.unsuppressPlugin(skill)
 	case skill.Source == SourceCodex && skill.Kind == KindSkill:
+		return unsuppressCodex(e.roots.CodexHome, skill)
+	case skill.Source == SourceProject && skill.Tool == ToolCodex && skill.Kind == KindSkill:
 		return unsuppressCodex(e.roots.CodexHome, skill)
 	default:
 		return fmt.Errorf("unsuppress skill: not supported for %s %s %q", skill.Source, skill.Kind, skill.Name)

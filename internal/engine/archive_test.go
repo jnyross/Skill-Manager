@@ -3,6 +3,7 @@ package engine_test
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"skillet/internal/engine"
@@ -94,6 +95,110 @@ func TestArchiveRestoreRoundTripPreservesFixtureTree(t *testing.T) {
 	}
 	after := snapshotTree(t, f.root)
 	assertSnapshotsEqual(t, before, after)
+}
+
+func TestArchiveRestoreRoundTripProjectSkills(t *testing.T) {
+	cases := []struct {
+		name          string
+		locationParts []string
+		configure     func(*engine.Roots, string)
+	}{
+		{
+			name:          "claude project skill",
+			locationParts: []string{".claude", "skills", "project-claude"},
+			configure: func(roots *engine.Roots, repo string) {
+				roots.ClaudeProjectRoots = []string{repo}
+			},
+		},
+		{
+			name:          "codex project skill",
+			locationParts: []string{".agents", "skills", "project-codex"},
+			configure: func(roots *engine.Roots, repo string) {
+				roots.ProjectRoots = []string{repo}
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			repo := filepath.Join(f.root, "repo")
+			location := writeSkill(t, filepath.Join(append([]string{repo}, tc.locationParts...)...), filepath.Base(tc.locationParts[len(tc.locationParts)-1]), "Project description", "")
+			tc.configure(&f.roots, repo)
+			writeFile(t, filepath.Join(location, "references", "notes.md"), "notes\n")
+			before := snapshotTree(t, f.root)
+			e := engine.New(f.roots)
+
+			entry, err := e.Uninstall(location)
+			if err != nil {
+				t.Fatalf("uninstall: %v", err)
+			}
+			if entry.Source != engine.SourceProject || entry.Kind != engine.KindSkill || entry.OriginalLocation != location {
+				t.Fatalf("unexpected archive entry: %#v", entry)
+			}
+			if _, err := os.Lstat(location); !os.IsNotExist(err) {
+				t.Fatalf("original location still exists or unexpected error: %v", err)
+			}
+
+			if err := e.Restore(entry.ID); err != nil {
+				t.Fatalf("restore: %v", err)
+			}
+			after := snapshotTree(t, f.root)
+			assertSnapshotsEqual(t, before, after)
+		})
+	}
+}
+
+func TestArchiveUninstallRemovesConfigEntryForSuppressedProjectCodexSkill(t *testing.T) {
+	f := newFixture(t)
+	folder := writeSkill(t, filepath.Join(f.root, "repo", ".agents", "skills", "project-codex"), "project-codex", "Project Codex description", "")
+	f.roots.ProjectRoots = []string{filepath.Join(f.root, "repo")}
+	configPath := filepath.Join(f.roots.CodexHome, "config.toml")
+
+	e := engine.New(f.roots)
+	skill := engine.Skill{
+		Name:     "project-codex",
+		Source:   engine.SourceProject,
+		Tool:     engine.ToolCodex,
+		Kind:     engine.KindSkill,
+		Location: folder,
+	}
+	if err := e.Suppress(skill); err != nil {
+		t.Fatalf("suppress: %v", err)
+	}
+	if _, err := os.Stat(configPath); err != nil {
+		t.Fatalf("config.toml missing after suppress: %v", err)
+	}
+
+	entry, err := e.Uninstall(folder)
+	if err != nil {
+		t.Fatalf("uninstall: %v", err)
+	}
+	if entry.Source != engine.SourceProject {
+		t.Fatalf("unexpected archive entry: %#v", entry)
+	}
+	if len(entry.RemovedConfigEntries) == 0 {
+		t.Fatalf("expected archived entry to record the removed config.toml block, got none")
+	}
+	got, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after uninstall: %v", err)
+	}
+	if string(got) != "" {
+		t.Fatalf("config after uninstall = %q, want empty (matching TestArchiveUninstallCodexSkillByNameMatch's existing behavior for a config.toml that becomes empty)", string(got))
+	}
+
+	if err := e.Restore(entry.ID); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+	got, err = os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after restore: %v", err)
+	}
+	want := "[[skills.config]]\npath = " + strconv.Quote(filepath.Join(folder, "SKILL.md")) + "\nenabled = false\n"
+	if string(got) != want {
+		t.Fatalf("config after restore = %q, want %q", string(got), want)
+	}
 }
 
 func TestArchivePurgeRemovesArchiveEntry(t *testing.T) {
