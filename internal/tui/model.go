@@ -23,6 +23,8 @@ const (
 	pendingUninstall pendingAction = iota
 	pendingRestore
 	pendingPurge
+	pendingSuppress
+	pendingUnsuppress
 )
 
 type pendingConfirm struct {
@@ -30,6 +32,7 @@ type pendingConfirm struct {
 	action      pendingAction
 	location    string
 	id          string
+	skill       engine.Skill
 }
 
 type Model struct {
@@ -103,6 +106,29 @@ func (m *Model) updateMain(key string) {
 			action:      pendingUninstall,
 			location:    selected.Location,
 		}
+	case "s":
+		if len(m.inv.Skills) == 0 {
+			m.status = "No skill selected."
+			return
+		}
+		selected := m.inv.Skills[m.cursor]
+		if selected.Source != engine.SourcePlugin {
+			m.status = "Suppress is only available for Plugin skills."
+			return
+		}
+		if selected.Activation == engine.ActivationSuppressed {
+			m.pending = &pendingConfirm{
+				description: fmt.Sprintf("Un-suppress %q? y to confirm, any other key to cancel.", selected.Name),
+				action:      pendingUnsuppress,
+				skill:       selected,
+			}
+		} else {
+			m.pending = &pendingConfirm{
+				description: fmt.Sprintf("Suppress %q? Hides it from the model and slash menu; plugin stays installed. y to confirm, any other key to cancel.", selected.Name),
+				action:      pendingSuppress,
+				skill:       selected,
+			}
+		}
 	case "a":
 		m.view = archiveView
 		m.cursor = 0
@@ -165,6 +191,20 @@ func (m *Model) executePending() {
 		}
 		m.status = "Purged archive entry."
 		m.refreshArchive()
+	case pendingSuppress:
+		if err := m.engine.Suppress(m.pending.skill); err != nil {
+			m.status = "Suppress failed: " + err.Error()
+			return
+		}
+		m.status = "Suppressed " + m.pending.skill.Name + "."
+		m.refreshInventory()
+	case pendingUnsuppress:
+		if err := m.engine.Unsuppress(m.pending.skill); err != nil {
+			m.status = "Un-suppress failed: " + err.Error()
+			return
+		}
+		m.status = "Un-suppressed " + m.pending.skill.Name + "."
+		m.refreshInventory()
 	}
 }
 
@@ -231,7 +271,7 @@ func (m *Model) View() string {
 
 func (m *Model) renderMain(b *strings.Builder) {
 	b.WriteString("Skillet\n")
-	b.WriteString("up/k down/j move  u archive Personal/Codex  a archive view  q quit\n\n")
+	b.WriteString("up/k down/j move  u archive Personal/Codex  s suppress/un-suppress Plugin  a archive view  q quit\n\n")
 
 	if len(m.inv.Skills) == 0 {
 		b.WriteString("No skills found.\n")

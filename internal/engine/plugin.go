@@ -17,50 +17,69 @@ type pluginInstall struct {
 	InstallPath string `json:"installPath"`
 }
 
-func scanPlugins(claudeHome string) ([]Skill, []Notice) {
+// scanPlugins scans every user-scoped installed plugin for skills, then
+// reconciles the result against Skillet's own Suppress state (dataDir): see
+// applySuppressions in suppress.go for the self-healing loop that keeps
+// Suppressed plugin skills hidden across plugin updates. Unlike the rest of
+// this file, that reconciliation step can write to disk (re-applying a
+// suppression edit to a freshly updated SKILL.md) — a deliberate exception to
+// "scans are pure reads", required by issue #9's self-healing-on-every-run
+// design.
+func scanPlugins(claudeHome, dataDir string) ([]Skill, []Notice) {
 	manifestPath := filepath.Join(claudeHome, "plugins", "installed_plugins.json")
 	data, err := os.ReadFile(manifestPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, []Notice{{Message: "Plugin manifest unreadable: " + manifestPath + ": " + err.Error()}}
-	}
-
-	var manifest installedPluginsManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, []Notice{{Message: "Plugin manifest malformed: " + manifestPath + ": " + err.Error()}}
-	}
 
 	var skills []Skill
 	var notices []Notice
-	for key, installs := range manifest.Plugins {
-		pluginName, marketplace, ok := splitPluginKey(key)
-		if !ok {
-			notices = append(notices, Notice{Message: "Plugin manifest entry has invalid key: " + key})
-			continue
-		}
+	var manifest installedPluginsManifest
 
-		for _, install := range installs {
-			if install.Scope != "user" {
-				continue
-			}
-			if _, err := os.Stat(install.InstallPath); err != nil {
-				if os.IsNotExist(err) {
-					notices = append(notices, Notice{Message: fmt.Sprintf("Plugin %s: install path not found: %s", key, install.InstallPath)})
-				} else {
-					notices = append(notices, Notice{Message: fmt.Sprintf("Plugin %s: install path unreadable: %s: %v", key, install.InstallPath, err)})
+	switch {
+	case err != nil && os.IsNotExist(err):
+		// No plugins installed at all; manifest stays zero-value (empty map).
+		// Still fall through to suppression reconciliation below: any
+		// recorded suppressions are legitimately stale in this state.
+	case err != nil:
+		notices = append(notices, Notice{Message: "Plugin manifest unreadable: " + manifestPath + ": " + err.Error()})
+	default:
+		if jsonErr := json.Unmarshal(data, &manifest); jsonErr != nil {
+			notices = append(notices, Notice{Message: "Plugin manifest malformed: " + manifestPath + ": " + jsonErr.Error()})
+		} else {
+			for key, installs := range manifest.Plugins {
+				pluginName, marketplace, ok := splitPluginKey(key)
+				if !ok {
+					notices = append(notices, Notice{Message: "Plugin manifest entry has invalid key: " + key})
+					continue
 				}
-				continue
-			}
 
-			pluginSkills, pluginNotices := scanPluginInstall(pluginName, marketplace, install.InstallPath)
-			notices = append(notices, pluginNotices...)
-			for i := range pluginSkills {
-				pluginSkills[i].Plugin.SkillCount = len(pluginSkills)
+				for _, install := range installs {
+					if install.Scope != "user" {
+						continue
+					}
+					if _, statErr := os.Stat(install.InstallPath); statErr != nil {
+						if os.IsNotExist(statErr) {
+							notices = append(notices, Notice{Message: fmt.Sprintf("Plugin %s: install path not found: %s", key, install.InstallPath)})
+						} else {
+							notices = append(notices, Notice{Message: fmt.Sprintf("Plugin %s: install path unreadable: %s: %v", key, install.InstallPath, statErr)})
+						}
+						continue
+					}
+
+					pluginSkills, pluginNotices := scanPluginInstall(pluginName, marketplace, install.InstallPath)
+					notices = append(notices, pluginNotices...)
+					for i := range pluginSkills {
+						pluginSkills[i].Plugin.SkillCount = len(pluginSkills)
+					}
+					skills = append(skills, pluginSkills...)
+				}
 			}
-			skills = append(skills, pluginSkills...)
 		}
+	}
+
+	records, recErr := loadSuppressionRecords(dataDir)
+	if recErr != nil {
+		notices = append(notices, Notice{Message: "Suppressed skills unreadable: " + recErr.Error()})
+	} else {
+		notices = append(notices, applySuppressions(skills, records)...)
 	}
 
 	return skills, notices

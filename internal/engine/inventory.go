@@ -6,7 +6,7 @@ import (
 
 func (e *Engine) Inventory() Inventory {
 	personalSkills, personalNotices := scanPersonal(e.roots.ClaudeHome)
-	pluginSkills, pluginNotices := scanPlugins(e.roots.ClaudeHome)
+	pluginSkills, pluginNotices := scanPlugins(e.roots.ClaudeHome, e.roots.DataDir)
 	codexSkills, codexNotices := scanCodex(e.roots.CodexHome, e.roots.AgentsHome)
 
 	skills := append([]Skill{}, personalSkills...)
