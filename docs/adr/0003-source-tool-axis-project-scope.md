@@ -1,0 +1,11 @@
+# Source/Tool axis split, and cwd walk-up for Project scope
+
+Adding Project-skill support surfaced a conflation in the original `Source` model: a skill in a repo's `.agents/skills` is a Codex skill (governed by Codex's mechanisms — `agents/openai.yaml`, `config.toml`) that also happens to be repo-scoped, not user-scoped. The v1 `Source` enum (Personal, Plugin, Codex) mixed "which tool" with "what scope" into one dimension, which breaks the moment a Codex skill needs to live in a repo. We split this into two orthogonal properties: **Source** (Personal, Plugin, Codex, Project — where Personal/Plugin/Codex are always user-level and Project is the one repo-level group spanning both tools) and **Tool** (Claude Code or Codex — which mechanisms apply), surfaced as a visible label only within the Project group where both tools' skills sit side by side.
+
+Project scope itself is resolved from the current working directory Skillet is launched from, walking up to the repo root — mirroring the walk-up Codex's own `.agents/skills` repo-scope discovery already does (`$CWD/.agents/skills`, `$CWD/../.agents/skills`, `$REPO_ROOT/.agents/skills`, per `docs/research/skill-mechanisms.md`). This means Skillet's Project group changes depending on where it's run from, a real behavior change from v1's "resolves everything from `$HOME`, nothing to configure."
+
+## Considered Options
+
+- **Keep Source as a single flat enum, add a "Codex Project" 5th value** — avoids the two-dimension model, but doesn't scale (a hypothetical future Personal-vs-Project split for Claude Code plugins, if that ever became possible, would need its own bolted-on value too); the Source/Tool split generalizes correctly instead.
+- **Explicit `--project <path>` flag instead of cwd walk-up** — more predictable (no implicit behavior), but breaks the "nothing to configure" experience v1 established and doesn't match how Codex itself already resolves repo scope, which would be a confusing inconsistency between the two tools Skillet manages.
+- **Current directory only, no walk-up** — simpler to implement, but requires launching `skillet` from the exact repo root; walk-up is what Codex's own discovery already does, so matching it avoids surprising John with two different resolution rules for the same underlying concept.
