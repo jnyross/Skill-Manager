@@ -157,3 +157,21 @@ type LibraryEntry struct {
 	Source  LibrarySource `json:"source"`
 	AddedAt time.Time     `json:"addedAt"`
 }
+
+// InstallTargetKind is where an Install places its result — Personal
+// (user-level Claude Code / Codex skill directories) or a specific repo
+// (Project-scoped). See CONTEXT.md Install.
+type InstallTargetKind string
+
+const (
+	InstallTargetPersonal InstallTargetKind = "personal"
+	InstallTargetProject  InstallTargetKind = "project"
+)
+
+// InstallTarget names the placement destination for InstallLibraryEntry.
+// RepoRoot is set only when Kind == InstallTargetProject and must be one of
+// the engine's already-resolved project roots (never free-text input).
+type InstallTarget struct {
+	Kind     InstallTargetKind
+	RepoRoot string
+}

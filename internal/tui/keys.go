@@ -20,6 +20,7 @@ type keyMap struct {
 	restore         key.Binding
 	purge           key.Binding
 	libraryRemove   key.Binding
+	libraryInstall  key.Binding
 	showFullHelp    key.Binding
 	quit            key.Binding
 }
@@ -59,10 +60,12 @@ func archiveKeyMap(hasSelection bool, showAll bool) keyMap {
 func libraryKeyMap(hasSelection bool, showAll bool) keyMap {
 	m := baseKeyMap(showAll)
 	m.library = true
+	m.libraryInstall = key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install"))
 	m.libraryRemove = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "remove from library"))
 	m.switchView = key.NewBinding(key.WithKeys("L", "esc"), key.WithHelp("L/esc", "main view"))
 
 	m.move.SetEnabled(hasSelection)
+	m.libraryInstall.SetEnabled(hasSelection)
 	m.libraryRemove.SetEnabled(hasSelection)
 	return m
 }
@@ -98,6 +101,7 @@ func (m keyMap) ShortHelp() []key.Binding {
 	if m.library {
 		return []key.Binding{
 			m.move,
+			m.libraryInstall,
 			m.libraryRemove,
 			m.switchView,
 			m.showFullHelp,
@@ -125,7 +129,7 @@ func (m keyMap) FullHelp() [][]key.Binding {
 	if m.library {
 		return [][]key.Binding{
 			{m.move, m.switchView, m.showFullHelp, m.quit},
-			{m.libraryRemove},
+			{m.libraryInstall, m.libraryRemove},
 		}
 	}
 
