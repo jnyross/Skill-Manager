@@ -37,13 +37,13 @@ func scanCodex(codexHome, agentsHome string) ([]Skill, []Notice) {
 	notices = append(notices, configNotices...)
 
 	byName := make(map[string]Skill)
-	agentsSkills, agentsNotices := scanCodexSkillRoot(filepath.Join(agentsHome, "skills"), disabled)
+	agentsSkills, agentsNotices := scanCodexSkillRoot(filepath.Join(agentsHome, "skills"), SourceCodex, disabled)
 	notices = append(notices, agentsNotices...)
 	for _, skill := range agentsSkills {
 		byName[skill.Name] = skill
 	}
 
-	codexSkills, codexNotices := scanCodexSkillRoot(filepath.Join(codexHome, "skills"), disabled)
+	codexSkills, codexNotices := scanCodexSkillRoot(filepath.Join(codexHome, "skills"), SourceCodex, disabled)
 	notices = append(notices, codexNotices...)
 	for _, skill := range codexSkills {
 		if _, exists := byName[skill.Name]; !exists {
@@ -63,7 +63,7 @@ func scanCodex(codexHome, agentsHome string) ([]Skill, []Notice) {
 	return skills, notices
 }
 
-func scanCodexSkillRoot(root string, disabled codexDisabledConfig) ([]Skill, []Notice) {
+func scanCodexSkillRoot(root string, source Source, disabled codexDisabledConfig) ([]Skill, []Notice) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -104,7 +104,8 @@ func scanCodexSkillRoot(root string, disabled codexDisabledConfig) ([]Skill, []N
 		skills = append(skills, Skill{
 			Name:        fm.Name,
 			Description: fm.Description,
-			Source:      SourceCodex,
+			Source:      source,
+			Tool:        ToolCodex,
 			Kind:        KindSkill,
 			Location:    absolutePath(folder),
 			Activation:  activation,
@@ -213,6 +214,7 @@ func scanCodexPrompts(root string) ([]Skill, []Notice) {
 			Name:        strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name())),
 			Description: fm.Description,
 			Source:      SourceCodex,
+			Tool:        ToolCodex,
 			Kind:        KindPrompt,
 			Location:    absolutePath(path),
 			Activation:  ActivationManualOnly,

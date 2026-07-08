@@ -17,12 +17,19 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	e := engine.New(engine.Roots{
-		ClaudeHome: filepath.Join(home, ".claude"),
-		CodexHome:  filepath.Join(home, ".codex"),
-		AgentsHome: filepath.Join(home, ".agents"),
-		DataDir:    filepath.Join(home, ".skillet"),
+		ClaudeHome:         filepath.Join(home, ".claude"),
+		CodexHome:          filepath.Join(home, ".codex"),
+		AgentsHome:         filepath.Join(home, ".agents"),
+		DataDir:            filepath.Join(home, ".skillet"),
+		ProjectRoots:       engine.FindProjectRoots(cwd),
+		ClaudeProjectRoots: engine.FindClaudeProjectRoots(cwd),
 	})
 	p := tea.NewProgram(tui.NewModel(e), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {

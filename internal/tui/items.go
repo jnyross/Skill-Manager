@@ -29,7 +29,7 @@ func buildListItems(inventory engine.Inventory) []list.Item {
 		return nil
 	}
 
-	items := make([]list.Item, 0, len(inventory.Skills)+3)
+	items := make([]list.Item, 0, len(inventory.Skills)+4)
 	var current engine.Source
 	for _, skill := range inventory.Skills {
 		if skill.Source != current {
@@ -45,7 +45,7 @@ func buildListItems(inventory engine.Inventory) []list.Item {
 
 func hasGroupHeader(source engine.Source) bool {
 	switch source {
-	case engine.SourcePersonal, engine.SourcePlugin, engine.SourceCodex:
+	case engine.SourcePersonal, engine.SourcePlugin, engine.SourceCodex, engine.SourceProject:
 		return true
 	default:
 		return false
