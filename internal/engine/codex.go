@@ -161,10 +161,21 @@ func readCodexDisabledConfig(codexHome string) (codexDisabledConfig, []Notice) {
 		if entry.Enabled == nil || *entry.Enabled {
 			continue
 		}
-		if entry.Path != "" {
+		// Codex's real runtime validator (core-skills/src/config_rules.rs,
+		// per docs/research/skill-mechanisms.md's "Re-verification against
+		// codex-cli 0.143.0" section) ignores any entry that sets both
+		// `path` and `name`, or neither — it never disables the skill in
+		// either case. Skip such entries here so this reader never disagrees
+		// with what Codex itself actually does with them.
+		hasPath := entry.Path != ""
+		hasName := entry.Name != ""
+		if hasPath == hasName {
+			continue
+		}
+		if hasPath {
 			result.paths[absolutePath(entry.Path)] = true
 		}
-		if entry.Name != "" {
+		if hasName {
 			result.names[entry.Name] = true
 		}
 	}
