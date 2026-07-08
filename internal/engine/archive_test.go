@@ -1,10 +1,12 @@
 package engine_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"skillet/internal/engine"
 )
@@ -20,6 +22,9 @@ func TestArchiveUninstallPersonalSkill(t *testing.T) {
 	}
 	if entry.Name != "to-archive" || entry.Source != engine.SourcePersonal || entry.OriginalLocation != location {
 		t.Fatalf("unexpected archive entry: %#v", entry)
+	}
+	if entry.Tool != engine.ToolClaudeCode || entry.OriginRepo != "" {
+		t.Fatalf("unexpected archive entry tool/origin: %#v", entry)
 	}
 	if _, err := os.Lstat(location); !os.IsNotExist(err) {
 		t.Fatalf("original location still exists or unexpected error: %v", err)
@@ -102,6 +107,7 @@ func TestArchiveRestoreRoundTripProjectSkills(t *testing.T) {
 		name          string
 		locationParts []string
 		configure     func(*engine.Roots, string)
+		wantTool      engine.Tool
 	}{
 		{
 			name:          "claude project skill",
@@ -109,6 +115,7 @@ func TestArchiveRestoreRoundTripProjectSkills(t *testing.T) {
 			configure: func(roots *engine.Roots, repo string) {
 				roots.ClaudeProjectRoots = []string{repo}
 			},
+			wantTool: engine.ToolClaudeCode,
 		},
 		{
 			name:          "codex project skill",
@@ -116,6 +123,7 @@ func TestArchiveRestoreRoundTripProjectSkills(t *testing.T) {
 			configure: func(roots *engine.Roots, repo string) {
 				roots.ProjectRoots = []string{repo}
 			},
+			wantTool: engine.ToolCodex,
 		},
 	}
 
@@ -136,6 +144,9 @@ func TestArchiveRestoreRoundTripProjectSkills(t *testing.T) {
 			if entry.Source != engine.SourceProject || entry.Kind != engine.KindSkill || entry.OriginalLocation != location {
 				t.Fatalf("unexpected archive entry: %#v", entry)
 			}
+			if entry.Tool != tc.wantTool || entry.OriginRepo != repo {
+				t.Fatalf("unexpected project archive tool/origin: %#v", entry)
+			}
 			if _, err := os.Lstat(location); !os.IsNotExist(err) {
 				t.Fatalf("original location still exists or unexpected error: %v", err)
 			}
@@ -146,6 +157,82 @@ func TestArchiveRestoreRoundTripProjectSkills(t *testing.T) {
 			after := snapshotTree(t, f.root)
 			assertSnapshotsEqual(t, before, after)
 		})
+	}
+}
+
+func TestListArchiveFiltersProjectEntriesToCurrentRepo(t *testing.T) {
+	f := newFixture(t)
+	repoA := filepath.Join(f.root, "repo-a")
+	repoB := filepath.Join(f.root, "repo-b")
+
+	allRoots := f.roots
+	allRoots.ClaudeProjectRoots = []string{repoA, repoB}
+	allRoots.ProjectRoots = []string{repoA, repoB}
+	archiver := engine.New(allRoots)
+
+	repoAClaude := writeSkill(t, filepath.Join(repoA, ".claude", "skills", "a-claude"), "a-claude", "A Claude", "")
+	repoACodex := writeSkill(t, filepath.Join(repoA, ".agents", "skills", "a-codex"), "a-codex", "A Codex", "")
+	repoBClaude := writeSkill(t, filepath.Join(repoB, ".claude", "skills", "b-claude"), "b-claude", "B Claude", "")
+	repoBCodex := writeSkill(t, filepath.Join(repoB, ".agents", "skills", "b-codex"), "b-codex", "B Codex", "")
+	personal := writeSkill(t, filepath.Join(f.roots.ClaudeHome, "skills", "personal-global"), "personal-global", "Personal", "")
+	codex := writeSkill(t, filepath.Join(f.roots.CodexHome, "skills", "codex-global"), "codex-global", "Codex", "")
+
+	entryAClaude, err := archiver.Uninstall(repoAClaude)
+	if err != nil {
+		t.Fatalf("uninstall repo A Claude: %v", err)
+	}
+	entryACodex, err := archiver.Uninstall(repoACodex)
+	if err != nil {
+		t.Fatalf("uninstall repo A Codex: %v", err)
+	}
+	entryBClaude, err := archiver.Uninstall(repoBClaude)
+	if err != nil {
+		t.Fatalf("uninstall repo B Claude: %v", err)
+	}
+	entryBCodex, err := archiver.Uninstall(repoBCodex)
+	if err != nil {
+		t.Fatalf("uninstall repo B Codex: %v", err)
+	}
+	entryPersonal, err := archiver.Uninstall(personal)
+	if err != nil {
+		t.Fatalf("uninstall personal: %v", err)
+	}
+	entryCodex, err := archiver.Uninstall(codex)
+	if err != nil {
+		t.Fatalf("uninstall codex: %v", err)
+	}
+
+	pluginID := "plugin-global"
+	writeArchiveProvenance(t, f.roots, engine.ArchiveEntry{
+		ID:               pluginID,
+		Name:             "plugin-global",
+		Source:           engine.SourcePlugin,
+		Tool:             engine.ToolClaudeCode,
+		Kind:             engine.KindSkill,
+		OriginalLocation: filepath.Join(f.root, "plugin", "plugin-global"),
+		ArchivedAt:       time.Now().UTC(),
+	})
+
+	currentRoots := f.roots
+	currentRoots.ClaudeProjectRoots = []string{repoA}
+	currentRoots.ProjectRoots = []string{repoA}
+	entries, err := engine.New(currentRoots).ListArchive()
+	if err != nil {
+		t.Fatalf("list archive: %v", err)
+	}
+
+	for _, entry := range []engine.ArchiveEntry{entryAClaude, entryACodex, entryPersonal, entryCodex} {
+		if !archiveContains(entries, entry.ID) {
+			t.Fatalf("expected archive entry %s to be listed: %#v", entry.ID, entries)
+		}
+	}
+	if !archiveContains(entries, pluginID) {
+		t.Fatalf("expected plugin archive entry to be listed: %#v", entries)
+	}
+	for _, entry := range []engine.ArchiveEntry{entryBClaude, entryBCodex} {
+		if archiveContains(entries, entry.ID) {
+			t.Fatalf("expected archive entry %s to be filtered out: %#v", entry.ID, entries)
+		}
 	}
 }
 
@@ -239,4 +326,17 @@ func TestReadOnlyMethodsLeaveFixtureTreeUnchanged(t *testing.T) {
 
 	after := snapshotTree(t, f.root)
 	assertSnapshotsEqual(t, before, after)
+}
+
+func writeArchiveProvenance(t *testing.T, roots engine.Roots, entry engine.ArchiveEntry) {
+	t.Helper()
+	archiveDir := filepath.Join(roots.DataDir, "archive", entry.ID)
+	mkdirAll(t, archiveDir)
+	data, err := json.MarshalIndent(entry, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal archive provenance: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(archiveDir, "provenance.json"), append(data, '\n'), 0o600); err != nil {
+		t.Fatalf("write archive provenance: %v", err)
+	}
 }

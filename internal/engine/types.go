@@ -77,6 +77,8 @@ type ArchiveEntry struct {
 	Name                 string               `json:"name"`
 	Source               Source               `json:"source"`
 	Kind                 Kind                 `json:"kind"`
+	Tool                 Tool                 `json:"tool"`
+	OriginRepo           string               `json:"originRepo,omitempty"`
 	OriginalLocation     string               `json:"originalLocation"`
 	ArchivedAt           time.Time            `json:"archivedAt"`
 	IsSymlink            bool                 `json:"isSymlink"`
