@@ -56,6 +56,53 @@ func TestCodexSkillsPromptsAndDisabledConfig(t *testing.T) {
 	}
 }
 
+// TestCodexDisabledConfigEntryWithBothPathAndNameIsIgnored covers issue #12:
+// Codex's real config validator (core-skills/src/config_rules.rs, per
+// docs/research/skill-mechanisms.md's "Re-verification against codex-cli
+// 0.143.0" section) ignores any [[skills.config]] entry that sets both
+// `path` and `name` ("ignoring skills.config entry with both path and name
+// selectors"), logging a warning and never disabling the skill. A malformed
+// entry like this — one Skillet itself never writes, but a human or another
+// tool might — must not be treated as a match by readCodexDisabledConfig,
+// or Skillet's reported Activation would disagree with what Codex itself
+// actually does.
+func TestCodexDisabledConfigEntryWithBothPathAndNameIsIgnored(t *testing.T) {
+	f := newFixture(t)
+	codexSkill := writeSkill(t, filepath.Join(f.roots.CodexHome, "skills", "codex-skill"), "codex-skill", "Codex description", "")
+	writeFile(t, filepath.Join(f.roots.CodexHome, "config.toml"),
+		"[[skills.config]]\npath = "+strconv.Quote(filepath.Join(codexSkill, "SKILL.md"))+"\nname = \"codex-skill\"\nenabled = false\n")
+
+	inv := engine.New(f.roots).Inventory()
+	codex, ok := findSkill(inv, engine.SourceCodex, "codex-skill")
+	if !ok {
+		t.Fatalf("codex skill missing: %#v", inv.Skills)
+	}
+	if codex.Activation == engine.ActivationDisabled {
+		t.Fatalf("codex skill activation = %q, want not Disabled (entry with both path and name must be ignored)", codex.Activation)
+	}
+}
+
+// TestCodexDisabledConfigEntryWithNeitherPathNorNameIsIgnored is a
+// regression test for the "neither selector" half of the same Codex
+// validation rule ("ignoring skills.config entry without a path or name
+// selector") — already true before issue #12's fix, since the old code
+// only ever populated result.paths/result.names when a key was non-empty,
+// but pinned down explicitly here alongside the "both" case above.
+func TestCodexDisabledConfigEntryWithNeitherPathNorNameIsIgnored(t *testing.T) {
+	f := newFixture(t)
+	writeSkill(t, filepath.Join(f.roots.CodexHome, "skills", "codex-skill"), "codex-skill", "Codex description", "")
+	writeFile(t, filepath.Join(f.roots.CodexHome, "config.toml"), "[[skills.config]]\nenabled = false\n")
+
+	inv := engine.New(f.roots).Inventory()
+	codex, ok := findSkill(inv, engine.SourceCodex, "codex-skill")
+	if !ok {
+		t.Fatalf("codex skill missing: %#v", inv.Skills)
+	}
+	if codex.Activation == engine.ActivationDisabled {
+		t.Fatalf("codex skill activation = %q, want not Disabled (entry with neither path nor name must be ignored)", codex.Activation)
+	}
+}
+
 func TestCodexAgentsHomeShadowsCodexHomeOnNameCollision(t *testing.T) {
 	f := newFixture(t)
 	agentSkill := writeSkill(t, filepath.Join(f.roots.AgentsHome, "skills", "shared"), "shared", "Agent copy", "")
