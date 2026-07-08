@@ -14,7 +14,8 @@ import (
 
 func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 	location = absolutePath(location)
-	if err := e.requirePersonalSkillLocation(location); err != nil {
+	source, kind, err := e.classifyLocation(location)
+	if err != nil {
 		return ArchiveEntry{}, err
 	}
 
@@ -23,19 +24,39 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 		return ArchiveEntry{}, fmt.Errorf("inspect skill location: %w", err)
 	}
 
-	folderName := filepath.Base(location)
+	base := filepath.Base(location)
+	name := base
+	if kind == KindPrompt {
+		name = strings.TrimSuffix(base, filepath.Ext(base))
+	}
+
+	var newConfig string
+	var removedConfig []RemovedConfigEntry
+	var configChanged bool
+	if source == SourceCodex && kind == KindSkill {
+		skillName := name
+		if fm, err := parseSkillFrontmatter(filepath.Join(location, "SKILL.md")); err == nil {
+			skillName = fm.Name
+		}
+		newConfig, removedConfig, configChanged, err = planCodexConfigRemoval(e.roots.CodexHome, filepath.Join(location, "SKILL.md"), skillName)
+		if err != nil {
+			return ArchiveEntry{}, err
+		}
+	}
+
 	archiveRoot := filepath.Join(e.roots.DataDir, "archive")
-	id := e.newArchiveID(folderName)
+	id := e.newArchiveID(base)
 	archiveDir := filepath.Join(archiveRoot, id)
 	if err := os.MkdirAll(archiveDir, 0o700); err != nil {
 		return ArchiveEntry{}, fmt.Errorf("create archive directory: %w", err)
 	}
 
-	archivedPath := filepath.Join(archiveDir, folderName)
+	archivedPath := filepath.Join(archiveDir, base)
 	entry := ArchiveEntry{
 		ID:               id,
-		Name:             folderName,
-		Source:           SourcePersonal,
+		Name:             name,
+		Source:           source,
+		Kind:             kind,
 		OriginalLocation: location,
 		ArchivedAt:       time.Now().UTC(),
 	}
@@ -50,13 +71,27 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 		}
 		entry.IsSymlink = true
 		entry.SymlinkTarget = target
-	} else {
+	} else if kind == KindSkill {
 		if !info.IsDir() {
 			return ArchiveEntry{}, fmt.Errorf("skill location is not a directory: %s", location)
 		}
 		if err := os.Rename(location, archivedPath); err != nil {
 			return ArchiveEntry{}, fmt.Errorf("archive skill directory: %w", err)
 		}
+	} else {
+		if info.IsDir() {
+			return ArchiveEntry{}, fmt.Errorf("prompt location is not a file: %s", location)
+		}
+		if err := os.Rename(location, archivedPath); err != nil {
+			return ArchiveEntry{}, fmt.Errorf("archive prompt file: %w", err)
+		}
+	}
+
+	if configChanged {
+		if err := writeCodexConfig(e.roots.CodexHome, newConfig); err != nil {
+			return ArchiveEntry{}, err
+		}
+		entry.RemovedConfigEntries = removedConfig
 	}
 
 	if err := writeArchiveEntry(archiveDir, entry); err != nil {
@@ -130,6 +165,12 @@ func (e *Engine) Restore(id string) error {
 		}
 	}
 
+	if len(entry.RemovedConfigEntries) > 0 {
+		if err := reinstateCodexConfigEntries(e.roots.CodexHome, entry.RemovedConfigEntries); err != nil {
+			return err
+		}
+	}
+
 	if err := os.RemoveAll(archiveDir); err != nil {
 		return fmt.Errorf("remove archive entry: %w", err)
 	}
@@ -144,16 +185,42 @@ func (e *Engine) Purge(id string) error {
 	return os.RemoveAll(filepath.Join(e.roots.DataDir, "archive", id))
 }
 
-func (e *Engine) requirePersonalSkillLocation(location string) error {
-	root := absolutePath(filepath.Join(e.roots.ClaudeHome, "skills"))
+// classifyLocation determines the Source and Kind of an archivable location
+// by checking which scan root it is an immediate child of. Archive is
+// supported for Personal skills, Codex skills (either scan root), and Codex
+// custom prompts; anything else (Plugin skills, unknown paths) is rejected.
+func (e *Engine) classifyLocation(location string) (Source, Kind, error) {
+	if _, ok := immediateChildOf(filepath.Join(e.roots.ClaudeHome, "skills"), location); ok {
+		return SourcePersonal, KindSkill, nil
+	}
+	if _, ok := immediateChildOf(filepath.Join(e.roots.CodexHome, "skills"), location); ok {
+		return SourceCodex, KindSkill, nil
+	}
+	if _, ok := immediateChildOf(filepath.Join(e.roots.AgentsHome, "skills"), location); ok {
+		return SourceCodex, KindSkill, nil
+	}
+	if _, ok := immediateChildOf(filepath.Join(e.roots.CodexHome, "prompts"), location); ok {
+		return SourceCodex, KindPrompt, nil
+	}
+	return "", "", fmt.Errorf("archive is not supported for this location: %s", location)
+}
+
+// immediateChildOf reports whether location is exactly one path segment
+// below root, returning that segment.
+func immediateChildOf(root, location string) (string, bool) {
+	root = absolutePath(root)
+	location = absolutePath(location)
 	rel, err := filepath.Rel(root, location)
 	if err != nil {
-		return fmt.Errorf("validate personal skill location: %w", err)
+		return "", false
 	}
-	if rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." || filepath.IsAbs(rel) {
-		return fmt.Errorf("archive is only supported for Personal skills under %s", root)
+	if rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", false
 	}
-	return nil
+	if strings.Contains(rel, string(filepath.Separator)) {
+		return "", false
+	}
+	return rel, true
 }
 
 func (e *Engine) newArchiveID(folderName string) string {

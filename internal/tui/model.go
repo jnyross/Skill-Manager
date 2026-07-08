@@ -94,12 +94,12 @@ func (m *Model) updateMain(key string) {
 			return
 		}
 		selected := m.inv.Skills[m.cursor]
-		if selected.Source != engine.SourcePersonal {
-			m.status = "Only Personal skills can be archived in this version."
+		if selected.Source != engine.SourcePersonal && selected.Source != engine.SourceCodex {
+			m.status = "Only Personal and Codex skills can be archived in this version."
 			return
 		}
 		m.pending = &pendingConfirm{
-			description: fmt.Sprintf("Archive Personal skill %q? y to confirm, any other key to cancel.", selected.Name),
+			description: fmt.Sprintf("Archive %s %q? y to confirm, any other key to cancel.", selected.Source, selected.Name),
 			action:      pendingUninstall,
 			location:    selected.Location,
 		}
@@ -231,7 +231,7 @@ func (m *Model) View() string {
 
 func (m *Model) renderMain(b *strings.Builder) {
 	b.WriteString("Skillet\n")
-	b.WriteString("up/k down/j move  u archive Personal  a archive view  q quit\n\n")
+	b.WriteString("up/k down/j move  u archive Personal/Codex  a archive view  q quit\n\n")
 
 	if len(m.inv.Skills) == 0 {
 		b.WriteString("No skills found.\n")
