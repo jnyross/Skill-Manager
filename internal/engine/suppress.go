@@ -330,13 +330,17 @@ func removeFrontmatterFields(path string, keys []string) error {
 	return writeFilePreservingMode(path, newContent)
 }
 
+// writeFilePreservingMode writes content to path, keeping path's existing
+// file mode if it already exists (falling back to 0o644 for a new file).
+// Shared by suppress.go's frontmatter edits and manual_only.go's
+// agents/openai.yaml edits.
 func writeFilePreservingMode(path, content string) error {
 	mode := os.FileMode(0o644)
 	if info, err := os.Stat(path); err == nil {
 		mode = info.Mode()
 	}
 	if err := os.WriteFile(path, []byte(content), mode); err != nil {
-		return fmt.Errorf("write frontmatter: %w", err)
+		return fmt.Errorf("write file: %w", err)
 	}
 	return nil
 }

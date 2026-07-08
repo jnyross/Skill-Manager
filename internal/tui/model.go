@@ -25,6 +25,8 @@ const (
 	pendingPurge
 	pendingSuppress
 	pendingUnsuppress
+	pendingManualOnly
+	pendingAutoActivate
 )
 
 type pendingConfirm struct {
@@ -129,6 +131,29 @@ func (m *Model) updateMain(key string) {
 				skill:       selected,
 			}
 		}
+	case "m":
+		if len(m.inv.Skills) == 0 {
+			m.status = "No skill selected."
+			return
+		}
+		selected := m.inv.Skills[m.cursor]
+		if selected.Kind != engine.KindSkill || (selected.Source != engine.SourcePersonal && selected.Source != engine.SourceCodex) {
+			m.status = "Manual-only is only available for Personal and Codex skills."
+			return
+		}
+		if selected.Activation == engine.ActivationManualOnly {
+			m.pending = &pendingConfirm{
+				description: fmt.Sprintf("Turn Auto-activation back on for %q? y to confirm, any other key to cancel.", selected.Name),
+				action:      pendingAutoActivate,
+				skill:       selected,
+			}
+		} else {
+			m.pending = &pendingConfirm{
+				description: fmt.Sprintf("Make %q Manual-only? It will only run when explicitly invoked. y to confirm, any other key to cancel.", selected.Name),
+				action:      pendingManualOnly,
+				skill:       selected,
+			}
+		}
 	case "a":
 		m.view = archiveView
 		m.cursor = 0
@@ -205,6 +230,20 @@ func (m *Model) executePending() {
 		}
 		m.status = "Un-suppressed " + m.pending.skill.Name + "."
 		m.refreshInventory()
+	case pendingManualOnly:
+		if err := m.engine.SetManualOnly(m.pending.skill, true); err != nil {
+			m.status = "Manual-only failed: " + err.Error()
+			return
+		}
+		m.status = "Made " + m.pending.skill.Name + " Manual-only."
+		m.refreshInventory()
+	case pendingAutoActivate:
+		if err := m.engine.SetManualOnly(m.pending.skill, false); err != nil {
+			m.status = "Auto-activation failed: " + err.Error()
+			return
+		}
+		m.status = "Restored Auto-activation for " + m.pending.skill.Name + "."
+		m.refreshInventory()
 	}
 }
 
@@ -271,7 +310,7 @@ func (m *Model) View() string {
 
 func (m *Model) renderMain(b *strings.Builder) {
 	b.WriteString("Skillet\n")
-	b.WriteString("up/k down/j move  u archive Personal/Codex  s suppress/un-suppress Plugin  a archive view  q quit\n\n")
+	b.WriteString("up/k down/j move  u archive Personal/Codex  s suppress/un-suppress Plugin  m manual-only/auto-activate Personal/Codex skill  a archive view  q quit\n\n")
 
 	if len(m.inv.Skills) == 0 {
 		b.WriteString("No skills found.\n")
