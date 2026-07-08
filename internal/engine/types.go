@@ -8,6 +8,14 @@ const (
 	SourcePersonal Source = "Personal"
 	SourcePlugin   Source = "Plugin"
 	SourceCodex    Source = "Codex"
+	SourceProject  Source = "Project"
+)
+
+type Tool string
+
+const (
+	ToolClaudeCode Tool = "Claude Code"
+	ToolCodex      Tool = "Codex"
 )
 
 type ActivationState string
@@ -48,6 +56,7 @@ type Skill struct {
 	Name        string
 	Description string
 	Source      Source
+	Tool        Tool
 	Kind        Kind
 	Location    string
 	Activation  ActivationState

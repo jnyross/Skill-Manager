@@ -79,4 +79,7 @@ func assertPersonalSkill(t *testing.T, inv engine.Inventory, name, description, 
 	if skill.Kind != engine.KindSkill {
 		t.Fatalf("%s kind = %q, want skill", name, skill.Kind)
 	}
+	if skill.Tool != engine.ToolClaudeCode {
+		t.Fatalf("%s tool = %q, want Claude Code", name, skill.Tool)
+	}
 }

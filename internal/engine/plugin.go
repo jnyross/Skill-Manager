@@ -126,6 +126,7 @@ func scanPluginInstall(pluginName, marketplace, installPath string) ([]Skill, []
 			Name:        fm.Name,
 			Description: fm.Description,
 			Source:      SourcePlugin,
+			Tool:        ToolClaudeCode,
 			Kind:        KindSkill,
 			Location:    absolutePath(folder),
 			Activation:  ActivationAuto,

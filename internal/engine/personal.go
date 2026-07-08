@@ -9,12 +9,16 @@ import (
 
 func scanPersonal(claudeHome string) ([]Skill, []Notice) {
 	root := filepath.Join(claudeHome, "skills")
+	return scanClaudeSkillFolder(root, SourcePersonal, ToolClaudeCode)
+}
+
+func scanClaudeSkillFolder(root string, source Source, tool Tool) ([]Skill, []Notice) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, []Notice{{Message: "Personal skills directory not found: " + root}}
+			return nil, []Notice{{Message: claudeSkillFolderNoticePrefix(source) + " directory not found: " + root}}
 		}
-		return nil, []Notice{{Message: "Personal skills directory unreadable: " + root + ": " + err.Error()}}
+		return nil, []Notice{{Message: claudeSkillFolderNoticePrefix(source) + " directory unreadable: " + root + ": " + err.Error()}}
 	}
 
 	var skills []Skill
@@ -48,7 +52,8 @@ func scanPersonal(claudeHome string) ([]Skill, []Notice) {
 		skills = append(skills, Skill{
 			Name:        fm.Name,
 			Description: fm.Description,
-			Source:      SourcePersonal,
+			Source:      source,
+			Tool:        tool,
 			Kind:        KindSkill,
 			Location:    absolutePath(folder),
 			Activation:  activation,
@@ -56,4 +61,11 @@ func scanPersonal(claudeHome string) ([]Skill, []Notice) {
 	}
 
 	return skills, notices
+}
+
+func claudeSkillFolderNoticePrefix(source Source) string {
+	if source == SourceProject {
+		return "Project Claude skills"
+	}
+	return "Personal skills"
 }

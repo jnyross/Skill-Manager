@@ -1,10 +1,12 @@
 package engine
 
 type Roots struct {
-	ClaudeHome string
-	CodexHome  string
-	AgentsHome string
-	DataDir    string
+	ClaudeHome         string
+	CodexHome          string
+	AgentsHome         string
+	DataDir            string
+	ProjectRoots       []string
+	ClaudeProjectRoots []string
 }
 
 type Engine struct {

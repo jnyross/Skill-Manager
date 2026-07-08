@@ -44,6 +44,9 @@ func (p detailPane) render(skill engine.Skill, ok bool) string {
 	writeDetailField(&b, "Description", skill.Description)
 	writeDetailField(&b, "Location", skill.Location)
 	writeDetailField(&b, "Source", string(skill.Source))
+	if skill.Source == engine.SourceProject {
+		writeDetailField(&b, "Tool", string(skill.Tool))
+	}
 	writeDetailField(&b, "Kind", string(skill.Kind))
 	writeDetailField(&b, "Activation", activationStyle(skill.Activation).Render(string(skill.Activation)))
 	if skill.Source == engine.SourcePlugin && skill.Plugin != nil {

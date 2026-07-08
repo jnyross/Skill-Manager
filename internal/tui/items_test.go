@@ -15,11 +15,12 @@ func TestBuildListItemsInsertsGroupHeadersBySourceOrder(t *testing.T) {
 			{Name: "personal", Source: engine.SourcePersonal},
 			{Name: "plugin", Source: engine.SourcePlugin},
 			{Name: "codex", Source: engine.SourceCodex},
+			{Name: "project", Source: engine.SourceProject},
 		},
 	})
 
-	if len(items) != 6 {
-		t.Fatalf("len(items) = %d, want 6", len(items))
+	if len(items) != 8 {
+		t.Fatalf("len(items) = %d, want 8", len(items))
 	}
 
 	assertHeader(t, items[0], engine.SourcePersonal)
@@ -28,6 +29,8 @@ func TestBuildListItemsInsertsGroupHeadersBySourceOrder(t *testing.T) {
 	assertSkill(t, items[3], "plugin")
 	assertHeader(t, items[4], engine.SourceCodex)
 	assertSkill(t, items[5], "codex")
+	assertHeader(t, items[6], engine.SourceProject)
+	assertSkill(t, items[7], "project")
 }
 
 func TestBuildListItemsInsertsHeaderBeforeFirstItemOfEachSource(t *testing.T) {

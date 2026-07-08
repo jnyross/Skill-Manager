@@ -32,6 +32,9 @@ func TestCodexSkillsPromptsAndDisabledConfig(t *testing.T) {
 	if agent.Activation != engine.ActivationManualOnly {
 		t.Fatalf("agent skill activation = %q, want Manual-only", agent.Activation)
 	}
+	if agent.Tool != engine.ToolCodex {
+		t.Fatalf("agent skill tool = %q, want Codex", agent.Tool)
+	}
 
 	codex, ok := findSkill(inv, engine.SourceCodex, "codex-skill")
 	if !ok {
@@ -47,6 +50,9 @@ func TestCodexSkillsPromptsAndDisabledConfig(t *testing.T) {
 	}
 	if prompt.Kind != engine.KindPrompt {
 		t.Fatalf("prompt kind = %q, want prompt", prompt.Kind)
+	}
+	if prompt.Tool != engine.ToolCodex {
+		t.Fatalf("prompt tool = %q, want Codex", prompt.Tool)
 	}
 	if prompt.Activation != engine.ActivationManualOnly {
 		t.Fatalf("prompt activation = %q, want Manual-only", prompt.Activation)

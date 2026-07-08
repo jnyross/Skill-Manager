@@ -16,6 +16,9 @@ var (
 	codexHeaderStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#93C5FD"})
+	projectHeaderStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "#047857", Dark: "#86EFAC"})
 
 	skillRowStyle         = lipgloss.NewStyle()
 	selectedSkillRowStyle = lipgloss.NewStyle().Bold(true)
@@ -58,6 +61,8 @@ func sourceHeaderStyle(source engine.Source) lipgloss.Style {
 		return pluginHeaderStyle
 	case engine.SourceCodex:
 		return codexHeaderStyle
+	case engine.SourceProject:
+		return projectHeaderStyle
 	default:
 		return skillMetaStyle
 	}

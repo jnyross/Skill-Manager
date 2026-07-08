@@ -41,6 +41,9 @@ func TestPluginScanNestedSkillsAndSkillCount(t *testing.T) {
 		if skill.Activation != engine.ActivationAuto {
 			t.Fatalf("%s activation = %q, want Auto", name, skill.Activation)
 		}
+		if skill.Tool != engine.ToolClaudeCode {
+			t.Fatalf("%s tool = %q, want Claude Code", name, skill.Tool)
+		}
 	}
 }
 

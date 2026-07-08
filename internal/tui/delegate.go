@@ -53,6 +53,9 @@ func renderSkillItem(skill engine.Skill, selected bool, width int) string {
 	if skill.Kind == engine.KindPrompt {
 		label = "[prompt] " + label
 	}
+	if skill.Source == engine.SourceProject {
+		label += skillMetaStyle.Render(" [" + string(skill.Tool) + "]")
+	}
 
 	pluginText := ""
 	if skill.Source == engine.SourcePlugin && skill.Plugin != nil {
