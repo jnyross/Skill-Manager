@@ -10,3 +10,8 @@
 # Editor/IDE
 .idea/
 .vscode/
+
+# Go
+/skillet
+*.exe
+/dist/
