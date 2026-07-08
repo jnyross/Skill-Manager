@@ -32,6 +32,14 @@ var (
 				Bold(true).
 				Foreground(lipgloss.AdaptiveColor{Light: "#475569", Dark: "#94A3B8"})
 
+	confirmBoxStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.AdaptiveColor{Light: "#475569", Dark: "#94A3B8"}).
+			Padding(1, 2)
+	confirmBackdropStyle = lipgloss.NewStyle().
+				Faint(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "#94A3B8", Dark: "#64748B"})
+
 	activationAutoStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "#334155", Dark: "#CBD5E1"})
 	activationManualOnlyStyle = lipgloss.NewStyle().
