@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"skillet/internal/engine"
@@ -44,22 +45,35 @@ type Model struct {
 	view    viewState
 	cursor  int
 	inv     engine.Inventory
+	list    list.Model
 	archive []engine.ArchiveEntry
 	pending *pendingConfirm
 	status  string
+	width   int
+	height  int
 }
 
 func NewModel(e *engine.Engine) *Model {
-	m := &Model{engine: e}
+	m := &Model{
+		engine: e,
+		list:   newSkillList(nil),
+	}
 	m.refreshInventory()
 	return m
 }
 
 func (m *Model) Init() tea.Cmd {
-	return nil
+	return tea.EnterAltScreen
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = size.Width
+		m.height = size.Height
+		m.resizeList()
+		return m, nil
+	}
+
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
@@ -72,6 +86,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = "Canceled."
 		}
 		m.pending = nil
+		m.resizeList()
 		return m, nil
 	}
 
@@ -90,17 +105,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	m.resizeList()
 	return m, nil
 }
 
 func (m *Model) updateMain(key string) {
 	switch key {
 	case "u":
-		if len(m.inv.Skills) == 0 {
+		selected, ok := m.selectedMainSkill()
+		if !ok {
 			m.status = "No skill selected."
 			return
 		}
-		selected := m.inv.Skills[m.cursor]
 		if selected.Source != engine.SourcePersonal && selected.Source != engine.SourceCodex {
 			m.status = "Only Personal and Codex skills can be archived in this version."
 			return
@@ -111,11 +127,11 @@ func (m *Model) updateMain(key string) {
 			location:    selected.Location,
 		}
 	case "s":
-		if len(m.inv.Skills) == 0 {
+		selected, ok := m.selectedMainSkill()
+		if !ok {
 			m.status = "No skill selected."
 			return
 		}
-		selected := m.inv.Skills[m.cursor]
 		isCodexSkill := selected.Source == engine.SourceCodex && selected.Kind == engine.KindSkill
 		if selected.Source != engine.SourcePlugin && !isCodexSkill {
 			m.status = "Suppress is only available for Plugin and Codex skills."
@@ -135,11 +151,11 @@ func (m *Model) updateMain(key string) {
 			}
 		}
 	case "x":
-		if len(m.inv.Skills) == 0 {
+		selected, ok := m.selectedMainSkill()
+		if !ok {
 			m.status = "No skill selected."
 			return
 		}
-		selected := m.inv.Skills[m.cursor]
 		if selected.Source != engine.SourcePlugin || selected.Plugin == nil {
 			m.status = "Uninstall plugin is only available for Plugin skills."
 			return
@@ -152,11 +168,11 @@ func (m *Model) updateMain(key string) {
 			plugin: *selected.Plugin,
 		}
 	case "m":
-		if len(m.inv.Skills) == 0 {
+		selected, ok := m.selectedMainSkill()
+		if !ok {
 			m.status = "No skill selected."
 			return
 		}
-		selected := m.inv.Skills[m.cursor]
 		if selected.Kind != engine.KindSkill || (selected.Source != engine.SourcePersonal && selected.Source != engine.SourceCodex) {
 			m.status = "Manual-only is only available for Personal and Codex skills."
 			return
@@ -299,10 +315,12 @@ func pluginSkillNames(skills []engine.Skill, plugin engine.PluginInfo) []string 
 }
 
 func (m *Model) moveCursor(delta int) {
-	limit := len(m.inv.Skills)
-	if m.view == archiveView {
-		limit = len(m.archive)
+	if m.view == mainView {
+		m.moveMainCursor(delta)
+		return
 	}
+
+	limit := len(m.archive)
 	if limit == 0 {
 		m.cursor = 0
 		return
@@ -317,11 +335,35 @@ func (m *Model) moveCursor(delta int) {
 	}
 }
 
+func (m *Model) moveMainCursor(delta int) {
+	items := m.list.Items()
+	if len(items) == 0 {
+		m.cursor = 0
+		return
+	}
+
+	index := m.list.Index()
+	for {
+		index += delta
+		if index < 0 || index >= len(items) {
+			break
+		}
+		if _, ok := items[index].(skillItem); ok {
+			m.list.Select(index)
+			break
+		}
+	}
+	m.syncMainCursor()
+}
+
 func (m *Model) refreshInventory() {
 	m.inv = m.engine.Inventory()
 	if m.cursor >= len(m.inv.Skills) {
 		m.cursor = max(0, len(m.inv.Skills)-1)
 	}
+	_ = m.list.SetItems(buildListItems(m.inv))
+	m.selectMainCursor()
+	m.resizeList()
 }
 
 func (m *Model) refreshArchive() {
@@ -366,27 +408,8 @@ func (m *Model) renderMain(b *strings.Builder) {
 	if len(m.inv.Skills) == 0 {
 		b.WriteString("No skills found.\n")
 	} else {
-		var current engine.Source
-		for i, skill := range m.inv.Skills {
-			if skill.Source != current {
-				current = skill.Source
-				b.WriteString(string(current))
-				b.WriteString("\n")
-			}
-			cursor := " "
-			if i == m.cursor {
-				cursor = ">"
-			}
-			label := skill.Name
-			if skill.Kind == engine.KindPrompt {
-				label = "[prompt] " + label
-			}
-			pluginText := ""
-			if skill.Source == engine.SourcePlugin && skill.Plugin != nil {
-				pluginText = fmt.Sprintf(" | one of %d in %s", skill.Plugin.SkillCount, skill.Plugin.Plugin)
-			}
-			fmt.Fprintf(b, "%s %s | %s | %s%s\n", cursor, label, truncate(skill.Description, 72), skill.Activation, pluginText)
-		}
+		b.WriteString(m.list.View())
+		b.WriteString("\n")
 	}
 
 	if len(m.inv.Notices) > 0 {
@@ -416,12 +439,79 @@ func (m *Model) renderArchive(b *strings.Builder) {
 	}
 }
 
-func truncate(value string, limit int) string {
-	if len(value) <= limit {
-		return value
+func newSkillList(items []list.Item) list.Model {
+	model := list.New(items, skillDelegate{}, 0, 0)
+	model.SetShowTitle(false)
+	model.SetShowFilter(false)
+	model.SetFilteringEnabled(false)
+	model.SetShowStatusBar(false)
+	model.SetShowPagination(false)
+	model.SetShowHelp(false)
+	model.DisableQuitKeybindings()
+	return model
+}
+
+func (m *Model) selectedMainSkill() (engine.Skill, bool) {
+	item, ok := m.list.SelectedItem().(skillItem)
+	if ok {
+		return item.skill, true
 	}
-	if limit <= 3 {
-		return value[:limit]
+	if len(m.inv.Skills) == 0 {
+		return engine.Skill{}, false
 	}
-	return value[:limit-3] + "..."
+	return m.inv.Skills[m.cursor], true
+}
+
+func (m *Model) syncMainCursor() {
+	selected, ok := m.list.SelectedItem().(skillItem)
+	if !ok {
+		m.cursor = 0
+		return
+	}
+	for i, skill := range m.inv.Skills {
+		if skill.Location == selected.skill.Location {
+			m.cursor = i
+			return
+		}
+	}
+	m.cursor = 0
+}
+
+func (m *Model) selectMainCursor() {
+	if len(m.inv.Skills) == 0 {
+		m.cursor = 0
+		m.list.Select(0)
+		return
+	}
+
+	items := m.list.Items()
+	skillIndex := 0
+	for i, item := range items {
+		if _, ok := item.(skillItem); !ok {
+			continue
+		}
+		if skillIndex == m.cursor {
+			m.list.Select(i)
+			return
+		}
+		skillIndex++
+	}
+	m.list.Select(0)
+	m.syncMainCursor()
+}
+
+func (m *Model) resizeList() {
+	reserved := 4 // title, help, blank line, trailing newline after the list
+	if len(m.inv.Notices) > 0 {
+		reserved += 2 + len(m.inv.Notices) // blank line, "Notices" line, one per notice
+	}
+	if m.status != "" {
+		reserved += 2 // blank line, status line
+	}
+
+	height := m.height - reserved
+	if height < 1 {
+		height = len(m.list.Items())
+	}
+	m.list.SetSize(m.width, height)
 }
