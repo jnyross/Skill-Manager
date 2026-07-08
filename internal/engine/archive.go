@@ -14,7 +14,7 @@ import (
 
 func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 	location = absolutePath(location)
-	source, kind, tool, err := e.classifyLocation(location)
+	source, kind, tool, originRepo, err := e.classifyLocation(location)
 	if err != nil {
 		return ArchiveEntry{}, err
 	}
@@ -58,6 +58,8 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 		Name:             name,
 		Source:           source,
 		Kind:             kind,
+		Tool:             tool,
+		OriginRepo:       originRepo,
 		OriginalLocation: location,
 		ArchivedAt:       time.Now().UTC(),
 	}
@@ -121,6 +123,9 @@ func (e *Engine) ListArchive() ([]ArchiveEntry, error) {
 			return nil, err
 		}
 		archiveEntry.ID = entry.Name()
+		if !e.archiveEntryVisible(archiveEntry) {
+			continue
+		}
 		archived = append(archived, archiveEntry)
 	}
 
@@ -128,6 +133,26 @@ func (e *Engine) ListArchive() ([]ArchiveEntry, error) {
 		return archived[i].ArchivedAt.After(archived[j].ArchivedAt)
 	})
 	return archived, nil
+}
+
+func (e *Engine) archiveEntryVisible(entry ArchiveEntry) bool {
+	if entry.Source != SourceProject {
+		return true
+	}
+	return e.hasProjectRoot(entry.OriginRepo)
+}
+
+func (e *Engine) hasProjectRoot(originRepo string) bool {
+	return containsPath(e.roots.ClaudeProjectRoots, originRepo) || containsPath(e.roots.ProjectRoots, originRepo)
+}
+
+func containsPath(paths []string, target string) bool {
+	for _, path := range paths {
+		if path == target {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Engine) Restore(id string) error {
@@ -186,37 +211,35 @@ func (e *Engine) Purge(id string) error {
 	return os.RemoveAll(filepath.Join(e.roots.DataDir, "archive", id))
 }
 
-// classifyLocation determines the Source, Kind, and Tool of an archivable
-// location by checking which scan root it is an immediate child of. Archive
-// is supported for Personal skills, Codex skills (either scan root), Codex
-// custom prompts, and Project skills (either Tool); anything else (Plugin
-// skills, unknown paths) is rejected. Tool is only meaningful to
-// disambiguate a Project location (Personal/Codex sources imply their own
-// Tool and Uninstall doesn't need it disambiguated for them).
-func (e *Engine) classifyLocation(location string) (Source, Kind, Tool, error) {
+// classifyLocation determines the Source, Kind, Tool, and Project origin of an
+// archivable location by checking which scan root it is an immediate child of.
+// Archive is supported for Personal skills, Codex skills (either scan root),
+// Codex custom prompts, and Project skills (either Tool); anything else
+// (Plugin skills, unknown paths) is rejected.
+func (e *Engine) classifyLocation(location string) (Source, Kind, Tool, string, error) {
 	if _, ok := immediateChildOf(filepath.Join(e.roots.ClaudeHome, "skills"), location); ok {
-		return SourcePersonal, KindSkill, ToolClaudeCode, nil
+		return SourcePersonal, KindSkill, ToolClaudeCode, "", nil
 	}
 	if _, ok := immediateChildOf(filepath.Join(e.roots.CodexHome, "skills"), location); ok {
-		return SourceCodex, KindSkill, ToolCodex, nil
+		return SourceCodex, KindSkill, ToolCodex, "", nil
 	}
 	if _, ok := immediateChildOf(filepath.Join(e.roots.AgentsHome, "skills"), location); ok {
-		return SourceCodex, KindSkill, ToolCodex, nil
+		return SourceCodex, KindSkill, ToolCodex, "", nil
 	}
 	if _, ok := immediateChildOf(filepath.Join(e.roots.CodexHome, "prompts"), location); ok {
-		return SourceCodex, KindPrompt, ToolCodex, nil
+		return SourceCodex, KindPrompt, ToolCodex, "", nil
 	}
 	for _, root := range e.roots.ClaudeProjectRoots {
 		if _, ok := immediateChildOf(filepath.Join(root, ".claude", "skills"), location); ok {
-			return SourceProject, KindSkill, ToolClaudeCode, nil
+			return SourceProject, KindSkill, ToolClaudeCode, root, nil
 		}
 	}
 	for _, root := range e.roots.ProjectRoots {
 		if _, ok := immediateChildOf(filepath.Join(root, ".agents", "skills"), location); ok {
-			return SourceProject, KindSkill, ToolCodex, nil
+			return SourceProject, KindSkill, ToolCodex, root, nil
 		}
 	}
-	return "", "", "", fmt.Errorf("archive is not supported for this location: %s", location)
+	return "", "", "", "", fmt.Errorf("archive is not supported for this location: %s", location)
 }
 
 // immediateChildOf reports whether location is exactly one path segment
