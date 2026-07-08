@@ -60,10 +60,9 @@ func renderSkillItem(skill engine.Skill, selected bool, width int) string {
 	}
 
 	activation := activationStyle(skill.Activation).Render(string(skill.Activation))
-	line := fmt.Sprintf("%s %s | %s | %s%s",
+	line := fmt.Sprintf("%s %s | %s%s",
 		cursor,
 		selectedSkillName(label, selected),
-		skillDescriptionStyle.Render(skill.Description),
 		activation,
 		skillMetaStyle.Render(pluginText),
 	)

@@ -19,10 +19,18 @@ var (
 
 	skillRowStyle         = lipgloss.NewStyle()
 	selectedSkillRowStyle = lipgloss.NewStyle().Bold(true)
-	skillDescriptionStyle = lipgloss.NewStyle().
+	skillMetaStyle        = lipgloss.NewStyle().
+				Foreground(lipgloss.AdaptiveColor{Light: "#64748B", Dark: "#94A3B8"})
+
+	detailPaneStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.AdaptiveColor{Light: "#CBD5E1", Dark: "#475569"}).
+			Padding(0, 1)
+	detailTitleStyle = lipgloss.NewStyle().
+				Bold(true)
+	detailLabelStyle = lipgloss.NewStyle().
+				Bold(true).
 				Foreground(lipgloss.AdaptiveColor{Light: "#475569", Dark: "#94A3B8"})
-	skillMetaStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#64748B", Dark: "#94A3B8"})
 
 	activationAutoStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "#334155", Dark: "#CBD5E1"})

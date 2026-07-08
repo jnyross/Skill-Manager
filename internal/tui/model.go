@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"skillet/internal/engine"
 )
@@ -51,6 +52,7 @@ type Model struct {
 	status  string
 	width   int
 	height  int
+	detail  detailPane
 }
 
 func NewModel(e *engine.Engine) *Model {
@@ -408,7 +410,8 @@ func (m *Model) renderMain(b *strings.Builder) {
 	if len(m.inv.Skills) == 0 {
 		b.WriteString("No skills found.\n")
 	} else {
-		b.WriteString(m.list.View())
+		detail := m.detail.render(m.selectedMainSkill())
+		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), " ", detail))
 		b.WriteString("\n")
 	}
 
@@ -462,6 +465,7 @@ func (m *Model) selectedMainSkill() (engine.Skill, bool) {
 	return m.inv.Skills[m.cursor], true
 }
 
+
 func (m *Model) syncMainCursor() {
 	selected, ok := m.list.SelectedItem().(skillItem)
 	if !ok {
@@ -513,5 +517,32 @@ func (m *Model) resizeList() {
 	if height < 1 {
 		height = len(m.list.Items())
 	}
-	m.list.SetSize(m.width, height)
+
+	width := m.width
+	if width < 1 {
+		width = 100
+	}
+	listWidth, detailWidth := splitPaneWidths(width)
+	m.list.SetSize(listWidth, height)
+	m.detail.width = detailWidth
+	m.detail.height = height
+}
+
+func splitPaneWidths(width int) (int, int) {
+	if width < 2 {
+		return width, 0
+	}
+
+	gap := 1
+	available := width - gap
+	listWidth := available * 3 / 5
+	if listWidth < 1 {
+		listWidth = 1
+	}
+	detailWidth := available - listWidth
+	if detailWidth < 1 {
+		detailWidth = 1
+		listWidth = width - gap - detailWidth
+	}
+	return listWidth, detailWidth
 }
