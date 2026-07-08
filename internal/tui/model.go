@@ -31,6 +31,7 @@ const (
 	pendingManualOnly
 	pendingAutoActivate
 	pendingUninstallPlugin
+	pendingInstall
 )
 
 type pendingConfirm struct {
@@ -40,24 +41,27 @@ type pendingConfirm struct {
 	id          string
 	skill       engine.Skill
 	plugin      engine.PluginInfo
+	entry       engine.LibraryEntry
+	target      engine.InstallTarget
 }
 
 type Model struct {
-	engine      *engine.Engine
-	view        viewState
-	cursor      int // inventory skill index for main view
-	inv         engine.Inventory
-	list        list.Model
-	archiveList list.Model
-	libraryList list.Model
-	help        help.Model
-	archive     []engine.ArchiveEntry
-	library     []engine.LibraryEntry
-	pending     *pendingConfirm
-	status      string
-	width       int
-	height      int
-	detail      detailPane
+	engine        *engine.Engine
+	view          viewState
+	cursor        int // inventory skill index for main view
+	inv           engine.Inventory
+	list          list.Model
+	archiveList   list.Model
+	libraryList   list.Model
+	help          help.Model
+	archive       []engine.ArchiveEntry
+	library       []engine.LibraryEntry
+	pending       *pendingConfirm
+	installPicker *installPicker
+	status        string
+	width         int
+	height        int
+	detail        detailPane
 }
 
 func NewModel(e *engine.Engine) *Model {
@@ -97,6 +101,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.status = "Canceled."
 		}
 		m.pending = nil
+		m.resizeList()
+		return m, nil
+	}
+
+	if m.installPicker != nil {
+		if key.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+		m.updateInstallPicker(key.String())
 		m.resizeList()
 		return m, nil
 	}
@@ -273,7 +286,89 @@ func (m *Model) updateLibrary(key string) {
 		}
 		m.status = "Removed " + selected.Name + " from Library."
 		m.refreshLibrary()
+	case "i":
+		m.beginLibraryInstall()
 	}
+}
+
+func (m *Model) beginLibraryInstall() {
+	selected, ok := m.selectedLibraryEntry()
+	if !ok {
+		m.status = "No Library entry selected."
+		return
+	}
+	if selected.Source.Kind != engine.LibrarySourceLocalPath {
+		m.status = "Install for this source kind is not supported yet."
+		return
+	}
+	options := buildInstallTargetOptions(m.engine)
+	if len(options) == 0 {
+		m.status = "No Install targets available."
+		return
+	}
+	m.installPicker = &installPicker{
+		entry:   selected,
+		options: options,
+		cursor:  0,
+	}
+	m.status = ""
+}
+
+func (m *Model) updateInstallPicker(key string) {
+	picker := m.installPicker
+	if picker == nil {
+		return
+	}
+	switch key {
+	case "esc", "q":
+		m.installPicker = nil
+		m.status = "Canceled."
+	case "up", "k":
+		if picker.cursor > 0 {
+			picker.cursor--
+		}
+	case "down", "j":
+		if picker.cursor < len(picker.options)-1 {
+			picker.cursor++
+		}
+	case "enter":
+		opt := picker.options[picker.cursor]
+		entry := picker.entry
+		m.installPicker = nil
+		m.confirmOrRunInstall(entry, opt.target)
+	}
+}
+
+func (m *Model) confirmOrRunInstall(entry engine.LibraryEntry, target engine.InstallTarget) {
+	dest, exists, err := m.engine.InstallDestination(entry, target)
+	if err != nil {
+		m.status = "Install failed: " + err.Error()
+		return
+	}
+	if exists {
+		m.pending = &pendingConfirm{
+			description: fmt.Sprintf("Replace existing skill at %s with Library entry %q? y to confirm, any other key to cancel.", dest, entry.Name),
+			action:      pendingInstall,
+			entry:       entry,
+			target:      target,
+		}
+		return
+	}
+	m.runInstall(entry, target)
+}
+
+func (m *Model) runInstall(entry engine.LibraryEntry, target engine.InstallTarget) {
+	// Library view Install defaults to Auto; Bundle Install will pass each
+	// member's remembered Activation later.
+	if err := m.engine.InstallLibraryEntry(entry, target, engine.ActivationAuto); err != nil {
+		m.status = "Install failed: " + err.Error()
+		return
+	}
+	where := "Personal"
+	if target.Kind == engine.InstallTargetProject {
+		where = target.RepoRoot
+	}
+	m.status = fmt.Sprintf("Installed %q → %s.", entry.Name, where)
 }
 
 func (m *Model) toggleLibraryMembership() {
@@ -376,6 +471,8 @@ func (m *Model) executePending() {
 		}
 		m.status = "Uninstalled plugin " + plugin.Plugin + "."
 		m.refreshInventory()
+	case pendingInstall:
+		m.runInstall(m.pending.entry, m.pending.target)
 	}
 }
 
@@ -501,6 +598,10 @@ func (m *Model) View() string {
 	view := m.renderView()
 	if m.pending != nil {
 		return renderConfirmOverlay(view, m.pending.description, m.width, m.height)
+	}
+	if m.installPicker != nil {
+		desc := renderInstallPickerDescription(m.installPicker.entry.Name, m.installPicker.options, m.installPicker.cursor)
+		return renderConfirmOverlay(view, desc, m.width, m.height)
 	}
 	return view
 }
