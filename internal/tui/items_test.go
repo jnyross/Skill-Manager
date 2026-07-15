@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 // buildListItems trusts its input is already ordered by Source then Name

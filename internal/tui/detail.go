@@ -6,7 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/viewport"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 type detailPane struct {

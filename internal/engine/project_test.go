@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 func TestProjectClaudeSkillAtRepoRoot(t *testing.T) {

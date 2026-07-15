@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 // installTargetOption is one row in the Library Install target picker

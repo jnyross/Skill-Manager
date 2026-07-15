@@ -1,0 +1,32 @@
+{
+  "name": "@jnyross/skillet",
+  "version": "0.2.0-dev.0",
+  "description": "Manage agent skills across Claude Code and Codex",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jnyross/Skill-Manager.git",
+    "directory": "packaging/npm/packages/skillet"
+  },
+  "bin": {
+    "skillet": "bin/skillet.cjs"
+  },
+  "files": [
+    "bin/skillet.cjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.14.0",
+    "npm": ">=10.9.0"
+  },
+  "optionalDependencies": {
+    "@jnyross/skillet-darwin-arm64": "0.2.0-dev.0",
+    "@jnyross/skillet-darwin-x64": "0.2.0-dev.0",
+    "@jnyross/skillet-linux-arm64": "0.2.0-dev.0",
+    "@jnyross/skillet-linux-x64": "0.2.0-dev.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

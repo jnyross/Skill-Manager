@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 // Codex config.toml shape ([[skills.config]] path/name/enabled) encodes the

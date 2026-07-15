@@ -1,0 +1,2478 @@
+{
+  "schemaVersion": 1,
+  "version": "2026.07.15.2",
+  "reviewedDate": "2026-07-15",
+  "members": [
+    {
+      "name": "ask-matt",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/ask-matt",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "d4a8d9f5857d0a4e6c626768355077ea48c2227eb40a05f1e1d2e21f39b0adb2",
+        "metadataSHA256": "019f7cd523bc8f0025b695d47f92fa8591df35dcf052fff080640619edd87833",
+        "dependencyEvidenceSHA256": "1fba20d846ff0e69c6a74b668c93cceffaaa85b0a5b59511939ae1484572b857",
+        "externalActionEvidenceSHA256": "de689c51db669c9620e441e0a03c48f13c74e4a8c7b95907c5bda0c4ef891d15"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $ask-matt only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_ASK_MATT.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "code-review",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/code-review",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "d45f786768d013c1e387aa5b3d067f7a2540c9350b1ef116d0245d9881a61bde",
+        "metadataSHA256": "d16deedf1c25bbfc9402242c551f2a56b587690b4308384674eddfd1dffa26e1",
+        "dependencyEvidenceSHA256": "42c0040983676dfca5cb1070e87736d8ebaac8beb1119abb25e87c156a3cef39",
+        "externalActionEvidenceSHA256": "8f9c930cc24ef648c88b2ed470da8ff76376d6c294bbba2e952b0c469f4ba244"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "git",
+          "optional": true,
+          "reason": "Operational workflow uses Git; guided setup and discovery do not invoke it"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $code-review only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_CODE_REVIEW.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "codebase-design",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/codebase-design",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "c46b49303a81c7fc8934d0f4fbc44382cdecb73942d85d8d7db3523407fff8fa",
+        "metadataSHA256": "963ab85621c5bfe33baed2682459d285f29a7189b459a8624857f92ae4f5f0c3",
+        "dependencyEvidenceSHA256": "360398f4506027812fd5583714834dec30a6dcfc7fa512b787a7296e5b51dc10",
+        "externalActionEvidenceSHA256": "136f98bea784364974d92da9a84e0faefc573efec0c4705d816c80e05c90e52c"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $codebase-design only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_CODEBASE_DESIGN.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "diagnosing-bugs",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/diagnosing-bugs",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "73be315b6528e88c48c6f797d5fa7faa284fc468e6ab795c4bfe5161d4440e2f",
+        "metadataSHA256": "8e595b21aac27be21baa8070cc318dcad240ccf7771132d6e2353c141413909b",
+        "dependencyEvidenceSHA256": "3206bffd01ff65d1626cf6f1b3203506adb9bd83df8d77cef3b632a59724de97",
+        "externalActionEvidenceSHA256": "0d9937fe75a7dda9829cfd98e0a459aebda885c7387b2e3de695f2c4bf34921e"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational workflow may require network access; guided setup and discovery do not"
+        }
+      ],
+      "scripts": [
+        "scripts/hitl-loop.template.sh"
+      ],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May launch or control a browser and capture application output when explicitly invoked; guided setup never launches member tools"
+      ],
+      "verificationPrompt": "Use $diagnosing-bugs only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_DIAGNOSING_BUGS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "domain-modeling",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/domain-modeling",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "40afc20cd49261811d7fe377fff53c1804f5e27644b42adb65469c7fc305a3a2",
+        "metadataSHA256": "34c3839b901968dcc98be56b6decfbadf47e7fd1628dfecfd7a669c054204456",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "ac7a2388ef3cfe8e2aba7c5a743b90f3b97d53d7faaafef7a4d81987fefef7da"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $domain-modeling only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_DOMAIN_MODELING.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "grill-with-docs",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/grill-with-docs",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "84554e18aac963e26214159bfb522ddbd72dab710f43176727ca14f432033567",
+        "metadataSHA256": "26b5afff958e9e528b17d12c0a0e83a9d3e05b3569268aeb425055788165cbff",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "7f1964302d9713aa00669073daf1116d771c6427fbfcecac724a395af813a6b3"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $grill-with-docs only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_GRILL_WITH_DOCS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "implement",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/implement",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "1a7a56bca542f46ff8e42fa5ddd293dab21b38b6dad57e1bf3e76d12e41c5fc2",
+        "metadataSHA256": "583c3fdc7286df4a37649ab5d718c2deead69c76c324109b20c4a2e8724d2820",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $implement only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_IMPLEMENT.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "improve-codebase-architecture",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/improve-codebase-architecture",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "d3682058df92c259b47c36503baa02345d5811758621b5dc03081d5ba0f7b69b",
+        "metadataSHA256": "a0b742fc9c8f7c089fdf78a466d29a7824f205cc1bad3f6cd374a3b4778e1a29",
+        "dependencyEvidenceSHA256": "5f85e494c270bdb78b9e6c6dd34532c551e513e3a08486379335b943f7c98167",
+        "externalActionEvidenceSHA256": "2401a0cf44ab71eaf7cdba2e8eee319949be21adb08aa323075f3bba0264560a"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [
+        {
+          "name": "git",
+          "optional": true,
+          "reason": "Operational workflow uses Git; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "npm",
+          "optional": true,
+          "reason": "Operational workflow may use Node package tooling; discovery does not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $improve-codebase-architecture only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_IMPROVE_CODEBASE_ARCHITECTURE.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "prototype",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/prototype",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "9a52396fe98d9fd40299c304ce45655507715e6237c5bf6621a308a4e351e18b",
+        "metadataSHA256": "ca14260e26efae5aa40d513fbca9b108c30069144a55bd555ecca72528b54138",
+        "dependencyEvidenceSHA256": "35f4907f68efe806bdb6e2240a5a4607d15bca684bbd79faeff6e158d5c37a11",
+        "externalActionEvidenceSHA256": "5d6d9f981537bd1b705c34c7e2481b098651e623f776517a6b1401d67ee5b22d"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational workflow may require network access; guided setup and discovery do not"
+        },
+        {
+          "name": "python3",
+          "optional": true,
+          "reason": "Operational workflow includes Python commands or scripts; discovery does not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May launch or control a browser and capture application output when explicitly invoked; guided setup never launches member tools"
+      ],
+      "verificationPrompt": "Use $prototype only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_PROTOTYPE.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "research",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/research",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "6d02c11a6a7192f3e6058533e1cc310060cfceddd118623ea53e6d1da605d659",
+        "metadataSHA256": "9daae692dc338d4bf1e2950f805a1fe19149eaf813884ea7aad6c1b7196a2568",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "8c07b3654cc6856f2572aa1308995a18715591cfa4096484831ebff6505d703f"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $research only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_RESEARCH.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "setup-matt-pocock-skills",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/setup-matt-pocock-skills",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "63188972753c4b1d382180b2ca1bd4e5a27bfd0fb611ec970f2b1a7aba932707",
+        "metadataSHA256": "2aa82f41c05c20f9952d6682112c793c8cc256fc2f689ff1b7c488123cf7d0eb",
+        "dependencyEvidenceSHA256": "53a63d1d92a4a6834a5f7260c658b0d7ee3c5278fd60eb8fbbfa33eaea658e3d",
+        "externalActionEvidenceSHA256": "4bd2e8b45aa459402936517a867d05511c11723f0dd52031bf7f6cce35242f32"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [
+        {
+          "name": "gh",
+          "optional": true,
+          "reason": "Operational workflow uses the authenticated GitHub CLI; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational GitHub actions require network access; guided setup and discovery do not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May create or mutate GitHub issues when explicitly invoked and authorized; guided setup never performs tracker mutations",
+        "May create or mutate GitHub issues, labels, or dependencies when explicitly invoked and authorized; guided setup never performs tracker mutations"
+      ],
+      "verificationPrompt": "Use $setup-matt-pocock-skills only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_SETUP_MATT_POCOCK_SKILLS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "tdd",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/tdd",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "c7bd017fedd677de169904f610438647a586350f82bd80ce0b12ad9d3cebddf5",
+        "metadataSHA256": "6756e69abec247ba9bdffb9490bf47a14bb12c3de845f7f9970ff78bf44ddf4c",
+        "dependencyEvidenceSHA256": "cddbd11aad51fc81a605ba5e8f81272ef812f4de418ce81e06dfbe3cb31d00db",
+        "externalActionEvidenceSHA256": "31bde587a369222d8f8554fa760932172fc1335638b765ed4d30acf66a453693"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $tdd only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_TDD.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "to-spec",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/to-spec",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "0e05c1bea97c787e44e79f4e255a9afd6a377c24f29f0a3a014f0231ebe57d8c",
+        "metadataSHA256": "d50e492bce520ac597fc0eec960f7e9cde0e525654f1a99590cfdd7338347f9c",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "4de9d82594850326c52508d287052cd316fffd766069601da14f8da3e9b3c90f"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [
+        {
+          "name": "gh",
+          "optional": true,
+          "reason": "Operational tracker workflow requires an authenticated GitHub surface; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational tracker workflow requires network access; guided setup and discovery do not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May create or mutate GitHub issues when explicitly invoked and authorized; guided setup never performs tracker mutations",
+        "May create or mutate GitHub issues, labels, or dependencies when explicitly invoked and authorized; guided setup never performs tracker mutations"
+      ],
+      "verificationPrompt": "Use $to-spec only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_TO_SPEC.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "to-tickets",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/to-tickets",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "27f8a34226cc7109cd87895bb31e0163607348a6ef3653b8836b0be30dcf00e5",
+        "metadataSHA256": "b3e01c2f56b4f602e3e956a2d79a0c30fdaefc57f7700f64e8c8c092666fa399",
+        "dependencyEvidenceSHA256": "f6abecd52550c750c369c2aaeb2b230d566160a6f23fda419adf1f5dd6eca980",
+        "externalActionEvidenceSHA256": "8613867045a0fad89839a1f7f397eedb4a8f89a075f3c5e50a8facbf703b30a8"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [
+        {
+          "name": "gh",
+          "optional": true,
+          "reason": "Operational tracker workflow requires an authenticated GitHub surface; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational tracker workflow requires network access; guided setup and discovery do not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May create or mutate GitHub issues when explicitly invoked and authorized; guided setup never performs tracker mutations",
+        "May create or mutate GitHub issues, labels, or dependencies when explicitly invoked and authorized; guided setup never performs tracker mutations"
+      ],
+      "verificationPrompt": "Use $to-tickets only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_TO_TICKETS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "triage",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/triage",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "9efd474210857312d08c4117e60375ac8daa40a0e5a34a47b122c3733089a531",
+        "metadataSHA256": "0a06518c5423c60153312fdc6235c68af1c883a7e0d5a3e5d0d2bc17bd187044",
+        "dependencyEvidenceSHA256": "90a47ad78b2e36e82aacf76f7ace44bac7217b6ea5dd820f195fcd1eadefee02",
+        "externalActionEvidenceSHA256": "4f7874a5bbe26330aad825be0d27f421153441b8dc1c26a5041fa990c343b676"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [
+        {
+          "name": "gh",
+          "optional": true,
+          "reason": "Operational workflow uses the authenticated GitHub CLI; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational GitHub actions require network access; guided setup and discovery do not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May create or mutate GitHub issues, labels, or dependencies when explicitly invoked and authorized; guided setup never performs tracker mutations"
+      ],
+      "verificationPrompt": "Use $triage only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_TRIAGE.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "wayfinder",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/engineering/wayfinder",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "21c81e4a49dac730ada84bf5a23123b549078ad47ce5bb5359f11de489ee9ac8",
+        "metadataSHA256": "e940b8d3fe63a37286dbec445c7f16f6a40f2a34f8c89d49757140cf4f7a98f6",
+        "dependencyEvidenceSHA256": "e29a6b5bc561315182ccfe3bf684055aed115f6ee58e47d7e909a35188112fb8",
+        "externalActionEvidenceSHA256": "c2c022e00d0d14198181c30f79c128482af8e264c35cc4bb7e749f2f05e54943"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [
+        {
+          "name": "gh",
+          "optional": true,
+          "reason": "Operational tracker workflow requires an authenticated GitHub surface; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational tracker workflow requires network access; guided setup and discovery do not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May create or mutate GitHub issues, labels, or dependencies when explicitly invoked and authorized; guided setup never performs tracker mutations"
+      ],
+      "verificationPrompt": "Use $wayfinder only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_WAYFINDER.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "grill-me",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/productivity/grill-me",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "000514e9633b1a2df8bef98549e99b6eaf1a8c3fabfad0e3b328440b3b226c90",
+        "metadataSHA256": "8ec83f2ec518540e42758e32a9c9bbd6b374d054e3738a0b8f93cf4668b5fd38",
+        "dependencyEvidenceSHA256": "e98030d3574a7b1e60ec44af9b855fbd53843db5facba94b8bd196a59a3d3614",
+        "externalActionEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $grill-me only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_GRILL_ME.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "grilling",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/productivity/grilling",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "35963aa4abbdae92eb75d8c2dc69eaa70126315a642aba1e5371bd4a9305fb2a",
+        "metadataSHA256": "3a459ca78c30fbce539fa7080a9a346d11b9294b1271d15d9c0f3a92ecfa6689",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $grilling only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_GRILLING.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "handoff",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/productivity/handoff",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "c97a305f5ca0b6fa21ca82a009ac5a553acd02aab63cf59de939f75ac7797393",
+        "metadataSHA256": "4b904f80e06be3d0a0b995e3a56ec14e60fb4ca824b1a94634eca74b9e943f74",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "e2437471dbda02e9dd51b3bca262b4c0915050fe8ae05acdf85260e2444a41fb"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $handoff only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_HANDOFF.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "teach",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/productivity/teach",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "d646b14188296c5a2658360ac13e7236f1ec564ca4674052ad1c3d3c4fbba058",
+        "metadataSHA256": "cb0b1f403969f03cdfdb931b55647e5fc6d3b2b68cff85182980c0e88c446a57",
+        "dependencyEvidenceSHA256": "80c7e90212a6ec61da19217a91777053f927944416b99c831caf001645be226b",
+        "externalActionEvidenceSHA256": "12c3f0b6841cb3ef4f0f56fbea372f3dc55ca778ff963fa117d21e6191718a82"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational workflow may require network access; guided setup and discovery do not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May launch or control a browser and capture application output when explicitly invoked; guided setup never launches member tools"
+      ],
+      "verificationPrompt": "Use $teach only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_TEACH.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "writing-great-skills",
+      "family": "matt",
+      "source": {
+        "repository": "https://github.com/mattpocock/skills.git",
+        "subpath": "skills/productivity/writing-great-skills",
+        "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "35e3074217abf664be81122c6b9e0cd6aebdb577427c82e5846bf3742f70cbf5",
+        "metadataSHA256": "b94fcca48e06c1b57ddc42d12ca0beae928f64ed29070ee667218a3d36c50397",
+        "dependencyEvidenceSHA256": "5e4f3071f21ed177dad510151fd33e13296171358dae56b30a75a83fea28939c",
+        "externalActionEvidenceSHA256": "31c66f223e98301ce31638146a2913c87627d5e8dba14dec467f2e5fa74cc91f"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "manual-only",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $writing-great-skills only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_WRITING_GREAT_SKILLS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "brainstorming",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/brainstorming",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "a1202a6a5e8d86659745e69030c06bfb033f265d8a276f29b24b8a57c4809399",
+        "metadataSHA256": "53b147c28e9d2248254d210610c4dd559455d973a057f6f3fb159488174ce8c6",
+        "dependencyEvidenceSHA256": "9c9f508d596f8488b7c886f3f08f8ed62c8f68d1512c67bc5712ee5a933f88b6",
+        "externalActionEvidenceSHA256": "d975ab4ac19f8939f1ff69f2f876c90b2da40a8b04a0f83365f352f59991611a"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational workflow may require network access; guided setup and discovery do not"
+        }
+      ],
+      "scripts": [
+        "scripts/frame-template.html",
+        "scripts/helper.js",
+        "scripts/server.cjs",
+        "scripts/start-server.sh",
+        "scripts/stop-server.sh"
+      ],
+      "executables": [
+        "scripts/start-server.sh",
+        "scripts/stop-server.sh"
+      ],
+      "externalActions": [
+        "May create Git commits, branches, merges, or pushes when explicitly invoked and authorized; guided setup never mutates Git history",
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May launch or control a browser and capture application output when explicitly invoked; guided setup never launches member tools"
+      ],
+      "verificationPrompt": "Use $brainstorming only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_BRAINSTORMING.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "dispatching-parallel-agents",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/dispatching-parallel-agents",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "375d7445c2b7fb800f526e5cf486d9eb90b1258b0a0efd55eb4eeb0a41deb05e",
+        "metadataSHA256": "179d30a179508d90a2e777ff2a8940b428a8ee6c390be2c39ecb3a1bd628ea6e",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "7c138fe8f2f6c48fe33d1570946a466b98b90a1e6676a6102c4ebe589a29a35b"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $dispatching-parallel-agents only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_DISPATCHING_PARALLEL_AGENTS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "executing-plans",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/executing-plans",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "c2df3ab9dfbb243f9f82940450dcd7ea3ee0c94f63ef510afd6037d1ac54815c",
+        "metadataSHA256": "78cb6527ac1c76a6bedae0c091f2f81249bc54a363211c7ac8d910f902455aea",
+        "dependencyEvidenceSHA256": "75acda58cdfb1cd37082aa3fa692d3077cb3af5a25a9fc865dcc79f440b19da1",
+        "externalActionEvidenceSHA256": "47147bd67bd61205c2c1cf14b56a908d118c12a38f922b9c77482c17f20f2592"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $executing-plans only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_EXECUTING_PLANS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "finishing-a-development-branch",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/finishing-a-development-branch",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "0c140b3e01a984ea1a3d2b79b83406b137847597eaa9a740f6a71a94bccafda4",
+        "metadataSHA256": "d47890304bb0bff3df91c34ef4bf383d20d7cbe9c2e4a734f76c652d7680d1ae",
+        "dependencyEvidenceSHA256": "f87cca18f159d7decf41705d600c0e516e0ac6ed6b4d5bd376a58d167707c62e",
+        "externalActionEvidenceSHA256": "493c0164119884d97cb8fa2bdf4ee8fc3c07c13fe7b1c6a0984670ca64abef41"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "git",
+          "optional": true,
+          "reason": "Operational workflow uses Git; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "npm",
+          "optional": true,
+          "reason": "Operational workflow may use Node package tooling; discovery does not"
+        },
+        {
+          "name": "python3",
+          "optional": true,
+          "reason": "Operational workflow includes Python commands or scripts; discovery does not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create Git commits, branches, merges, or pushes when explicitly invoked and authorized; guided setup never mutates Git history"
+      ],
+      "verificationPrompt": "Use $finishing-a-development-branch only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_FINISHING_A_DEVELOPMENT_BRANCH.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "receiving-code-review",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/receiving-code-review",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "976093a40d900b304e7049900c989f2db9b362e732a7590d4e4b143b5fb0d7de",
+        "metadataSHA256": "711a9cf9add05783c2ad1bb52937b02c366c7958879a2553adac713d3f396bc2",
+        "dependencyEvidenceSHA256": "7fbe73fc1bdb2bf2ebcfb8eaa87ec81d3354fd488dfdeebb8e4bced09df7ab1f",
+        "externalActionEvidenceSHA256": "36a619234187ef20640b9499d15f758436404f330b2cf906b43d34e79713d173"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "gh",
+          "optional": true,
+          "reason": "Operational workflow uses the authenticated GitHub CLI; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational GitHub actions require network access; guided setup and discovery do not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $receiving-code-review only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_RECEIVING_CODE_REVIEW.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "requesting-code-review",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/requesting-code-review",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "65cad7b7959ddd26423d94d72a8e8ce669d49be5d3ce9309dd151a999ecf54e1",
+        "metadataSHA256": "9b4bb3d4d75b355802c73f358baef05884476a25f279e94890c0eeac9a6248b5",
+        "dependencyEvidenceSHA256": "c52a052dcb83acc07f685b41fb07f5c8ff61743f89689dbc658998192ec7d205",
+        "externalActionEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "git",
+          "optional": true,
+          "reason": "Operational workflow uses Git; guided setup and discovery do not invoke it"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $requesting-code-review only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_REQUESTING_CODE_REVIEW.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "subagent-driven-development",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/subagent-driven-development",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "e3e3c7c7431c6dbd6420366dbcb74feb04c4fd1b99cb269d096aeb2ac35ad982",
+        "metadataSHA256": "62b6d5653153e99f128d54a54bd8632e1e9b19d574c4d04a96d099dfe945f3d7",
+        "dependencyEvidenceSHA256": "af12db8049ac3520da922cc6e16df26f08bffd4a8129e914fefdf9ff79ba66b7",
+        "externalActionEvidenceSHA256": "5c3ce494948afa6491311293b90181c1b5596f0692cc9a3f7c1f36d25d112f30"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "git",
+          "optional": true,
+          "reason": "Operational workflow uses Git; guided setup and discovery do not invoke it"
+        }
+      ],
+      "scripts": [
+        "scripts/review-package",
+        "scripts/sdd-workspace",
+        "scripts/task-brief"
+      ],
+      "executables": [
+        "scripts/review-package",
+        "scripts/sdd-workspace",
+        "scripts/task-brief"
+      ],
+      "externalActions": [
+        "May create Git commits, branches, merges, or pushes when explicitly invoked and authorized; guided setup never mutates Git history",
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May download or install operational dependencies when explicitly invoked and authorized; guided setup never runs member installers"
+      ],
+      "verificationPrompt": "Use $subagent-driven-development only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_SUBAGENT_DRIVEN_DEVELOPMENT.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "systematic-debugging",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/systematic-debugging",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "ef0971c299343779d79d18f5ff46ed825761638529fa77cc49ad54ae7b9fd60c",
+        "metadataSHA256": "34555b050e90cf38df62fdb4aef49923974b3d3a169d9281f41fcabe30b9d758",
+        "dependencyEvidenceSHA256": "f6ca4c3b75d7e34fd4522af656ba1f9dd3f9e238a60b29114bb596830516117a",
+        "externalActionEvidenceSHA256": "afb525193507952e368686c4d34c99d7a04d1d34a7f3b0c08a32bb33a10da43b"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "git",
+          "optional": true,
+          "reason": "Operational workflow uses Git; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "npm",
+          "optional": true,
+          "reason": "Operational workflow may use Node package tooling; discovery does not"
+        }
+      ],
+      "scripts": [
+        "condition-based-waiting-example.ts",
+        "find-polluter.sh"
+      ],
+      "executables": [
+        "find-polluter.sh"
+      ],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $systematic-debugging only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_SYSTEMATIC_DEBUGGING.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "test-driven-development",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/test-driven-development",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "7c3b1fa71c313b7c51b451858ec855c0f22fd5925bf0ec9b385382c1bcd3d75b",
+        "metadataSHA256": "86e6c16f30919dfb1f3e408a02a1017d1cf6f4a4c7425a37ed7f81c9ef5d276d",
+        "dependencyEvidenceSHA256": "6e72ea354b55d7bb9660344e5a882bb5b4717d341de1cbbae31156ab04238ef9",
+        "externalActionEvidenceSHA256": "52aab6ed16e760c3399afc9b0cefe32408678f8e041a0b004538b25e6a88f4d3"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "npm",
+          "optional": true,
+          "reason": "Operational workflow may use Node package tooling; discovery does not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $test-driven-development only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_TEST_DRIVEN_DEVELOPMENT.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "using-git-worktrees",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/using-git-worktrees",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "e6306e69246610dc203c8639584542e16bfbb0b09d0adddac533ca009fa93180",
+        "metadataSHA256": "44ddac0333e5c51c571f743ae8b737ff2b72995cc8574073b860c1a51dcdd6b8",
+        "dependencyEvidenceSHA256": "c3b6cffb139e2a3284fec0296e14c2cf75e47825ad75a1206fa2da9a18bd8e94",
+        "externalActionEvidenceSHA256": "a82daaced31ced6c56ee7f5dcd3aafa2e5aa8ac34954febaaf8491e07e8a1449"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "git",
+          "optional": true,
+          "reason": "Operational workflow uses Git; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational workflow may require network access; guided setup and discovery do not"
+        },
+        {
+          "name": "npm",
+          "optional": true,
+          "reason": "Operational workflow may use Node package tooling; discovery does not"
+        },
+        {
+          "name": "python3",
+          "optional": true,
+          "reason": "Operational workflow includes Python commands or scripts; discovery does not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create Git commits, branches, merges, or pushes when explicitly invoked and authorized; guided setup never mutates Git history",
+        "May download or install operational dependencies when explicitly invoked and authorized; guided setup never runs member installers"
+      ],
+      "verificationPrompt": "Use $using-git-worktrees only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_USING_GIT_WORKTREES.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "using-superpowers",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/using-superpowers",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "0c87a3fb5f5866591811757512ee6de413f90f3299fd21a748e34819d45825ec",
+        "metadataSHA256": "655bdf3fafe1e854222f1b794e36eeec8fe9bfb4b1318cc6a0d71f105c9711e0",
+        "dependencyEvidenceSHA256": "10dd93bcb606095bbe214cebe7db6ac5321ef03de7e20923735dcbf21cf7ec8d",
+        "externalActionEvidenceSHA256": "6e390b4248f03f020be13e5b6f924ecc76006a6f5e5d1554435376bba231ccbe"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "git",
+          "optional": true,
+          "reason": "Operational workflow uses Git; guided setup and discovery do not invoke it"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $using-superpowers only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_USING_SUPERPOWERS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "verification-before-completion",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/verification-before-completion",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "9f704f1335e61a3ce258270d9f492cf487af55f1db0b9fc1bc5fa2173ebd38fa",
+        "metadataSHA256": "e22762585fb6f46b7c991a9540d0a86b87bd82bf615e342d5093f5f29c067d70",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "9a2700a69e618b4f32e076038560033802e29d2a5df6b069cad73cb7d8cbecf3"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $verification-before-completion only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_VERIFICATION_BEFORE_COMPLETION.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "writing-plans",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/writing-plans",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "9d6565e8748399c61246be6f2a5af2113caa39feb8d0d6eca199f5b29310bbaf",
+        "metadataSHA256": "733d031ddbf13e70fed611d0b460dca57a561604a150c95c865071aae1b8fe02",
+        "dependencyEvidenceSHA256": "18425fe6f8c90c2a67e03b8fd2d051ddc26c5496fbf22725ea3c5096e295a720",
+        "externalActionEvidenceSHA256": "4db210b6a7ab9ccef206c567eddc7bb58ae221f8cdd6922912e76005d17d912c"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "git",
+          "optional": true,
+          "reason": "Operational workflow uses Git; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "python3",
+          "optional": true,
+          "reason": "Operational workflow includes Python commands or scripts; discovery does not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create Git commits, branches, merges, or pushes when explicitly invoked and authorized; guided setup never mutates Git history",
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $writing-plans only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_WRITING_PLANS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "writing-skills",
+      "family": "superpowers",
+      "source": {
+        "repository": "https://github.com/obra/superpowers.git",
+        "subpath": "skills/writing-skills",
+        "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "41ac1fdf4a7fd79c446b9d6018c788360ef54a2d28d2b5caaa3f733c8ec623f7",
+        "metadataSHA256": "943e3e001b38fcaa122b3cef874150ecab5384904b64c0a29ba5e1a0db81a1d2",
+        "dependencyEvidenceSHA256": "a6fbf452a02046bf7298f56b738c58238f45f3d83a50fb0a32f2023fec3bfa23",
+        "externalActionEvidenceSHA256": "910322df58a99cfbbe765268a42711035351334e6d870e6b36970dfdd52d9071"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "git",
+          "optional": true,
+          "reason": "Operational workflow uses Git; guided setup and discovery do not invoke it"
+        },
+        {
+          "name": "npm",
+          "optional": true,
+          "reason": "Operational workflow may use Node package tooling; discovery does not"
+        },
+        {
+          "name": "python3",
+          "optional": true,
+          "reason": "Operational workflow includes Python commands or scripts; discovery does not"
+        }
+      ],
+      "scripts": [
+        "render-graphs.js"
+      ],
+      "executables": [
+        "render-graphs.js"
+      ],
+      "externalActions": [
+        "May create Git commits, branches, merges, or pushes when explicitly invoked and authorized; guided setup never mutates Git history",
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May download or install operational dependencies when explicitly invoked and authorized; guided setup never runs member installers"
+      ],
+      "verificationPrompt": "Use $writing-skills only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_WRITING_SKILLS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "web-design-guidelines",
+      "family": "vercel",
+      "source": {
+        "repository": "https://github.com/vercel-labs/agent-skills.git",
+        "subpath": "skills/web-design-guidelines",
+        "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474",
+        "metadataSHA256": "36f543b135c2517dc6dff762d486a40399e35b6b7f2ef8283ac0f761296db1c0",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "README.md",
+        "noticeSHA256": "c0a05286fc2a9d52ec2480bf070867665b9357beef37c9c2812e5b2ece571b6a",
+        "evidence": "declaration-only"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $web-design-guidelines only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_WEB_DESIGN_GUIDELINES.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "vercel-react-best-practices",
+      "family": "vercel",
+      "source": {
+        "repository": "https://github.com/vercel-labs/agent-skills.git",
+        "subpath": "skills/react-best-practices",
+        "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "e3f2294574b469c7c198373a443a86571012769d0bbeed68854bd55642ec0d7b",
+        "metadataSHA256": "ef6f873ddce7357e1f41552ac6e4342b8fb55e7ee12aa3b623fc817805a1bea5",
+        "dependencyEvidenceSHA256": "2fb1133bff29b0b104b65ab39935e966cac401e8a293f78c1dbcde816f657d48",
+        "externalActionEvidenceSHA256": "75acda84229f96ccaae809b9f369a93547648ad8992f40982585930d326cbd93"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "README.md",
+        "noticeSHA256": "c0a05286fc2a9d52ec2480bf070867665b9357beef37c9c2812e5b2ece571b6a",
+        "evidence": "declaration-only"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational workflow may require network access; guided setup and discovery do not"
+        },
+        {
+          "name": "npm",
+          "optional": true,
+          "reason": "Operational workflow may use Node package tooling; discovery does not"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May download or install operational dependencies when explicitly invoked and authorized; guided setup never runs member installers",
+        "May launch or control a browser and capture application output when explicitly invoked; guided setup never launches member tools"
+      ],
+      "verificationPrompt": "Use $vercel-react-best-practices only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_VERCEL_REACT_BEST_PRACTICES.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "vercel-composition-patterns",
+      "family": "vercel",
+      "source": {
+        "repository": "https://github.com/vercel-labs/agent-skills.git",
+        "subpath": "skills/composition-patterns",
+        "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "646f870906914c3787efa7403ec4716dfddf78fc17a12ec1f0556caf2143ac66",
+        "metadataSHA256": "6d1df2fb9cdaba5dd5a26c3a1745688f906d6b75219afa4427418435c1bcb27b",
+        "dependencyEvidenceSHA256": "c748047ee9a2b4ebf67ef8a9b1684ab69be99d0f6523d6334ff1532af6a08cf2",
+        "externalActionEvidenceSHA256": "c86087628e0e107970abeac29bdc0bb2a94dbf7b44a37050fd8b3512e0ed5643"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "README.md",
+        "noticeSHA256": "c0a05286fc2a9d52ec2480bf070867665b9357beef37c9c2812e5b2ece571b6a",
+        "evidence": "declaration-only"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $vercel-composition-patterns only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_VERCEL_COMPOSITION_PATTERNS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "writing-guidelines",
+      "family": "vercel",
+      "source": {
+        "repository": "https://github.com/vercel-labs/agent-skills.git",
+        "subpath": "skills/writing-guidelines",
+        "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "25aa3a33a97bddbcb1847ce4a6169106ec25e5b19b15b99c66e75ab383866ef2",
+        "metadataSHA256": "713422a04b2c2ff0b6e3bab6d888c89913527c9220112056d2692cde453eff86",
+        "dependencyEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "externalActionEvidenceSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "README.md",
+        "noticeSHA256": "c0a05286fc2a9d52ec2480bf070867665b9357beef37c9c2812e5b2ece571b6a",
+        "evidence": "declaration-only"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $writing-guidelines only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_WRITING_GUIDELINES.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "skill-creator",
+      "family": "anthropic",
+      "source": {
+        "repository": "https://github.com/anthropics/skills.git",
+        "subpath": "skills/skill-creator",
+        "reviewedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "4557d54c524c67984e4bab23fa436e90196292ae8df4d2093f0ce0e6951bfc1c",
+        "metadataSHA256": "b1a6457a4fa1c89ff219999a56ecf451f4e8295406b5c995cd0d2211e611dc51",
+        "dependencyEvidenceSHA256": "3087d6f215c41eac9df145b28c35b0766f6993ce7ded0512048e9444d83c92c5",
+        "externalActionEvidenceSHA256": "4d4724929a77323bb9c0cd06aca4c4646241c13ca308826d3d9aaa29c3b7ea91"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "notice": "skills/skill-creator/LICENSE.txt",
+        "noticeSHA256": "bc6b3af2f331cbc7fb0da1344efb2cbe5877a31498b4d70dbc7000f3405a1362",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational workflow may require network access; guided setup and discovery do not"
+        },
+        {
+          "name": "npm",
+          "optional": true,
+          "reason": "Operational workflow may use Node package tooling; discovery does not"
+        },
+        {
+          "name": "python3",
+          "optional": true,
+          "reason": "Operational workflow includes Python commands or scripts; discovery does not"
+        }
+      ],
+      "scripts": [
+        "eval-viewer/generate_review.py",
+        "scripts/__init__.py",
+        "scripts/aggregate_benchmark.py",
+        "scripts/generate_report.py",
+        "scripts/improve_description.py",
+        "scripts/package_skill.py",
+        "scripts/quick_validate.py",
+        "scripts/run_eval.py",
+        "scripts/run_loop.py",
+        "scripts/utils.py"
+      ],
+      "executables": [
+        "scripts/aggregate_benchmark.py",
+        "scripts/generate_report.py",
+        "scripts/improve_description.py",
+        "scripts/package_skill.py",
+        "scripts/quick_validate.py",
+        "scripts/run_eval.py",
+        "scripts/run_loop.py"
+      ],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May download or install operational dependencies when explicitly invoked and authorized; guided setup never runs member installers",
+        "May launch or control a browser and capture application output when explicitly invoked; guided setup never launches member tools"
+      ],
+      "verificationPrompt": "Use $skill-creator only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_SKILL_CREATOR.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "frontend-design",
+      "family": "anthropic",
+      "source": {
+        "repository": "https://github.com/anthropics/skills.git",
+        "subpath": "skills/frontend-design",
+        "reviewedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "665c585455decbcb02116bc928adf5148b9cd0f67b7eb4908c8c0d647c00f68a",
+        "metadataSHA256": "d8b932c282b806afadb29ea12301f705a1dc09f32d7ba2d05da8d05a3f507072",
+        "dependencyEvidenceSHA256": "df35fc737d1f9d37a3aeae2921895c20da579cfb8efbcffe9fcc69b99457f685",
+        "externalActionEvidenceSHA256": "d1243d7ebd424ecab68b444c58ab8897ff216f4790835146b544aa29c0a2ffe4"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "notice": "skills/frontend-design/LICENSE.txt",
+        "noticeSHA256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $frontend-design only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_FRONTEND_DESIGN.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "webapp-testing",
+      "family": "anthropic",
+      "source": {
+        "repository": "https://github.com/anthropics/skills.git",
+        "subpath": "skills/webapp-testing",
+        "reviewedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "abfaf4cc6cf572346e22fed42dc0cfaacd2f64c5d9667f44a94b02ea0d3b1342",
+        "metadataSHA256": "1741287f74a6f06d68c557043959033899eea7b5ee93e5bf9c9c36c6aac9fd62",
+        "dependencyEvidenceSHA256": "82669e22e01d29329cfeaa14f682d349ea4c1ee71d00a483fc62c5a9624a1adc",
+        "externalActionEvidenceSHA256": "0b36c06f8a288b2ec988ae2fe3b51ba3bc09531a2aba3aca0a88a1c9dc9175f4"
+      },
+      "license": {
+        "spdx": "Apache-2.0",
+        "notice": "skills/webapp-testing/LICENSE.txt",
+        "noticeSHA256": "bc6b3af2f331cbc7fb0da1344efb2cbe5877a31498b4d70dbc7000f3405a1362",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "Operational workflow may require network access; guided setup and discovery do not"
+        },
+        {
+          "name": "npm",
+          "optional": true,
+          "reason": "Operational workflow may use Node package tooling; discovery does not"
+        },
+        {
+          "name": "playwright",
+          "optional": true,
+          "reason": "Operational browser testing requires Playwright; discovery does not"
+        },
+        {
+          "name": "python3",
+          "optional": true,
+          "reason": "Operational workflow includes Python commands or scripts; discovery does not"
+        }
+      ],
+      "scripts": [
+        "examples/console_logging.py",
+        "examples/element_discovery.py",
+        "examples/static_html_automation.py",
+        "scripts/with_server.py"
+      ],
+      "executables": [
+        "scripts/with_server.py"
+      ],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May launch a browser and exercise an application when explicitly invoked; guided setup never invokes it",
+        "May launch or control a browser and capture application output when explicitly invoked; guided setup never launches member tools"
+      ],
+      "verificationPrompt": "Use $webapp-testing only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_WEBAPP_TESTING.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "setup-local-sdk",
+      "family": "dotnet",
+      "source": {
+        "repository": "https://github.com/dotnet/skills.git",
+        "subpath": "plugins/dotnet/skills/setup-local-sdk",
+        "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "7a5a31440646f539145302fd3f3275630dc17494d3bae3984176c39a0cc2ec98",
+        "metadataSHA256": "e3ad9202185ceec7171519f73bfc862d2a5e776ba307dd897171039a82d52a4d",
+        "dependencyEvidenceSHA256": "61f86a811b3a5f02d2000b8a611caf89a534401e9c84ac6269560b4184be8c77",
+        "externalActionEvidenceSHA256": "56ee8bfce94219c1c23b8a2074a19533b121d648e2a095f7bcd56a105c0ca6c6"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "dotnet",
+          "optional": true,
+          "reason": "Operational workflow requires a compatible .NET SDK or diagnostic toolchain"
+        },
+        {
+          "name": "network",
+          "optional": true,
+          "reason": "The skill may download a project-local SDK only when explicitly invoked"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May download and install a project-local .NET SDK when explicitly invoked; guided setup never invokes it",
+        "May download or install operational dependencies when explicitly invoked and authorized; guided setup never runs member installers"
+      ],
+      "verificationPrompt": "Use $setup-local-sdk only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_SETUP_LOCAL_SDK.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "dotnet-webapi",
+      "family": "dotnet",
+      "source": {
+        "repository": "https://github.com/dotnet/skills.git",
+        "subpath": "plugins/dotnet-aspnetcore/skills/dotnet-webapi",
+        "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "c237ad6527de9b923781e3b3d5cc265120cb11ed83e315712c578c142c796fe8",
+        "metadataSHA256": "9d5fd6b0e686089e84e8337658a87061fd643a0d6a6aac9ff95dfbf3cff8ad39",
+        "dependencyEvidenceSHA256": "f1192a453c6334aea089e9fe036c25586b27a1fb03837e46b1bdf691bc3dd011",
+        "externalActionEvidenceSHA256": "1a9d9f1e9f95a0b7f30de6e9fb81cc4aa961470ec3eec0b539314e29306314c8"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "dotnet",
+          "optional": true,
+          "reason": "Operational workflow requires a compatible .NET SDK or diagnostic toolchain"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $dotnet-webapi only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_DOTNET_WEBAPI.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "optimizing-ef-core-queries",
+      "family": "dotnet",
+      "source": {
+        "repository": "https://github.com/dotnet/skills.git",
+        "subpath": "plugins/dotnet-data/skills/optimizing-ef-core-queries",
+        "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "26e924771d72fa1c4bb787356cfbcf30c59e0dc572b635fb10d6c62b7ab43007",
+        "metadataSHA256": "3791c37e10823a6c991ac9a78305c7a40df5e17558e1659caa6d4b2b744cd7da",
+        "dependencyEvidenceSHA256": "f544881180a9d09ad78fc65ee59c3e8c064cde7fbac5070f680667795fca1110",
+        "externalActionEvidenceSHA256": "8da09e668271960cfc8efc122c9b0058167e6babe60359b8477e33b1ced05d91"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "dotnet",
+          "optional": true,
+          "reason": "Operational workflow requires a compatible .NET SDK or diagnostic toolchain"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $optimizing-ef-core-queries only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_OPTIMIZING_EF_CORE_QUERIES.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "analyzing-dotnet-performance",
+      "family": "dotnet",
+      "source": {
+        "repository": "https://github.com/dotnet/skills.git",
+        "subpath": "plugins/dotnet-diag/skills/analyzing-dotnet-performance",
+        "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "e9d82ffcafd35f846b3d9c227eb539bb0154a5849230b2b81abc4b8b729f2272",
+        "metadataSHA256": "61a1f5d3145db8cad763c5c9c174377ab87f61979d5f117e916091005ee04f5c",
+        "dependencyEvidenceSHA256": "e8f0502b69a96a7b2becdddc4954bfb49f1886bbe8360b1a06ba158700c0b573",
+        "externalActionEvidenceSHA256": "61c59b89d4a505e241b0f952f6b47b16b239b0a2aed8bd49efa27f18847f204b"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "dotnet",
+          "optional": true,
+          "reason": "Operational workflow requires a compatible .NET SDK or diagnostic toolchain"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [],
+      "verificationPrompt": "Use $analyzing-dotnet-performance only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_ANALYZING_DOTNET_PERFORMANCE.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "run-tests",
+      "family": "dotnet",
+      "source": {
+        "repository": "https://github.com/dotnet/skills.git",
+        "subpath": "plugins/dotnet-test/skills/run-tests",
+        "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "89bd86296d288dd945fdbf33780dce728ef4571c7f3d242fe519409f0840f741",
+        "metadataSHA256": "89c83d976c3daa5b45c1ee00f203d8eaa6a618bc130a31fa3914450cebc22c74",
+        "dependencyEvidenceSHA256": "128baecb0f48643cccecd615924665f8194b86be61b5619513cd4ac943f59b0d",
+        "externalActionEvidenceSHA256": "af7e0034eadbd6c4f7986fe3fd8cf74974851d9ed9b743263aef63868c08eb6e"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "dotnet",
+          "optional": true,
+          "reason": "Operational workflow requires a compatible .NET SDK or diagnostic toolchain"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations",
+        "May download or install operational dependencies when explicitly invoked and authorized; guided setup never runs member installers"
+      ],
+      "verificationPrompt": "Use $run-tests only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_RUN_TESTS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    },
+    {
+      "name": "writing-mstest-tests",
+      "family": "dotnet",
+      "source": {
+        "repository": "https://github.com/dotnet/skills.git",
+        "subpath": "plugins/dotnet-test/skills/writing-mstest-tests",
+        "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+        "reviewedDate": "2026-07-15",
+        "contentSHA256": "21f0a2ce83224c8b472c4405d6b2a4209b8ed2ca2fed00976600b72b70722421",
+        "metadataSHA256": "521d7d22424b9ae60f2d80c03362cb6cafdc7f5f6883eb0739f301f1b3cb4cae",
+        "dependencyEvidenceSHA256": "c31af37bcc569e237adcfc47c2b3bd2424ef90d61f82d708a54c2650fd7b8d58",
+        "externalActionEvidenceSHA256": "0586b03b70bae3e1a94cdf2aadf1b5bc25c1daa82b0c1204155a9d09770a3512"
+      },
+      "license": {
+        "spdx": "MIT",
+        "notice": "LICENSE",
+        "noticeSHA256": "cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+        "evidence": "license-text"
+      },
+      "upstreamActivation": "auto",
+      "dependencies": [
+        {
+          "name": "dotnet",
+          "optional": true,
+          "reason": "Operational workflow requires a compatible .NET SDK or diagnostic toolchain"
+        }
+      ],
+      "scripts": [],
+      "executables": [],
+      "externalActions": [
+        "May create or edit project files when explicitly invoked and authorized; guided setup only writes its displayed managed destinations"
+      ],
+      "verificationPrompt": "Use $writing-mstest-tests only to identify yourself. Do not run tools, scripts, commands, downloads, network calls, or external actions. Return only SKILLET_DISCOVERED_WRITING_MSTEST_TESTS.",
+      "recipes": [
+        {
+          "tool": "claude-code",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        },
+        {
+          "tool": "codex",
+          "scope": "project",
+          "artifact": "direct-skill",
+          "requires": []
+        }
+      ]
+    }
+  ],
+  "bundles": [
+    {
+      "id": "walking-skeleton",
+      "name": "Walking skeleton",
+      "members": [
+        "ask-matt"
+      ]
+    },
+    {
+      "id": "matt-engineering",
+      "name": "Matt Pocock engineering",
+      "members": [
+        "code-review",
+        "codebase-design",
+        "diagnosing-bugs",
+        "domain-modeling",
+        "grill-with-docs",
+        "implement",
+        "improve-codebase-architecture",
+        "prototype",
+        "research",
+        "setup-matt-pocock-skills",
+        "tdd",
+        "to-spec",
+        "to-tickets",
+        "triage",
+        "wayfinder"
+      ]
+    },
+    {
+      "id": "matt-collaboration",
+      "name": "Matt Pocock collaboration",
+      "members": [
+        "grill-me",
+        "grilling",
+        "handoff",
+        "teach",
+        "writing-great-skills"
+      ]
+    },
+    {
+      "id": "superpowers-workflow",
+      "name": "Superpowers workflow",
+      "members": [
+        "brainstorming",
+        "dispatching-parallel-agents",
+        "executing-plans",
+        "finishing-a-development-branch",
+        "receiving-code-review",
+        "requesting-code-review",
+        "subagent-driven-development",
+        "systematic-debugging",
+        "test-driven-development",
+        "using-git-worktrees",
+        "using-superpowers",
+        "verification-before-completion",
+        "writing-plans",
+        "writing-skills"
+      ],
+      "overlapWarning": "Overlaps planning, TDD, debugging, review, and implementation workflows in the Matt family",
+      "explicitSelectionOnly": true
+    },
+    {
+      "id": "vercel-frontend",
+      "name": "Vercel frontend guidance",
+      "members": [
+        "web-design-guidelines",
+        "vercel-react-best-practices",
+        "vercel-composition-patterns",
+        "writing-guidelines"
+      ]
+    },
+    {
+      "id": "anthropic-ui",
+      "name": "Anthropic creator and UI",
+      "members": [
+        "skill-creator",
+        "frontend-design",
+        "webapp-testing"
+      ]
+    },
+    {
+      "id": "dotnet-starter",
+      "name": ".NET starter",
+      "members": [
+        "setup-local-sdk",
+        "dotnet-webapi",
+        "optimizing-ef-core-queries",
+        "analyzing-dotnet-performance",
+        "run-tests",
+        "writing-mstest-tests"
+      ],
+      "recommendationGlobs": [
+        "*.sln",
+        "*.slnx",
+        "*.csproj",
+        "global.json"
+      ],
+      "explicitSelectionOnly": true
+    }
+  ]
+}

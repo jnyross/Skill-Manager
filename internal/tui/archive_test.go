@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 func TestBuildArchiveItemsPreservesOrderAndEmpty(t *testing.T) {

@@ -3,7 +3,7 @@ package tui
 import (
 	"github.com/charmbracelet/bubbles/key"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 type keyMap struct {
@@ -19,6 +19,7 @@ type keyMap struct {
 	switchView      key.Binding
 	libraryView     key.Binding
 	bundleView      key.Binding
+	setup           key.Binding
 	create          key.Binding
 	addMember       key.Binding
 	removeMember    key.Binding
@@ -42,6 +43,7 @@ func mainKeyMap(selected engine.Skill, ok bool, showAll bool) keyMap {
 	m.switchView = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "archive view"))
 	m.libraryView = key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "library view"))
 	m.bundleView = key.NewBinding(key.WithKeys("B"), key.WithHelp("B", "bundle view"))
+	m.setup = key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "setup workspace"))
 
 	m.move.SetEnabled(ok)
 	m.archive.SetEnabled(ok && canArchiveSkill(selected))
@@ -124,6 +126,7 @@ func (m keyMap) ShortHelp() []key.Binding {
 			m.switchView,
 			m.libraryView,
 			m.bundleView,
+			m.setup,
 			m.showFullHelp,
 			m.quit,
 		}
@@ -156,7 +159,7 @@ func (m keyMap) ShortHelp() []key.Binding {
 func (m keyMap) FullHelp() [][]key.Binding {
 	if m.main {
 		return [][]key.Binding{
-			{m.move, m.switchView, m.libraryView, m.bundleView, m.showFullHelp, m.quit},
+			{m.move, m.switchView, m.libraryView, m.bundleView, m.setup, m.showFullHelp, m.quit},
 			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle},
 		}
 	}

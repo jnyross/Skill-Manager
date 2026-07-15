@@ -127,7 +127,7 @@ Observed:
    - `$HOME/.claude/skills/find-skills/SKILL.md`
    - `$HOME/.agents/.skill-lock.json` (global lock; different schema than project lock)
 4. Project cwd stayed empty of skill files (global install is not project-relative).
-5. Real `/Users/johnross/.claude/skills/find-skills` still absent.
+5. Real `$HOME/.claude/skills/find-skills` still absent.
 
 Global lock (verbatim, verified locally):
 

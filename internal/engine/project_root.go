@@ -5,16 +5,24 @@ import (
 	"path/filepath"
 )
 
-// FindProjectRoots returns Codex's own fixed three-candidate list for
-// .agents/skills discovery: cwd, cwd's parent, and the git repo root (if
-// any), deduplicated. cwd and its parent are always included even without a
-// git repo — mirroring Codex's own behavior, which doesn't require a repo at
-// all to check those two directories.
+// FindProjectRoots returns Codex's inclusive ancestor chain for
+// .agents/skills discovery, from cwd through the nearest git repo root. cwd
+// and its parent remain the explicit non-repository fallback so an unbounded
+// walk cannot unexpectedly inventory skills all the way to the filesystem
+// root.
 func FindProjectRoots(cwd string) []string {
 	absCWD := absolutePath(cwd)
-	roots := []string{absCWD, filepath.Dir(absCWD)}
-	if repoRoot, ok := findGitRepoRoot(absCWD); ok {
-		roots = append(roots, repoRoot)
+	repoRoot, ok := findGitRepoRoot(absCWD)
+	if !ok {
+		return dedupePaths([]string{absCWD, filepath.Dir(absCWD)})
+	}
+
+	var roots []string
+	for dir := absCWD; ; dir = filepath.Dir(dir) {
+		roots = append(roots, dir)
+		if samePath(dir, repoRoot) || isFilesystemRoot(dir) {
+			break
+		}
 	}
 	return dedupePaths(roots)
 }
@@ -22,7 +30,7 @@ func FindProjectRoots(cwd string) []string {
 // FindClaudeProjectRoots returns every directory from cwd up to and
 // including the git repo root, for .claude/skills discovery (see
 // docs/research/skill-mechanisms.md's "Claude Code project-skill discovery
-// vs. Codex's three-candidate rule" section). Deliberately asymmetric with
+// and Codex ancestor-discovery section). Deliberately asymmetric with
 // FindProjectRoots outside a repo: with no git root to bound the walk-up,
 // there's no safe stopping point short of the filesystem root, so this
 // returns just cwd rather than walking further.

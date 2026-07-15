@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"testing"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
-func TestFindProjectRootsUsesCodexThreeCandidates(t *testing.T) {
+func TestFindProjectRootsWalksEveryParentToRepoRoot(t *testing.T) {
 	root := t.TempDir()
 	repo := filepath.Join(root, "repo")
 	cwd := filepath.Join(repo, "alpha", "bravo", "charlie")
@@ -19,6 +19,7 @@ func TestFindProjectRootsUsesCodexThreeCandidates(t *testing.T) {
 	want := []string{
 		cwd,
 		filepath.Dir(cwd),
+		filepath.Dir(filepath.Dir(cwd)),
 		repo,
 	}
 	if !reflect.DeepEqual(got, want) {
@@ -32,12 +33,28 @@ func TestFindProjectRootsDedupesRepoRoot(t *testing.T) {
 	mkdirAll(t, filepath.Join(repo, ".git"))
 
 	got := engine.FindProjectRoots(repo)
-	want := []string{
-		repo,
-		filepath.Dir(repo),
-	}
+	want := []string{repo}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("FindProjectRoots() = %#v, want %#v", got, want)
+	}
+}
+
+func TestProjectCodexSkillAtIntermediateAncestor(t *testing.T) {
+	f := newFixture(t)
+	repo := filepath.Join(f.root, "repo")
+	cwd := filepath.Join(repo, "alpha", "bravo", "charlie")
+	mkdirAll(t, filepath.Join(repo, ".git"), cwd)
+	location := writeSkill(t, filepath.Join(repo, "alpha", ".agents", "skills", "ancestor-codex"), "ancestor-codex", "Intermediate ancestor", "")
+
+	f.roots.ProjectRoots = engine.FindProjectRoots(cwd)
+	f.roots.ClaudeProjectRoots = engine.FindClaudeProjectRoots(cwd)
+	inv := engine.New(f.roots).Inventory()
+	skill, ok := findSkill(inv, engine.SourceProject, "ancestor-codex")
+	if !ok {
+		t.Fatalf("intermediate Codex skill missing: roots=%#v skills=%#v", f.roots.ProjectRoots, inv.Skills)
+	}
+	if skill.Location != location || skill.Tool != engine.ToolCodex {
+		t.Fatalf("intermediate Codex skill = %#v, want location %q and Codex tool", skill, location)
 	}
 }
 

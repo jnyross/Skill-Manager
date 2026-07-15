@@ -16,21 +16,29 @@ tidying up your Skills doesn't mean risking one you'll want back later.
 
 ## Installation
 
-Skillet's module is named `skillet` rather than a published import path, so
-it isn't `go install`-able from a remote URL yet. Build it from a local
-clone instead:
+The first public Distribution channel is the scoped npm package:
+
+```sh
+npm install --global @jnyross/skillet
+skillet --version
+skillet
+```
+
+The package is not published yet. Until the release gate is complete, build
+from a local clone instead:
 
 ```
 git clone https://github.com/jnyross/Skill-Manager.git
 cd Skill-Manager
-go install ./cmd/skillet
+go build -o skillet ./cmd/skillet
 ```
 
-This installs a `skillet` binary to your `$GOPATH/bin` (or `$GOBIN`) — make
-sure that directory is on your `PATH`. Alternatively, `go build -o skillet
-./cmd/skillet` produces a local binary without installing it anywhere.
+The npm channel requires Node.js 22.14 or newer and npm 10.9 or newer. It
+installs a small JavaScript launcher and one native binary selected for macOS
+or Linux on arm64 or x64; it runs no install lifecycle scripts. Upgrade through
+the same channel with `npm install --global @jnyross/skillet@latest`.
 
-Requires Go 1.23 or later (see `go.mod`).
+Building from source requires Go 1.24.2 or later (see `go.mod`).
 
 ## Usage
 
@@ -109,6 +117,60 @@ Press `B` for Bundles: named groups of Library entries with a remembered Auto
 or Manual-only preference per member. Create a Bundle with `n`, add members
 with `a`, cycle member Activation with `m`, and install the whole Bundle with
 `i`. Existing destinations are listed for confirmation before replacement.
+
+### Guided Project setup
+
+Guided setup is available in development builds with either `skillet setup` or
+`S` from the main inventory. Both entry points use the same setup service. The
+main-TUI action offers the native macOS folder picker and falls back to guarded
+terminal path entry if the picker is unavailable; the direct command starts at
+the terminal path flow. Root, home, files, and nested non-root repository paths
+are rejected before mutation.
+
+The Built-in catalog version `2026.07.15.2` contains 48 exact source boundaries:
+21 Matt Pocock engineering/collaboration skills, the coherent 14-skill
+Superpowers workflow, four Vercel frontend skills, three Apache-2.0 Anthropic
+creator/UI skills, and six official .NET starter skills. Matt and Superpowers
+remain separately selectable and selecting overlapping workflows produces an
+explicit warning. The .NET Bundle is opt-in and discloses its SDK, diagnostic,
+test, and network prerequisites. Setup never invokes those workflows or
+installs their dependencies.
+
+The reviewed Vercel revision declares MIT in its README but contains no license
+grant text. Those four entries remain visible evidence but selection is blocked
+until the maintainer resolves the notice policy; Skillet does not invent a
+license notice. Every other member carries a hashed upstream MIT or Apache-2.0
+license text. Latest source is resolved before setup. A byte-identical selected
+boundary at a newer revision proceeds; material boundary, content, metadata,
+license, dependency, external-action, script, or executable-mode drift is
+shown and requires explicit consent.
+
+Setup shows the normalized target, Git state, every Tool destination,
+Activation, dependency readiness, and every Managed-file change before final
+confirmation. Exact unmanaged content may be adopted. Conflicting or
+user-edited Managed content blocks until the user authorizes a named backup and
+replacement; required content is never skipped. An unchanged rerun is a no-op,
+while Bundle removals and Activation changes are explicit and recoverable.
+Use `--manual-only name-a,name-b` or `--auto name-c,name-d` with the direct
+command, or enter member names at the interactive activation prompts, to
+override both Tool views before the plan is applied.
+
+The portable `.skillet/workspace.json` records catalog, Bundle, source,
+Activation, Managed paths, hashes, drift decisions, and outcome. The ignored
+`.skillet/workspace.local.json` stores machine-local executable, authentication,
+dependency, and fresh-session probe results. Outcomes are exact:
+
+- `Blocked`: no Managed change remains.
+- `Configured-unverified`: both Tool views are statically valid, but an
+  executable, authentication, or fresh-session discovery proof is missing.
+- `Verified`: fresh Claude Code and Codex sessions discovered every selected
+  member; optional workflow dependencies are still reported separately.
+- `Partial`: an external Tool change could not be reversed and one exact repair
+  action is provided.
+
+Setup initializes Git when needed but never stages, commits, creates a remote,
+generates application/framework content, installs SDKs or Tools, authenticates
+accounts, runs member scripts, or silently polls for catalog updates.
 
 ## Actions
 

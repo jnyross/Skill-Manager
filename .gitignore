@@ -15,3 +15,15 @@
 /skillet
 *.exe
 /dist/
+
+# Release packaging outputs (source manifests and scripts remain tracked)
+/packaging/npm/artifacts/
+/packaging/npm/packages/*/bin/skillet
+
+# Local agent/workflow state is never product source
+/.agents/
+/.claude/
+/SKILL.md
+/skills-lock.json
+scheduled_tasks.lock
+.ralph/

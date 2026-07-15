@@ -16,6 +16,10 @@ _Avoid_: location, origin, type
 Which underlying system governs a skill — Claude Code or Codex. Orthogonal to Source: every skill has exactly one of each. Only surfaced as a visible label within the Project group, where both tools' repo-scoped skills sit side by side; Personal/Plugin skills are always Claude Code and the Codex group is always Codex, so the label would be redundant there.
 _Avoid_: type (already used for Kind), platform
 
+**Tool Adapter**:
+Skillet's capability contract for configuring and verifying one Tool. An Adapter makes Tool-specific behavior explicit without introducing Harness as a synonym for Tool.
+_Avoid_: Harness Adapter, provider, integration
+
 **Personal skill**:
 A skill installed at the user level of Claude Code, following the user into every session.
 
@@ -51,10 +55,58 @@ _Avoid_: delete (ambiguous with uninstall)
 Hiding a single plugin skill from the model and slash commands while leaving its plugin installed and intact. The per-skill alternative to uninstalling a whole plugin; Skillet owns and maintains this state across plugin updates.
 _Avoid_: uninstall (plugin skills can't be individually uninstalled), block
 
-**Shortlist**:
-The user-curated set of skills and plugins preauthorised for seeding into new projects. Only shortlisted items are offered during seeding.
-_Avoid_: loadout, template, favourites
+**Library**:
+The user's own catalog of skills and plugins they maintain, spanning all three user-level Sources (Personal, Plugin, Codex) — never Project, since a Project skill already lives in a specific repo. Each entry carries an install-source descriptor (a skills.sh `owner/repo` reference, a git URL, a Claude/Codex marketplace pointer, or a local filesystem path) rather than a frozen copy, so installing an entry always resolves its current, latest version from that source.
+_Avoid_: Shortlist (superseded — the old name implied a pre-approval flag, not a maintained source-of-truth catalog), loadout, favourites
 
-**Seeding**:
-Setting up a new project's skills by picking from the shortlist one item at a time — copying chosen skills into the project and enabling chosen plugins for it. A one-time copy; the project owns the result with no ongoing sync.
-_Avoid_: sync, install (ambiguous with adding to the user level)
+**Built-in catalog**:
+The versioned, Skillet-maintained set of source descriptors approved for guided setup. It proposes trusted entries to add or Install; it is not the user's Library and never silently changes it.
+_Avoid_: marketplace, Library, internet catalog
+
+**Bundle**:
+A named group of Library entries for quick, repeatable setup. Each member stores its own remembered Activation preference (Auto or Manual-only) independent of the entry's default — the same Library skill can be Auto in one Bundle and Manual-only in another. Installable to either Personal or a specific repo, same target choice as installing a single Library entry.
+_Avoid_: template, loadout
+
+**Install**:
+Resolving a Library entry (or every member of a Bundle) from its install-source descriptor and placing it at a chosen target — Personal or a specific repo — applying any Bundle-remembered Activation preference along the way. The one general action for getting a Library/Bundle item onto a machine or into a repo, at any time, not just new-project setup.
+_Avoid_: Seeding (superseded — implied a one-time, new-project-only flow; Install applies uniformly, any time), sync
+
+**Agent-ready workspace**:
+A project folder prepared for Claude Code and Codex with shared agent instructions, approved skills, and enough metadata for both Tools to discover the project. It contains no generated application code.
+_Avoid_: app template, framework starter, scaffold
+
+**Managed file**:
+A workspace path that a prior Skillet setup explicitly created or adopted and may therefore update or roll back subject to conflict checks. Existing user-owned paths are never Managed files implicitly.
+_Avoid_: generated file (does not establish ownership), owned file
+
+**Workspace receipt**:
+The durable record of a guided setup's Managed files, source catalog version, content identity, and outcome. It lets a repeat setup distinguish Skillet-managed state from user work.
+_Avoid_: Install receipt, lockfile, manifest
+
+**Setup outcome**:
+The result of guided workspace setup — Blocked, Configured-unverified, Verified, or Partial. Partial is reserved for an external Tool change that remains after Skillet rolls back its own reversible writes.
+_Avoid_: success flag, warning, status
+
+**Release**:
+A published, versioned build of Skillet that people can install without cloning the source repository or having the Go toolchain. A Release is the common source from which every supported Distribution channel obtains the same Skillet version.
+_Avoid_: build (a build is not necessarily published), deployment
+
+**Distribution channel**:
+A supported route by which a person installs and later upgrades Skillet on a machine. The first public channel is the scoped npm package selected by ADR 0006; later channels must define their own same-channel Upgrade contract.
+_Avoid_: marketplace, source (already means where a managed Skill lives)
+
+**Upgrade**:
+Replacing an installed Skillet Release with a newer Release through the same Distribution channel that installed it. Upgrade does not mean Skillet rewrites its own executable.
+_Avoid_: self-update, automatic update
+
+**Supported platform**:
+An operating-system and CPU combination inside Skillet's stated compatibility contract. The first public set is macOS 12 or newer and 64-bit Linux kernel 3.2 or newer, each on native amd64 or arm64.
+_Avoid_: any machine, universal (both hide real compatibility boundaries)
+
+**Tested platform**:
+A Supported platform environment exercised continuously by Skillet's release verification. Tested platforms are evidence points inside the broader support contract, not the complete list of machines on which Skillet may run.
+_Avoid_: supported platform (the contract and its test samples are different)
+
+**Install receipt**:
+The durable record proving that a direct Distribution channel installation is owned by Skillet's first-party installer. It lets a later Upgrade distinguish that installation from one owned by a package manager or another program.
+_Avoid_: lockfile, manifest, Homebrew receipt
