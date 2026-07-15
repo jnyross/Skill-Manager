@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 type viewState int
@@ -62,6 +62,7 @@ type Model struct {
 	library        []engine.LibraryEntry
 	bundles        []engine.Bundle
 	bundleExpanded map[string]bool
+	setupRequested bool
 	pending        *pendingConfirm
 	installPicker  *installPicker
 	sourcePicker   *librarySourcePicker
@@ -87,6 +88,8 @@ func NewModel(e *engine.Engine) *Model {
 	m.refreshInventory()
 	return m
 }
+
+func (m *Model) SetupRequested() bool { return m.setupRequested }
 
 func (m *Model) Init() tea.Cmd {
 	return tea.EnterAltScreen
@@ -161,6 +164,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.view {
 		case mainView:
 			m.updateMain(key.String())
+			if m.setupRequested {
+				return m, tea.Quit
+			}
 		case archiveView:
 			m.updateArchive(key.String())
 		case libraryView:
@@ -176,6 +182,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) updateMain(key string) {
 	switch key {
+	case "S":
+		m.setupRequested = true
+		m.status = "Opening Setup…"
 	case "u":
 		selected, ok := m.selectedMainSkill()
 		if !ok {

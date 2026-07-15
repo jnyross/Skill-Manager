@@ -1,0 +1,15 @@
+{
+  "name": "@jnyross/skillet-linux-arm64",
+  "version": "0.2.0-dev.0",
+  "description": "Skillet native binary for Linux arm64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jnyross/Skill-Manager.git",
+    "directory": "packaging/npm/packages/linux-arm64"
+  },
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "files": ["bin/skillet", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"],
+  "publishConfig": {"access": "public"}
+}

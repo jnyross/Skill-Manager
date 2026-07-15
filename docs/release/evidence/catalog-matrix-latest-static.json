@@ -1,0 +1,2532 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": "2026.07.15.2",
+  "governanceBlockers": [
+    "vercel-composition-patterns: MIT license evidence is declaration-only",
+    "vercel-react-best-practices: MIT license evidence is declaration-only",
+    "web-design-guidelines: MIT license evidence is declaration-only",
+    "writing-guidelines: MIT license evidence is declaration-only"
+  ],
+  "outcome": "Configured-unverified",
+  "repeatNoOp": true,
+  "removalVerified": true,
+  "lanes": [
+    {
+      "member": "analyzing-dotnet-performance",
+      "tool": "claude-code",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet-diag/skills/analyzing-dotnet-performance",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "e9d82ffcafd35f846b3d9c227eb539bb0154a5849230b2b81abc4b8b729f2272",
+      "destination": ".claude/skills/analyzing-dotnet-performance",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "analyzing-dotnet-performance",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        }
+      ]
+    },
+    {
+      "member": "analyzing-dotnet-performance",
+      "tool": "codex",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet-diag/skills/analyzing-dotnet-performance",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "e9d82ffcafd35f846b3d9c227eb539bb0154a5849230b2b81abc4b8b729f2272",
+      "destination": ".agents/skills/analyzing-dotnet-performance",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "analyzing-dotnet-performance",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        }
+      ]
+    },
+    {
+      "member": "ask-matt",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/ask-matt",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "d4a8d9f5857d0a4e6c626768355077ea48c2227eb40a05f1e1d2e21f39b0adb2",
+      "destination": ".claude/skills/ask-matt",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "ask-matt",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/ask-matt",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "d4a8d9f5857d0a4e6c626768355077ea48c2227eb40a05f1e1d2e21f39b0adb2",
+      "destination": ".agents/skills/ask-matt",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "brainstorming",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/brainstorming",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "a1202a6a5e8d86659745e69030c06bfb033f265d8a276f29b24b8a57c4809399",
+      "destination": ".claude/skills/brainstorming",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "brainstorming",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "brainstorming",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/brainstorming",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "a1202a6a5e8d86659745e69030c06bfb033f265d8a276f29b24b8a57c4809399",
+      "destination": ".agents/skills/brainstorming",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "brainstorming",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "code-review",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/code-review",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "d45f786768d013c1e387aa5b3d067f7a2540c9350b1ef116d0245d9881a61bde",
+      "destination": ".claude/skills/code-review",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "code-review",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "code-review",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/code-review",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "d45f786768d013c1e387aa5b3d067f7a2540c9350b1ef116d0245d9881a61bde",
+      "destination": ".agents/skills/code-review",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "code-review",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "codebase-design",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/codebase-design",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "c46b49303a81c7fc8934d0f4fbc44382cdecb73942d85d8d7db3523407fff8fa",
+      "destination": ".claude/skills/codebase-design",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "codebase-design",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/codebase-design",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "c46b49303a81c7fc8934d0f4fbc44382cdecb73942d85d8d7db3523407fff8fa",
+      "destination": ".agents/skills/codebase-design",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "diagnosing-bugs",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/diagnosing-bugs",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "73be315b6528e88c48c6f797d5fa7faa284fc468e6ab795c4bfe5161d4440e2f",
+      "destination": ".claude/skills/diagnosing-bugs",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "diagnosing-bugs",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "diagnosing-bugs",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/diagnosing-bugs",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "73be315b6528e88c48c6f797d5fa7faa284fc468e6ab795c4bfe5161d4440e2f",
+      "destination": ".agents/skills/diagnosing-bugs",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "diagnosing-bugs",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "dispatching-parallel-agents",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/dispatching-parallel-agents",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "375d7445c2b7fb800f526e5cf486d9eb90b1258b0a0efd55eb4eeb0a41deb05e",
+      "destination": ".claude/skills/dispatching-parallel-agents",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "dispatching-parallel-agents",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/dispatching-parallel-agents",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "375d7445c2b7fb800f526e5cf486d9eb90b1258b0a0efd55eb4eeb0a41deb05e",
+      "destination": ".agents/skills/dispatching-parallel-agents",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "domain-modeling",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/domain-modeling",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "40afc20cd49261811d7fe377fff53c1804f5e27644b42adb65469c7fc305a3a2",
+      "destination": ".claude/skills/domain-modeling",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "domain-modeling",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/domain-modeling",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "40afc20cd49261811d7fe377fff53c1804f5e27644b42adb65469c7fc305a3a2",
+      "destination": ".agents/skills/domain-modeling",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "dotnet-webapi",
+      "tool": "claude-code",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet-aspnetcore/skills/dotnet-webapi",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "c237ad6527de9b923781e3b3d5cc265120cb11ed83e315712c578c142c796fe8",
+      "destination": ".claude/skills/dotnet-webapi",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "dotnet-webapi",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        }
+      ]
+    },
+    {
+      "member": "dotnet-webapi",
+      "tool": "codex",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet-aspnetcore/skills/dotnet-webapi",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "c237ad6527de9b923781e3b3d5cc265120cb11ed83e315712c578c142c796fe8",
+      "destination": ".agents/skills/dotnet-webapi",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "dotnet-webapi",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        }
+      ]
+    },
+    {
+      "member": "executing-plans",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/executing-plans",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "c2df3ab9dfbb243f9f82940450dcd7ea3ee0c94f63ef510afd6037d1ac54815c",
+      "destination": ".claude/skills/executing-plans",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "executing-plans",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/executing-plans",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "c2df3ab9dfbb243f9f82940450dcd7ea3ee0c94f63ef510afd6037d1ac54815c",
+      "destination": ".agents/skills/executing-plans",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "finishing-a-development-branch",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/finishing-a-development-branch",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "0c140b3e01a984ea1a3d2b79b83406b137847597eaa9a740f6a71a94bccafda4",
+      "destination": ".claude/skills/finishing-a-development-branch",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "finishing-a-development-branch",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "finishing-a-development-branch",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "finishing-a-development-branch",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "finishing-a-development-branch",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/finishing-a-development-branch",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "0c140b3e01a984ea1a3d2b79b83406b137847597eaa9a740f6a71a94bccafda4",
+      "destination": ".agents/skills/finishing-a-development-branch",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "finishing-a-development-branch",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "finishing-a-development-branch",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "finishing-a-development-branch",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "frontend-design",
+      "tool": "claude-code",
+      "source": "https://github.com/anthropics/skills.git",
+      "sourceSubpath": "skills/frontend-design",
+      "reviewedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "resolvedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "contentSHA256": "665c585455decbcb02116bc928adf5148b9cd0f67b7eb4908c8c0d647c00f68a",
+      "destination": ".claude/skills/frontend-design",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "frontend-design",
+      "tool": "codex",
+      "source": "https://github.com/anthropics/skills.git",
+      "sourceSubpath": "skills/frontend-design",
+      "reviewedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "resolvedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "contentSHA256": "665c585455decbcb02116bc928adf5148b9cd0f67b7eb4908c8c0d647c00f68a",
+      "destination": ".agents/skills/frontend-design",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "grill-me",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/productivity/grill-me",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "000514e9633b1a2df8bef98549e99b6eaf1a8c3fabfad0e3b328440b3b226c90",
+      "destination": ".claude/skills/grill-me",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "grill-me",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/productivity/grill-me",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "000514e9633b1a2df8bef98549e99b6eaf1a8c3fabfad0e3b328440b3b226c90",
+      "destination": ".agents/skills/grill-me",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "grill-with-docs",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/grill-with-docs",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "84554e18aac963e26214159bfb522ddbd72dab710f43176727ca14f432033567",
+      "destination": ".claude/skills/grill-with-docs",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "grill-with-docs",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/grill-with-docs",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "84554e18aac963e26214159bfb522ddbd72dab710f43176727ca14f432033567",
+      "destination": ".agents/skills/grill-with-docs",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "grilling",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/productivity/grilling",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "35963aa4abbdae92eb75d8c2dc69eaa70126315a642aba1e5371bd4a9305fb2a",
+      "destination": ".claude/skills/grilling",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "grilling",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/productivity/grilling",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "35963aa4abbdae92eb75d8c2dc69eaa70126315a642aba1e5371bd4a9305fb2a",
+      "destination": ".agents/skills/grilling",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "handoff",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/productivity/handoff",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "c97a305f5ca0b6fa21ca82a009ac5a553acd02aab63cf59de939f75ac7797393",
+      "destination": ".claude/skills/handoff",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "handoff",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/productivity/handoff",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "c97a305f5ca0b6fa21ca82a009ac5a553acd02aab63cf59de939f75ac7797393",
+      "destination": ".agents/skills/handoff",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "implement",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/implement",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "1a7a56bca542f46ff8e42fa5ddd293dab21b38b6dad57e1bf3e76d12e41c5fc2",
+      "destination": ".claude/skills/implement",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "implement",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/implement",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "1a7a56bca542f46ff8e42fa5ddd293dab21b38b6dad57e1bf3e76d12e41c5fc2",
+      "destination": ".agents/skills/implement",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "improve-codebase-architecture",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/improve-codebase-architecture",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "d3682058df92c259b47c36503baa02345d5811758621b5dc03081d5ba0f7b69b",
+      "destination": ".claude/skills/improve-codebase-architecture",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "improve-codebase-architecture",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "improve-codebase-architecture",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "improve-codebase-architecture",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/improve-codebase-architecture",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "d3682058df92c259b47c36503baa02345d5811758621b5dc03081d5ba0f7b69b",
+      "destination": ".agents/skills/improve-codebase-architecture",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "improve-codebase-architecture",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "improve-codebase-architecture",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        }
+      ],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "optimizing-ef-core-queries",
+      "tool": "claude-code",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet-data/skills/optimizing-ef-core-queries",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "26e924771d72fa1c4bb787356cfbcf30c59e0dc572b635fb10d6c62b7ab43007",
+      "destination": ".claude/skills/optimizing-ef-core-queries",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "optimizing-ef-core-queries",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        }
+      ]
+    },
+    {
+      "member": "optimizing-ef-core-queries",
+      "tool": "codex",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet-data/skills/optimizing-ef-core-queries",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "26e924771d72fa1c4bb787356cfbcf30c59e0dc572b635fb10d6c62b7ab43007",
+      "destination": ".agents/skills/optimizing-ef-core-queries",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "optimizing-ef-core-queries",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        }
+      ]
+    },
+    {
+      "member": "prototype",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/prototype",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "9a52396fe98d9fd40299c304ce45655507715e6237c5bf6621a308a4e351e18b",
+      "destination": ".claude/skills/prototype",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "prototype",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        },
+        {
+          "member": "prototype",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "prototype",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/prototype",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "9a52396fe98d9fd40299c304ce45655507715e6237c5bf6621a308a4e351e18b",
+      "destination": ".agents/skills/prototype",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "prototype",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        },
+        {
+          "member": "prototype",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "receiving-code-review",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/receiving-code-review",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "976093a40d900b304e7049900c989f2db9b362e732a7590d4e4b143b5fb0d7de",
+      "destination": ".claude/skills/receiving-code-review",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "receiving-code-review",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "receiving-code-review",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "receiving-code-review",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/receiving-code-review",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "976093a40d900b304e7049900c989f2db9b362e732a7590d4e4b143b5fb0d7de",
+      "destination": ".agents/skills/receiving-code-review",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "receiving-code-review",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "receiving-code-review",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "requesting-code-review",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/requesting-code-review",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "65cad7b7959ddd26423d94d72a8e8ce669d49be5d3ce9309dd151a999ecf54e1",
+      "destination": ".claude/skills/requesting-code-review",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "requesting-code-review",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "requesting-code-review",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/requesting-code-review",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "65cad7b7959ddd26423d94d72a8e8ce669d49be5d3ce9309dd151a999ecf54e1",
+      "destination": ".agents/skills/requesting-code-review",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "requesting-code-review",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "research",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/research",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "6d02c11a6a7192f3e6058533e1cc310060cfceddd118623ea53e6d1da605d659",
+      "destination": ".claude/skills/research",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "research",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/research",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "6d02c11a6a7192f3e6058533e1cc310060cfceddd118623ea53e6d1da605d659",
+      "destination": ".agents/skills/research",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "run-tests",
+      "tool": "claude-code",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet-test/skills/run-tests",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "89bd86296d288dd945fdbf33780dce728ef4571c7f3d242fe519409f0840f741",
+      "destination": ".claude/skills/run-tests",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "run-tests",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        }
+      ]
+    },
+    {
+      "member": "run-tests",
+      "tool": "codex",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet-test/skills/run-tests",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "89bd86296d288dd945fdbf33780dce728ef4571c7f3d242fe519409f0840f741",
+      "destination": ".agents/skills/run-tests",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "run-tests",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        }
+      ]
+    },
+    {
+      "member": "setup-local-sdk",
+      "tool": "claude-code",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet/skills/setup-local-sdk",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "7a5a31440646f539145302fd3f3275630dc17494d3bae3984176c39a0cc2ec98",
+      "destination": ".claude/skills/setup-local-sdk",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "setup-local-sdk",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        },
+        {
+          "member": "setup-local-sdk",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "setup-local-sdk",
+      "tool": "codex",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet/skills/setup-local-sdk",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "7a5a31440646f539145302fd3f3275630dc17494d3bae3984176c39a0cc2ec98",
+      "destination": ".agents/skills/setup-local-sdk",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "setup-local-sdk",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        },
+        {
+          "member": "setup-local-sdk",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "setup-matt-pocock-skills",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/setup-matt-pocock-skills",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "63188972753c4b1d382180b2ca1bd4e5a27bfd0fb611ec970f2b1a7aba932707",
+      "destination": ".claude/skills/setup-matt-pocock-skills",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "setup-matt-pocock-skills",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "setup-matt-pocock-skills",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "setup-matt-pocock-skills",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/setup-matt-pocock-skills",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "63188972753c4b1d382180b2ca1bd4e5a27bfd0fb611ec970f2b1a7aba932707",
+      "destination": ".agents/skills/setup-matt-pocock-skills",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "setup-matt-pocock-skills",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "setup-matt-pocock-skills",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "skill-creator",
+      "tool": "claude-code",
+      "source": "https://github.com/anthropics/skills.git",
+      "sourceSubpath": "skills/skill-creator",
+      "reviewedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "resolvedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "contentSHA256": "4557d54c524c67984e4bab23fa436e90196292ae8df4d2093f0ce0e6951bfc1c",
+      "destination": ".claude/skills/skill-creator",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "skill-creator",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        },
+        {
+          "member": "skill-creator",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "skill-creator",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "skill-creator",
+      "tool": "codex",
+      "source": "https://github.com/anthropics/skills.git",
+      "sourceSubpath": "skills/skill-creator",
+      "reviewedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "resolvedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "contentSHA256": "4557d54c524c67984e4bab23fa436e90196292ae8df4d2093f0ce0e6951bfc1c",
+      "destination": ".agents/skills/skill-creator",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "skill-creator",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        },
+        {
+          "member": "skill-creator",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "skill-creator",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "subagent-driven-development",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/subagent-driven-development",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "e3e3c7c7431c6dbd6420366dbcb74feb04c4fd1b99cb269d096aeb2ac35ad982",
+      "destination": ".claude/skills/subagent-driven-development",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "subagent-driven-development",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "subagent-driven-development",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/subagent-driven-development",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "e3e3c7c7431c6dbd6420366dbcb74feb04c4fd1b99cb269d096aeb2ac35ad982",
+      "destination": ".agents/skills/subagent-driven-development",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "subagent-driven-development",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "systematic-debugging",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/systematic-debugging",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "ef0971c299343779d79d18f5ff46ed825761638529fa77cc49ad54ae7b9fd60c",
+      "destination": ".claude/skills/systematic-debugging",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "systematic-debugging",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "systematic-debugging",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "systematic-debugging",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/systematic-debugging",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "ef0971c299343779d79d18f5ff46ed825761638529fa77cc49ad54ae7b9fd60c",
+      "destination": ".agents/skills/systematic-debugging",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "systematic-debugging",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "systematic-debugging",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "tdd",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/tdd",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "c7bd017fedd677de169904f610438647a586350f82bd80ce0b12ad9d3cebddf5",
+      "destination": ".claude/skills/tdd",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "tdd",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/tdd",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "c7bd017fedd677de169904f610438647a586350f82bd80ce0b12ad9d3cebddf5",
+      "destination": ".agents/skills/tdd",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "teach",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/productivity/teach",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "d646b14188296c5a2658360ac13e7236f1ec564ca4674052ad1c3d3c4fbba058",
+      "destination": ".claude/skills/teach",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "teach",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "teach",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/productivity/teach",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "d646b14188296c5a2658360ac13e7236f1ec564ca4674052ad1c3d3c4fbba058",
+      "destination": ".agents/skills/teach",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "teach",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "test-driven-development",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/test-driven-development",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "7c3b1fa71c313b7c51b451858ec855c0f22fd5925bf0ec9b385382c1bcd3d75b",
+      "destination": ".claude/skills/test-driven-development",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "test-driven-development",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "test-driven-development",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/test-driven-development",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "7c3b1fa71c313b7c51b451858ec855c0f22fd5925bf0ec9b385382c1bcd3d75b",
+      "destination": ".agents/skills/test-driven-development",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "test-driven-development",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "to-spec",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/to-spec",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "0e05c1bea97c787e44e79f4e255a9afd6a377c24f29f0a3a014f0231ebe57d8c",
+      "destination": ".claude/skills/to-spec",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "to-spec",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "to-spec",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "to-spec",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/to-spec",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "0e05c1bea97c787e44e79f4e255a9afd6a377c24f29f0a3a014f0231ebe57d8c",
+      "destination": ".agents/skills/to-spec",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "to-spec",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "to-spec",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "to-tickets",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/to-tickets",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "27f8a34226cc7109cd87895bb31e0163607348a6ef3653b8836b0be30dcf00e5",
+      "destination": ".claude/skills/to-tickets",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "to-tickets",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "to-tickets",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "to-tickets",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/to-tickets",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "27f8a34226cc7109cd87895bb31e0163607348a6ef3653b8836b0be30dcf00e5",
+      "destination": ".agents/skills/to-tickets",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "to-tickets",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "to-tickets",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "triage",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/triage",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "9efd474210857312d08c4117e60375ac8daa40a0e5a34a47b122c3733089a531",
+      "destination": ".claude/skills/triage",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "triage",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "triage",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "triage",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/triage",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "9efd474210857312d08c4117e60375ac8daa40a0e5a34a47b122c3733089a531",
+      "destination": ".agents/skills/triage",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "triage",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "triage",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "using-git-worktrees",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/using-git-worktrees",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "e6306e69246610dc203c8639584542e16bfbb0b09d0adddac533ca009fa93180",
+      "destination": ".claude/skills/using-git-worktrees",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "using-git-worktrees",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "using-git-worktrees",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        },
+        {
+          "member": "using-git-worktrees",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "using-git-worktrees",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "using-git-worktrees",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/using-git-worktrees",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "e6306e69246610dc203c8639584542e16bfbb0b09d0adddac533ca009fa93180",
+      "destination": ".agents/skills/using-git-worktrees",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "using-git-worktrees",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "using-git-worktrees",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        },
+        {
+          "member": "using-git-worktrees",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "using-git-worktrees",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "using-superpowers",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/using-superpowers",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "0c87a3fb5f5866591811757512ee6de413f90f3299fd21a748e34819d45825ec",
+      "destination": ".claude/skills/using-superpowers",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "using-superpowers",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "using-superpowers",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/using-superpowers",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "0c87a3fb5f5866591811757512ee6de413f90f3299fd21a748e34819d45825ec",
+      "destination": ".agents/skills/using-superpowers",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "using-superpowers",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "vercel-composition-patterns",
+      "tool": "claude-code",
+      "source": "https://github.com/vercel-labs/agent-skills.git",
+      "sourceSubpath": "skills/composition-patterns",
+      "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "resolvedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "contentSHA256": "646f870906914c3787efa7403ec4716dfddf78fc17a12ec1f0556caf2143ac66",
+      "destination": ".claude/skills/vercel-composition-patterns",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "vercel-composition-patterns",
+      "tool": "codex",
+      "source": "https://github.com/vercel-labs/agent-skills.git",
+      "sourceSubpath": "skills/composition-patterns",
+      "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "resolvedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "contentSHA256": "646f870906914c3787efa7403ec4716dfddf78fc17a12ec1f0556caf2143ac66",
+      "destination": ".agents/skills/vercel-composition-patterns",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "vercel-react-best-practices",
+      "tool": "claude-code",
+      "source": "https://github.com/vercel-labs/agent-skills.git",
+      "sourceSubpath": "skills/react-best-practices",
+      "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "resolvedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "contentSHA256": "e3f2294574b469c7c198373a443a86571012769d0bbeed68854bd55642ec0d7b",
+      "destination": ".claude/skills/vercel-react-best-practices",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "vercel-react-best-practices",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        },
+        {
+          "member": "vercel-react-best-practices",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "vercel-react-best-practices",
+      "tool": "codex",
+      "source": "https://github.com/vercel-labs/agent-skills.git",
+      "sourceSubpath": "skills/react-best-practices",
+      "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "resolvedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "contentSHA256": "e3f2294574b469c7c198373a443a86571012769d0bbeed68854bd55642ec0d7b",
+      "destination": ".agents/skills/vercel-react-best-practices",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "vercel-react-best-practices",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        },
+        {
+          "member": "vercel-react-best-practices",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "verification-before-completion",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/verification-before-completion",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "9f704f1335e61a3ce258270d9f492cf487af55f1db0b9fc1bc5fa2173ebd38fa",
+      "destination": ".claude/skills/verification-before-completion",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "verification-before-completion",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/verification-before-completion",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "9f704f1335e61a3ce258270d9f492cf487af55f1db0b9fc1bc5fa2173ebd38fa",
+      "destination": ".agents/skills/verification-before-completion",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "wayfinder",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/wayfinder",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "21c81e4a49dac730ada84bf5a23123b549078ad47ce5bb5359f11de489ee9ac8",
+      "destination": ".claude/skills/wayfinder",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "wayfinder",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "wayfinder",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ]
+    },
+    {
+      "member": "wayfinder",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/engineering/wayfinder",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "21c81e4a49dac730ada84bf5a23123b549078ad47ce5bb5359f11de489ee9ac8",
+      "destination": ".agents/skills/wayfinder",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "wayfinder",
+          "name": "gh",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "wayfinder",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        }
+      ],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "web-design-guidelines",
+      "tool": "claude-code",
+      "source": "https://github.com/vercel-labs/agent-skills.git",
+      "sourceSubpath": "skills/web-design-guidelines",
+      "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "resolvedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "contentSHA256": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474",
+      "destination": ".claude/skills/web-design-guidelines",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "web-design-guidelines",
+      "tool": "codex",
+      "source": "https://github.com/vercel-labs/agent-skills.git",
+      "sourceSubpath": "skills/web-design-guidelines",
+      "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "resolvedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "contentSHA256": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474",
+      "destination": ".agents/skills/web-design-guidelines",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "webapp-testing",
+      "tool": "claude-code",
+      "source": "https://github.com/anthropics/skills.git",
+      "sourceSubpath": "skills/webapp-testing",
+      "reviewedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "resolvedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "contentSHA256": "abfaf4cc6cf572346e22fed42dc0cfaacd2f64c5d9667f44a94b02ea0d3b1342",
+      "destination": ".claude/skills/webapp-testing",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "webapp-testing",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        },
+        {
+          "member": "webapp-testing",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "webapp-testing",
+          "name": "playwright",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "webapp-testing",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "webapp-testing",
+      "tool": "codex",
+      "source": "https://github.com/anthropics/skills.git",
+      "sourceSubpath": "skills/webapp-testing",
+      "reviewedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "resolvedRevision": "9d2f1ae187231d8199c64b5b762e1bdf2244733d",
+      "contentSHA256": "abfaf4cc6cf572346e22fed42dc0cfaacd2f64c5d9667f44a94b02ea0d3b1342",
+      "destination": ".agents/skills/webapp-testing",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "webapp-testing",
+          "name": "network",
+          "optional": true,
+          "ready": false,
+          "reason": "network readiness is intentionally not probed during setup"
+        },
+        {
+          "member": "webapp-testing",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "webapp-testing",
+          "name": "playwright",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "webapp-testing",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "writing-great-skills",
+      "tool": "claude-code",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/productivity/writing-great-skills",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "35e3074217abf664be81122c6b9e0cd6aebdb577427c82e5846bf3742f70cbf5",
+      "destination": ".claude/skills/writing-great-skills",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "writing-great-skills",
+      "tool": "codex",
+      "source": "https://github.com/mattpocock/skills.git",
+      "sourceSubpath": "skills/productivity/writing-great-skills",
+      "reviewedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "resolvedRevision": "e9fcdf95b402d360f90f1db8d776d5dd450f9234",
+      "contentSHA256": "35e3074217abf664be81122c6b9e0cd6aebdb577427c82e5846bf3742f70cbf5",
+      "destination": ".agents/skills/writing-great-skills",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "manual-only",
+      "observedActivation": "manual-only",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [],
+      "warnings": [
+        "Claude-specific frontmatter is retained as canonical source evidence but is not a Codex activation mechanism"
+      ]
+    },
+    {
+      "member": "writing-guidelines",
+      "tool": "claude-code",
+      "source": "https://github.com/vercel-labs/agent-skills.git",
+      "sourceSubpath": "skills/writing-guidelines",
+      "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "resolvedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "contentSHA256": "25aa3a33a97bddbcb1847ce4a6169106ec25e5b19b15b99c66e75ab383866ef2",
+      "destination": ".claude/skills/writing-guidelines",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "writing-guidelines",
+      "tool": "codex",
+      "source": "https://github.com/vercel-labs/agent-skills.git",
+      "sourceSubpath": "skills/writing-guidelines",
+      "reviewedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "resolvedRevision": "f8a72b9603728bb92a217a879b7e62e43ad76c81",
+      "contentSHA256": "25aa3a33a97bddbcb1847ce4a6169106ec25e5b19b15b99c66e75ab383866ef2",
+      "destination": ".agents/skills/writing-guidelines",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": []
+    },
+    {
+      "member": "writing-mstest-tests",
+      "tool": "claude-code",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet-test/skills/writing-mstest-tests",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "21f0a2ce83224c8b472c4405d6b2a4209b8ed2ca2fed00976600b72b70722421",
+      "destination": ".claude/skills/writing-mstest-tests",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "writing-mstest-tests",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        }
+      ]
+    },
+    {
+      "member": "writing-mstest-tests",
+      "tool": "codex",
+      "source": "https://github.com/dotnet/skills.git",
+      "sourceSubpath": "plugins/dotnet-test/skills/writing-mstest-tests",
+      "reviewedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "resolvedRevision": "79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce",
+      "contentSHA256": "21f0a2ce83224c8b472c4405d6b2a4209b8ed2ca2fed00976600b72b70722421",
+      "destination": ".agents/skills/writing-mstest-tests",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "writing-mstest-tests",
+          "name": "dotnet",
+          "optional": true,
+          "ready": false,
+          "reason": "optional executable dotnet not found"
+        }
+      ]
+    },
+    {
+      "member": "writing-plans",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/writing-plans",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "9d6565e8748399c61246be6f2a5af2113caa39feb8d0d6eca199f5b29310bbaf",
+      "destination": ".claude/skills/writing-plans",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "writing-plans",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "writing-plans",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "writing-plans",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/writing-plans",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "9d6565e8748399c61246be6f2a5af2113caa39feb8d0d6eca199f5b29310bbaf",
+      "destination": ".agents/skills/writing-plans",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "writing-plans",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "writing-plans",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "writing-skills",
+      "tool": "claude-code",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/writing-skills",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "41ac1fdf4a7fd79c446b9d6018c788360ef54a2d28d2b5caaa3f733c8ec623f7",
+      "destination": ".claude/skills/writing-skills",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "writing-skills",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "writing-skills",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "writing-skills",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    },
+    {
+      "member": "writing-skills",
+      "tool": "codex",
+      "source": "https://github.com/obra/superpowers.git",
+      "sourceSubpath": "skills/writing-skills",
+      "reviewedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "resolvedRevision": "d884ae04edebef577e82ff7c4e143debd0bbec99",
+      "contentSHA256": "41ac1fdf4a7fd79c446b9d6018c788360ef54a2d28d2b5caaa3f733c8ec623f7",
+      "destination": ".agents/skills/writing-skills",
+      "recipe": "project/direct-skill",
+      "requestedActivation": "auto",
+      "observedActivation": "auto",
+      "staticVerified": true,
+      "executable": ".",
+      "authenticated": false,
+      "runtimeVerified": false,
+      "dependencyResults": [
+        {
+          "member": "writing-skills",
+          "name": "git",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "writing-skills",
+          "name": "npm",
+          "optional": true,
+          "ready": true
+        },
+        {
+          "member": "writing-skills",
+          "name": "python3",
+          "optional": true,
+          "ready": true
+        }
+      ]
+    }
+  ]
+}

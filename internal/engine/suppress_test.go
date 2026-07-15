@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 // setUpSuppressibleFixture creates a fixture with a single user-scoped

@@ -3,7 +3,7 @@ package tui
 import (
 	"github.com/charmbracelet/bubbles/list"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 type skillItem struct {

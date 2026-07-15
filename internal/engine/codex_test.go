@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 // Fixture shapes here (agents/openai.yaml policy, prompt frontmatter,

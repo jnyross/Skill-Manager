@@ -3,7 +3,7 @@ package tui
 import (
 	"github.com/charmbracelet/lipgloss"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 var (

@@ -1,0 +1,17 @@
+{
+  "name": "skillet-npm-workspace",
+  "private": true,
+  "version": "0.2.0-dev.0",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "node --test packages/skillet/test/*.test.cjs",
+    "validate": "node scripts/validate-packages.mjs",
+    "notices": "node scripts/generate-third-party-notices.mjs"
+  },
+  "engines": {
+    "node": ">=22.14.0",
+    "npm": ">=10.9.0"
+  }
+}

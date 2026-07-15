@@ -1,0 +1,369 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: '1.24.2'
+  PUBLISH_NODE_VERSION: '24.11.1'
+  PUBLISH_NPM_VERSION: '11.6.2'
+
+jobs:
+  verify-tag:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+      dist-tag: ${{ steps.identity.outputs.dist-tag }}
+      prerelease: ${{ steps.identity.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git cat-file -t "$GITHUB_REF_NAME")" = tag
+          version="${GITHUB_REF_NAME#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
+          test "$(git rev-list -n1 "$GITHUB_REF_NAME")" = "$(git rev-parse origin/main)"
+          test "$(node -p "require('./packaging/npm/package.json').version")" = "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "dist-tag=next" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dist-tag=latest" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22.14.0'
+      - run: test -z "$(gofmt -l cmd internal)"
+      - run: go test ./...
+      - run: go vet ./...
+      - run: node --test packaging/npm/packages/skillet/test/*.test.cjs
+      - run: RELEASE_VERSION=${{ steps.identity.outputs.version }} node packaging/npm/scripts/validate-packages.mjs
+
+  build-native:
+    needs: verify-tag
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+            package: darwin-arm64
+          - goos: darwin
+            goarch: amd64
+            package: darwin-x64
+          - goos: linux
+            goarch: arm64
+            package: linux-arm64
+          - goos: linux
+            goarch: amd64
+            package: linux-x64
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - name: Build exact native executable once
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+        run: |
+          go build -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION -X main.commit=$GITHUB_SHA -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o skillet ./cmd/skillet
+          chmod 0755 skillet
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-${{ matrix.package }}
+          path: skillet
+          if-no-files-found: error
+          retention-days: 7
+
+  pack-once:
+    needs: [verify-tag, build-native]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.PUBLISH_NODE_VERSION }}
+      - run: npm install --global npm@$PUBLISH_NPM_VERSION
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: native-*
+          path: native
+      - name: Place the exact built bytes
+        run: |
+          for package in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
+            mkdir -p "packaging/npm/packages/$package/bin"
+            cp "native/native-$package/skillet" "packaging/npm/packages/$package/bin/skillet"
+            chmod 0755 "packaging/npm/packages/$package/bin/skillet"
+          done
+      - run: node packaging/npm/scripts/generate-third-party-notices.mjs
+      - run: RELEASE_VERSION=${{ needs.verify-tag.outputs.version }} node packaging/npm/scripts/validate-packages.mjs --require-binaries
+      - run: node packaging/npm/scripts/pack-artifacts.mjs packaging/npm/artifacts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-packages
+          path: packaging/npm/artifacts/
+          if-no-files-found: error
+          retention-days: 30
+
+  native-install-gate:
+    needs: [verify-tag, pack-once]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-13
+            node: 22.14.0
+            npm: 10.9.0
+            pair: darwin/x64
+          - runner: macos-14
+            node: 24.11.1
+            npm: 11.6.2
+            pair: darwin/arm64
+          - runner: ubuntu-24.04
+            node: 22.14.0
+            npm: 10.9.0
+            pair: linux/x64
+          - runner: ubuntu-24.04-arm
+            node: 24.11.1
+            npm: 11.6.2
+            pair: linux/arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install --global npm@${{ matrix.npm }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-packages
+          path: packaging/npm/artifacts
+      - env:
+          EXPECTED_PLATFORM_PAIR: ${{ matrix.pair }}
+        run: node packaging/npm/scripts/verify-local-install.mjs packaging/npm/artifacts
+
+  draft-release:
+    needs: [verify-tag, native-install-gate]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-packages
+          path: artifacts
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.verify-tag.outputs.prerelease }}
+        run: |
+          args=(--draft --verify-tag --generate-notes --title "Skillet $TAG")
+          if [[ "$PRERELEASE" == true ]]; then args+=(--prerelease); fi
+          gh release create "$TAG" artifacts/* "${args[@]}"
+
+  publish-platforms:
+    needs: [verify-tag, draft-release]
+    runs-on: ubuntu-24.04
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.PUBLISH_NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@$PUBLISH_NPM_VERSION
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-packages
+          path: artifacts
+      - env:
+          DIST_TAG: ${{ needs.verify-tag.outputs.dist-tag }}
+        run: |
+          for package in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
+            npm publish "artifacts/jnyross-skillet-$package-${{ needs.verify-tag.outputs.version }}.tgz" \
+              --access public --provenance --tag "$DIST_TAG"
+          done
+
+  production-native-gate:
+    needs: [verify-tag, publish-platforms]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-13
+            package: darwin-x64
+          - runner: macos-14
+            package: darwin-arm64
+          - runner: ubuntu-24.04
+            package: linux-x64
+          - runner: ubuntu-24.04-arm
+            package: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.PUBLISH_NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@$PUBLISH_NPM_VERSION
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-packages
+          path: artifacts
+      - name: Wait for and verify exact production package bytes
+        env:
+          PACKAGE: ${{ matrix.package }}
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir production
+          for attempt in {1..12}; do
+            if npm pack "@jnyross/skillet-$PACKAGE@$VERSION" --pack-destination production --json --ignore-scripts; then
+              break
+            fi
+            test "$attempt" -lt 12
+            sleep 10
+          done
+          filename="jnyross-skillet-$PACKAGE-$VERSION.tgz"
+          expected="$(awk -v file="$filename" '$2 == file {print $1}' artifacts/SHA256SUMS)"
+          test -n "$expected"
+          test "$(shasum -a 256 "production/$filename" | awk '{print $1}')" = "$expected"
+      - name: Install, verify provenance, version, and real TUI
+        env:
+          PACKAGE: ${{ matrix.package }}
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          consumer="$RUNNER_TEMP/skillet-production-consumer"
+          prefix="$RUNNER_TEMP/skillet-production-prefix"
+          mkdir -p "$consumer" "$prefix"
+          cd "$consumer"
+          npm init --yes
+          npm install --ignore-scripts "@jnyross/skillet-$PACKAGE@$VERSION"
+          npm audit signatures
+          npm install --global --prefix "$prefix" --ignore-scripts "@jnyross/skillet-$PACKAGE@$VERSION"
+          binary="$prefix/lib/node_modules/@jnyross/skillet-$PACKAGE/bin/skillet"
+          test -x "$binary"
+          "$binary" --version | grep -F "skillet $VERSION "
+          python3 "$GITHUB_WORKSPACE/packaging/npm/scripts/pty-smoke.py" "$binary"
+
+  publish-release:
+    needs: [verify-tag, production-native-gate]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.verify-tag.outputs.prerelease }}
+        run: gh release edit "$TAG" --draft=false --prerelease="$PRERELEASE"
+
+  publish-launcher-last:
+    needs: [verify-tag, publish-release]
+    runs-on: ubuntu-24.04
+    environment: npm-publish
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.PUBLISH_NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@$PUBLISH_NPM_VERSION
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-packages
+          path: artifacts
+      - env:
+          DIST_TAG: ${{ needs.verify-tag.outputs.dist-tag }}
+        run: npm publish "artifacts/jnyross-skillet-${{ needs.verify-tag.outputs.version }}.tgz" --access public --provenance --tag "$DIST_TAG"
+
+  production-installed-command-gate:
+    needs: [verify-tag, publish-launcher-last]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-13
+            native: skillet-darwin-x64
+          - runner: macos-14
+            native: skillet-darwin-arm64
+          - runner: ubuntu-24.04
+            native: skillet-linux-x64
+          - runner: ubuntu-24.04-arm
+            native: skillet-linux-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.PUBLISH_NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@$PUBLISH_NPM_VERSION
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-packages
+          path: artifacts
+      - name: Verify production launcher bytes and installed command
+        env:
+          VERSION: ${{ needs.verify-tag.outputs.version }}
+          EXPECTED_NATIVE: ${{ matrix.native }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix="$RUNNER_TEMP/skillet-production-command"
+          consumer="$RUNNER_TEMP/skillet-production-audit"
+          mkdir -p "$prefix" "$consumer" production
+          for attempt in {1..12}; do
+            if npm pack "@jnyross/skillet@$VERSION" --pack-destination production --json --ignore-scripts; then
+              break
+            fi
+            test "$attempt" -lt 12
+            sleep 10
+          done
+          filename="jnyross-skillet-$VERSION.tgz"
+          expected="$(awk -v file="$filename" '$2 == file {print $1}' artifacts/SHA256SUMS)"
+          test "$(shasum -a 256 "production/$filename" | awk '{print $1}')" = "$expected"
+          npm install --global --prefix "$prefix" --ignore-scripts "@jnyross/skillet@$VERSION"
+          installed_scope="$prefix/lib/node_modules/@jnyross"
+          test -d "$installed_scope/$EXPECTED_NATIVE"
+          test "$(find "$installed_scope" -maxdepth 1 -type d -name 'skillet-*' | wc -l | tr -d ' ')" = 1
+          "$prefix/bin/skillet" --version | grep -F "skillet $VERSION "
+          python3 packaging/npm/scripts/pty-smoke.py "$prefix/bin/skillet"
+          cd "$consumer"
+          npm init --yes
+          npm install --ignore-scripts "@jnyross/skillet@$VERSION"
+          npm audit signatures

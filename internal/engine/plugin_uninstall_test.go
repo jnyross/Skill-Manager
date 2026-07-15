@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 // setUpTwoPluginFixture writes two user-scoped plugins (plugin-x@marketplace-x

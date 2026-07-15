@@ -8,7 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 func TestLibraryInstallFlowChoosesProjectAndConfirmsReplacement(t *testing.T) {
@@ -50,6 +50,19 @@ func TestLibraryInstallFlowChoosesProjectAndConfirmsReplacement(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(roots.DataDir, "library", entry.ID+".json")); err != nil {
 		t.Fatalf("Install removed Library record: %v", err)
+	}
+}
+
+func TestMainSetupShortcutRequestsSharedSetupFlow(t *testing.T) {
+	e, _, _, _ := newPhase3TUIFixture(t)
+	model := NewModel(e)
+	updated, command := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'S'}})
+	got := updated.(*Model)
+	if !got.SetupRequested() {
+		t.Fatal("S did not request Setup")
+	}
+	if command == nil {
+		t.Fatal("S did not quit the inventory TUI before opening Setup")
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"skillet/internal/engine"
+	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
 func TestInstallLibraryEntryLocalPathToPersonalClaude(t *testing.T) {

@@ -1,6 +1,7 @@
 # Issue tracker: GitHub
 
-> **Note:** This repo has no git remote yet. Run `git init` and add a GitHub remote (`gh repo create`) before the issue-tracker workflows will function.
+The canonical remote is `https://github.com/jnyross/Skill-Manager`. Infer it
+from `git remote -v`; `gh` does this automatically inside this clone.
 
 Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
