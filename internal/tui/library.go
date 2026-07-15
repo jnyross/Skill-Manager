@@ -108,6 +108,9 @@ func librarySourceLocation(src engine.LibrarySource) string {
 // canToggleLibraryMembership is true for user-level directory skills that
 // derive a local-path Library source (Personal or Codex skill, not prompts).
 func canToggleLibraryMembership(skill engine.Skill) bool {
+	if skill.Source == engine.SourcePlugin && skill.Plugin != nil {
+		return true
+	}
 	return skill.Kind == engine.KindSkill &&
 		(skill.Source == engine.SourcePersonal || skill.Source == engine.SourceCodex)
 }
@@ -115,9 +118,6 @@ func canToggleLibraryMembership(skill engine.Skill) bool {
 func libraryToggleUnavailableReason(skill engine.Skill) string {
 	if canToggleLibraryMembership(skill) {
 		return ""
-	}
-	if skill.Source == engine.SourcePlugin {
-		return "Plugin skills cannot be added to the Library yet (marketplace Install comes later)."
 	}
 	if skill.Source == engine.SourceProject {
 		return "Project skills are not added to the Library (Library is a personal catalog)."

@@ -18,13 +18,13 @@ type installTargetOption struct {
 // render path as confirmation overlays).
 type installPicker struct {
 	entry   engine.LibraryEntry
+	bundle  *engine.Bundle
 	options []installTargetOption
 	cursor  int
 }
 
 // buildInstallTargetOptions lists Personal plus every resolved project root
-// (Codex ∪ Claude roots, deduplicated). Shared by Library Install and later
-// Bundle Install.
+// (Codex ∪ Claude roots, deduplicated). Shared by Library and Bundle Install.
 func buildInstallTargetOptions(e *engine.Engine) []installTargetOption {
 	opts := []installTargetOption{{
 		label:  "Personal",

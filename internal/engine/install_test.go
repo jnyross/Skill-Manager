@@ -231,6 +231,36 @@ func TestInstallLibraryEntryOverwritesExistingAtTarget(t *testing.T) {
 	assertSnapshotsEqual(t, snapshotTree(t, src), snapshotTree(t, filepath.Join(f.roots.ClaudeHome, "skills", "refresh-me")))
 }
 
+func TestInstallLibraryEntryPreservesUnrelatedOldSiblingDuringOverwrite(t *testing.T) {
+	f := newFixture(t)
+	src := writeSkill(t, filepath.Join(f.root, "catalog", "refresh-me"), "refresh-me", "v2 body", "")
+	dest := writeSkill(t, filepath.Join(f.roots.ClaudeHome, "skills", "refresh-me"), "refresh-me", "v1 body", "")
+	unrelated := dest + ".skillet-old"
+	writeFile(t, filepath.Join(unrelated, "keep.txt"), "user-owned\n")
+
+	e := engine.New(f.roots)
+	entry := engine.LibraryEntry{
+		Name: "refresh-me",
+		Kind: engine.KindSkill,
+		Tool: engine.ToolClaudeCode,
+		Source: engine.LibrarySource{
+			Kind:      engine.LibrarySourceLocalPath,
+			LocalPath: src,
+		},
+	}
+
+	if err := e.InstallLibraryEntry(entry, engine.InstallTarget{Kind: engine.InstallTargetPersonal}, engine.ActivationAuto); err != nil {
+		t.Fatalf("InstallLibraryEntry: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(unrelated, "keep.txt"))
+	if err != nil {
+		t.Fatalf("unrelated sibling was removed: %v", err)
+	}
+	if string(data) != "user-owned\n" {
+		t.Fatalf("unrelated sibling changed: %q", data)
+	}
+}
+
 func TestInstallLibraryEntryRejectsUnresolvedProjectRoot(t *testing.T) {
 	f := newFixture(t)
 	f.roots.ProjectRoots = []string{filepath.Join(f.root, "known")}

@@ -36,11 +36,28 @@ func (e *Engine) AddLibraryEntry(entry LibraryEntry) (LibraryEntry, error) {
 }
 
 // RemoveLibraryEntry deletes the catalog record only — never the installed
-// skill at LocalPath or any other source. Bundle reference checks land with
-// Bundle support; until then this is unconditional bookkeeping remove.
+// skill at LocalPath or any other source. It refuses to leave dangling Bundle
+// references and names every Bundle the user must update first.
 func (e *Engine) RemoveLibraryEntry(id string) error {
 	if strings.TrimSpace(id) == "" {
 		return fmt.Errorf("remove library entry: empty id")
+	}
+	bundles, err := e.ListBundles()
+	if err != nil {
+		return fmt.Errorf("remove library entry: check bundle references: %w", err)
+	}
+	var references []string
+	for _, bundle := range bundles {
+		for _, member := range bundle.Members {
+			if member.LibraryEntryID == id {
+				references = append(references, bundle.Name)
+				break
+			}
+		}
+	}
+	if len(references) > 0 {
+		sort.Strings(references)
+		return fmt.Errorf("remove library entry: still referenced by bundle(s): %s", strings.Join(references, ", "))
 	}
 	path := libraryEntryPath(e.roots.DataDir, id)
 	if _, err := os.Stat(path); err != nil {

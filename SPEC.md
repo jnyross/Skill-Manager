@@ -1,496 +1,364 @@
-# SPEC: Skillet phase 2 — TUI redesign + Project-skill support
+# SPEC: Skillet phase 3 — Library + Bundle (Install)
 
-This spec covers the two workstreams agreed for phase 2 (grilled and recorded
-2026-07-08; see `CONTEXT.md`'s **Source**/**Tool**/**Project skill** entries,
-`docs/adr/0002-bubbles-lipgloss-rendering.md`, and
-`docs/adr/0003-source-tool-axis-project-scope.md`). Read those three first —
-this spec quotes/grounds against them and against
-`docs/research/skill-mechanisms.md` (on-disk mechanisms) and the existing v1
-code under `internal/engine/` and `internal/tui/`, which this spec extends
-rather than replaces. The old `SPEC.md` for v1 (issues #2-#5) is available in
-git history (`git log --follow -- SPEC.md`) if you need the original
-package-layout rationale.
+This spec covers the phase agreed via `/grill-with-docs` (grilled and
+recorded 2026-07-08; see `CONTEXT.md`'s **Library**, **Bundle**, and
+**Install** entries, and `docs/adr/0004-library-install-source-pointers.md`).
+Read those first — this spec quotes/grounds against them and against
+`docs/research/skill-mechanisms.md` and the existing code under
+`internal/engine/` and `internal/tui/`, which this spec extends rather than
+replaces. Phase 2's `SPEC.md` (issues #14-#21) is available in git history
+(`git log --follow -- SPEC.md`) if you need that rationale.
 
-**Sequencing: implement Part 1 (TUI redesign) before Part 2 (Project-skill
-support).** Part 2's fourth Source group is designed to slot into Part 1's
-list+detail structure; building it against the old flat-string renderer would
-mean redoing the display logic twice.
+Phase 2 closed every open issue (#2-#21); this is genuinely new scope, not a
+fix-up pass. `CONTEXT.md`'s old **Shortlist**/**Seeding** entries — written
+before this session — are superseded by **Library**/**Bundle**/**Install**;
+do not resurrect the old "preauthorised, one-time copy, one item at a time"
+model anywhere in this work.
 
-Do not implement Shortlist or Seeding (CONTEXT.md defines the terms; no code
-exists yet) — that's a separate future phase, out of scope here.
-
----
-
-## Part 1 — TUI redesign (bubbles + lipgloss)
-
-### Problem
-
-`internal/tui/model.go` (427 lines) renders everything through
-`fmt.Sprintf`/`strings.Builder` with zero use of `lipgloss` or `bubbles` (both
-already pulled in as transitive dependencies of `bubbletea` — see ADR 0002).
-Concretely, this produces:
-- Descriptions truncated mid-word at a fixed 72 chars (`truncate` in
-  `model.go`).
-- A single 200+ character help line that doesn't wrap
-  (`"up/k down/j move  u archive Personal/Codex  s suppress/..."`).
-- Confirmation prompts that replace the *entire* screen with one plain line,
-  losing all list context.
-- No color anywhere — Source group headers are bare text
-  (`b.WriteString(string(current))`), Activation states aren't visually
-  distinguished.
-- No `tea.WindowSizeMsg` handling at all — the program never learns the
-  terminal's dimensions, which also blocks doing a real list+detail split
-  (you need a width/height to lay out two panes).
-
-### New dependencies
-
-Promote `github.com/charmbracelet/bubbles` and `github.com/charmbracelet/lipgloss`
-from indirect to direct in `go.mod` (`go get github.com/charmbracelet/bubbles`
-— lipgloss will already resolve via bubbles' own requirements at a version
-compatible with the existing `bubbletea v1.2.4`).
-
-### Package layout (`internal/tui/`)
-
-```
-internal/tui/
-  model.go      — top-level tea.Model: owns the bubbles list.Model, detail
-                  viewport, help.Model, and confirmation overlay state; routes
-                  Update() to the right sub-component; Init() now returns
-                  tea.EnterAltScreen (unchanged) — no new Cmd needed for size,
-                  bubbletea sends an initial tea.WindowSizeMsg automatically
-  items.go      — the list.Item implementation(s): a skillItem wrapping
-                  engine.Skill (+ engine.Tool, see Part 2) and a groupHeaderItem
-                  for the styled, non-selectable Source section dividers
-  delegate.go   — a custom list.ItemDelegate: renders skillItem as a single
-                  styled line (name, Activation badge, Tool badge for Project
-                  rows) and groupHeaderItem as a full-width styled divider;
-                  Height()/Spacing() define row geometry
-  detail.go     — renders the detail pane for the currently-selected skillItem
-                  (full untruncated Description, Location, Activation,
-                  Source/Tool, and for Plugin skills the "one of N in X" line)
-  styles.go     — every lipgloss.Style as a package-level var: pane borders,
-                  the four Source header styles, Activation-state colors
-                  (Auto/Manual-only/Suppressed/Disabled), all via
-                  lipgloss.AdaptiveColor{Light: "...", Dark: "..."} so it
-                  reads correctly in both terminal color schemes
-  confirm.go    — renders the confirmation modal: a bordered lipgloss box
-                  (styles.go's confirmBoxStyle), composited over a dimmed
-                  copy of the current list+detail view. bubbles/lipgloss have
-                  no built-in overlay compositor — implement with
-                  lipgloss.Place(width, height, lipgloss.Center,
-                  lipgloss.Center, box, lipgloss.WithWhitespaceForeground(...))
-                  rendered on top of the background string; simplest correct
-                  approach is to render background and box separately, then
-                  overwrite the background's center lines with the box's
-                  lines at the same column offset (a small manual splice
-                  function — bubbles has no "dim a view" helper, so approximate
-                  dimming by rendering the background through a faint/gray
-                  lipgloss style rather than true alpha blending, which
-                  terminals can't do anyway)
-  keys.go       — key.Binding definitions (upDown, archive, suppress,
-                  manualOnly, uninstallPlugin, switchView, quit, showFullHelp)
-                  with ShortHelp()/FullHelp() implementing help.KeyMap, so
-                  bubbles' help.Model can render both the short hint and the
-                  '?'-expanded full list; each binding's Enabled() reflects
-                  whether it applies to the currently-selected row (e.g.
-                  uninstallPlugin.Enabled() is false when a Personal skill is
-                  selected) so the help bar never lists a dead key
-  archive.go    — archive view's list.Model + delegate (reuses items.go's
-                  patterns; archive rows have no "group header" concept, just
-                  a flat list sorted by ArchivedAt descending, matching
-                  Engine.ListArchive()'s existing order)
-```
-
-### Behavior, decision by decision
-
-1. **List + detail pane.** Split the terminal width roughly 60/40 (exact
-   ratio is your call — bias toward the list, since names/activation states
-   need to stay scannable) on every `tea.WindowSizeMsg`, calling
-   `list.SetSize(...)` and updating the detail viewport's width/height. The
-   list rows drop the description entirely (name, Activation badge, and for
-   Plugin/Project the count/Tool tag); the detail pane shows the selected
-   item's full description and metadata. This fully replaces `truncate()` —
-   delete it once nothing calls it.
-
-2. **One list, styled section headers, four Source groups.** `bubbles`'
-   `list.Model` has no native "section header" concept — implement it by
-   inserting a non-selectable `groupHeaderItem` before the first item of each
-   new `Source` as the item slice is built (mirroring the existing
-   `current != skill.Source` transition check in `renderMain`), and make the
-   delegate's `Update()`/cursor movement skip over header items when the user
-   presses up/down (bubbles' list moves index-by-index with no built-in
-   "skip this row" — wrap the up/down key handling to loop past header rows).
-   Order stays Personal, Plugin, Codex, Project (extending the existing
-   `sourceSortOrder` — see Part 2).
-
-3. **Confirmation overlay modal.** On any pending-confirm action, keep
-   rendering the list+detail view underneath (dimmed via style, not truly
-   removed) and composite the bordered confirmation box centered on top via
-   `lipgloss.Place`. The description text inside the box is unchanged from
-   today's `pendingConfirm.description` strings — only the presentation
-   changes. `y` confirms, any other key cancels — unchanged behavior.
-
-4. **Contextual help bar.** Replace the always-full key line with `bubbles`'
-   `help.Model`: short hint by default, `?` toggles `ShowAll` for the full
-   list. Bindings' `Enabled()` (see keys.go above) hides keys that don't apply
-   to the current selection — e.g. selecting a Codex prompt hides
-   `manualOnly` (prompts have no toggle, per `docs/research/skill-mechanisms.md`).
-
-5. **Activation-state color coding.** Auto = default/neutral text color,
-   Manual-only = amber/yellow, Suppressed = orange, Disabled = red — all as
-   `lipgloss.AdaptiveColor` pairs so they're legible on both light and dark
-   terminal backgrounds. This wasn't explicitly asked about in the interview
-   but follows directly from "make Activation scannable at a glance," which
-   was the stated pain point; treat exact hex values as your call, not a
-   fixed requirement.
-
-6. **Window resize handling.** Add a `case tea.WindowSizeMsg:` branch to
-   `Update()` that resizes the list, detail viewport, and cached width/height
-   used by the confirm overlay's `lipgloss.Place` call. This is a correctness
-   fix (the v1 program silently never adapts to terminal size), not
-   optional — needed for the list+detail split to render at all.
-
-Existing keybindings (`u`/`s`/`m`/`x`/`a`/`q`) and their gating logic (which
-Source/Kind each applies to) are unchanged by Part 1 — only their
-presentation (via `keys.go`/`help.Model`) and the confirmation flow change.
-Part 2 extends *which* skills those gates accept (Project skills), not how
-the keys themselves work.
-
-### Testing
-
-Still no automated tests for the `tea.Model` itself (matches the v1 decision
-— "verified by running it against a real install," now also verified via the
-`run`/`verify` skills if available). Do add plain Go unit tests for anything
-extracted into pure functions with no `tea` dependency — e.g. the group-header
-insertion logic (`items.go`, if written as a standalone
-`buildListItems(inventory) []list.Item` function) and any key-binding
-`Enabled()` logic that takes a `Skill` and returns a bool, since both are
-easy to get subtly wrong (off-by-one on header skip, wrong gating) and cheap
-to test without spinning up a `tea.Program`.
+**Sequencing: Part 0 (research) before anything else.** Two of the four
+install-source types this spec requires (skills.sh, and installing a
+brand-new Claude Code plugin) have no prior code in this repo and are not
+fully confirmed by public docs (see Part 0). Do not guess at their mechanics
+and start writing `Install` against an assumption — verify first, the same
+way `docs/research/skill-mechanisms.md` preceded Suppress (the previous
+highest-risk mechanism in this codebase). Part 1 (data model) can proceed in
+parallel with Part 0 since it doesn't depend on the research's outcome.
+Parts 2 (TUI) and 3 (Install engine) depend on both.
 
 ---
 
-## Part 2 — Project-skill support
+## Part 0 — Research spike: install mechanics
 
-### Problem
+Write findings to `docs/research/library-install-mechanisms.md`, matching
+`skill-mechanisms.md`'s style (cite sources, mark what's verified locally vs.
+inferred, flag gaps explicitly rather than silently resolving them).
 
-`README.md`: "Project skills (installed inside a single repository) are not
-yet supported." `CONTEXT.md` already defines the term. The v1 engine
-resolves everything from `$HOME` only (`cmd/skillet/main.go`) — Project
-support requires a working-directory-relative scope that didn't exist before.
+### skills.sh CLI targeting
 
-### Types (`internal/engine/types.go`)
+The documented install command is `npx skills add <owner>/<repo>` (see
+https://www.skills.sh/ and https://www.skills.sh/docs — both fetched
+2026-07-08, neither specifies install scope or version semantics in the
+publicly visible content). Before Part 3 can implement the skills.sh source
+type, verify locally, in a scratch directory:
+
+- Does `npx skills add owner/repo` install relative to the **current working
+  directory** (e.g. into `./.claude/skills/`), matching the `npm install`
+  convention of operating on cwd? If so, Personal-target installs mean
+  running it with cwd set to `~/.claude` (or wherever it actually resolves
+  under), and Project-target installs mean running it with cwd set to the
+  repo root.
+- Is there a global/user-level flag, or is every install project-relative by
+  design (i.e. does "Personal" even make sense for a skills.sh source, or
+  does Skillet need to run it into a scratch dir and copy the result into
+  `~/.claude/skills` itself)?
+- Does it pin a version/commit anywhere Skillet could read back (for the
+  Library entry's Location/version display), or is "latest" implicit and
+  unqueryable — i.e. does Skillet just trust whatever the command produced?
+- Confirm what `owner/repo` actually resolves to — a GitHub repo path
+  directly, or an indirect registry lookup (the site's own copy suggests a
+  registry/leaderboard sits in front of raw GitHub repos).
+
+### Installing a new Claude Code plugin programmatically
+
+Skillet has never installed a plugin before — only uninstalled
+(`plugin_uninstall.go`) or suppressed a skill within one (`suppress.go`).
+`skill-mechanisms.md` confirms the on-disk shape of an *already-installed*
+plugin (`installed_plugins.json`, `known_marketplaces.json`,
+`enabledPlugins` map in `settings.json` at user/project/project-local scope —
+see that doc's "Where things live on disk" section) but does not cover how a
+**new** plugin gets added. Verify:
+
+- Does `claude plugin install <marketplace>/<plugin> --scope project|user`
+  (referenced in `skill-mechanisms.md` line 42) actually exist as a
+  documented CLI command Skillet can shell out to? Confirm the exact syntax
+  against https://code.claude.com/docs/en/plugins-reference.md.
+- Does it require the marketplace to already be known
+  (`known_marketplaces.json`), or does it add one inline given a
+  `github:owner/repo` reference?
+- What does it do if the target scope's `settings.json` doesn't exist yet
+  (a repo with no `.claude/` directory at all)?
+- Confirm whether shelling out to `claude plugin install` is preferable to
+  writing `installed_plugins.json`/`known_marketplaces.json`/`settings.json`
+  directly — the CLI is very likely the safer choice (matches how the tool
+  itself keeps those three files consistent), but confirm it's scriptable
+  non-interactively before committing to it.
+
+If either mechanism turns out to be materially different from what's
+sketched in Parts 1-3 below, update this spec's Part 3 before implementing —
+don't silently reconcile the mismatch in code with no record of why.
+
+---
+
+## Part 1 — Data model
+
+### `internal/engine/types.go` additions
 
 ```go
-type Source string
+type LibrarySourceKind string
 
 const (
-	SourcePersonal Source = "Personal"
-	SourcePlugin   Source = "Plugin"
-	SourceCodex    Source = "Codex"
-	SourceProject  Source = "Project" // new
+	LibrarySourceSkillsSh     LibrarySourceKind = "skills.sh"
+	LibrarySourceGit          LibrarySourceKind = "git"
+	LibrarySourceMarketplace  LibrarySourceKind = "marketplace"
+	LibrarySourceLocalPath    LibrarySourceKind = "local-path"
 )
 
-// Tool is orthogonal to Source (see ADR 0003): which underlying system's
-// mechanisms govern this skill. Personal and Plugin skills are always
-// ToolClaudeCode; Codex-source skills are always ToolCodex; Project-source
-// skills vary and this is the only place the distinction is visibly shown.
-type Tool string
+// LibrarySource is an install-source descriptor (CONTEXT.md's Library entry:
+// "a skills.sh owner/repo reference, a git URL, a Claude/Codex marketplace
+// pointer, or a local filesystem path"). Exactly one field group is set,
+// selected by Kind — this is Go's usual tagged-union-by-string-field
+// approach, matching PluginInfo's existing shape rather than introducing an
+// interface hierarchy for four fixed cases.
+type LibrarySource struct {
+	Kind LibrarySourceKind
+
+	// Kind == LibrarySourceSkillsSh
+	SkillsShRepo string // "owner/repo"
+
+	// Kind == LibrarySourceGit
+	GitURL     string
+	GitRef     string // optional branch/tag/commit; empty = default branch
+	GitSubPath string // optional path within the repo to the skill folder; empty = repo root
+
+	// Kind == LibrarySourceMarketplace
+	Marketplace string
+	PluginName  string
+
+	// Kind == LibrarySourceLocalPath
+	LocalPath string
+}
+
+// LibraryEntry is one item in the user's Library (CONTEXT.md: "the user's
+// own catalog of skills and plugins they maintain... never Project"). Tool
+// only applies when Kind == KindSkill (a Plugin entry has no Tool — plugins
+// are a Claude-Code-only concept, see Source's existing doc comment).
+type LibraryEntry struct {
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	Kind        Kind          `json:"kind"` // KindSkill or a plugin (see note below)
+	Tool        Tool          `json:"tool,omitempty"`
+	Source      LibrarySource `json:"source"`
+	AddedAt     time.Time     `json:"addedAt"`
+}
+
+// BundleMember pairs a Library entry with this Bundle's own remembered
+// Activation preference (CONTEXT.md's Bundle: "the same Library skill can be
+// Auto in one Bundle and Manual-only in another"). ActivationSuppressed and
+// ActivationDisabled are not valid here — a Bundle only ever expresses the
+// two activation states Install can actually set on first placement
+// (Manual-only toggle or its absence); Suppress is a separate, later action
+// on an already-installed skill, never a Bundle-time concern.
+type BundleMember struct {
+	LibraryEntryID string          `json:"libraryEntryId"`
+	Activation     ActivationState `json:"activation"` // ActivationAuto or ActivationManualOnly
+}
+
+type Bundle struct {
+	ID      string         `json:"id"`
+	Name    string         `json:"name"`
+	Members []BundleMember `json:"members"`
+}
+
+// InstallTarget is where an Install places its result — Personal (the
+// user-level Claude Code/Codex skill directories) or a specific repo
+// (Project-scoped, same two-tool split Source/Project already has).
+type InstallTargetKind string
 
 const (
-	ToolClaudeCode Tool = "Claude Code"
-	ToolCodex      Tool = "Codex"
+	InstallTargetPersonal InstallTargetKind = "personal"
+	InstallTargetProject  InstallTargetKind = "project"
 )
-```
 
-Add `Tool Tool` to `Skill` — set by every scanner, not just the new Project
-one (`scanPersonal`/`scanPlugins` always set `ToolClaudeCode`, `scanCodex`
-always sets `ToolCodex`).
-
-Add to `ArchiveEntry`:
-
-```go
-	Tool       Tool   `json:"tool"`
-	OriginRepo string `json:"originRepo,omitempty"` // absolute path to the
-	// resolved project directory this entry was archived from; empty for
-	// every non-Project source. Used by ListArchive's repo filter (below).
-```
-
-### Roots (`internal/engine/engine.go`)
-
-```go
-type Roots struct {
-	ClaudeHome  string
-	CodexHome   string
-	AgentsHome  string
-	DataDir     string
-	ProjectRoots []string // new: resolved candidate project directories for
-	                       // this run, in priority order; empty if none found
-	                       // (skillet launched outside any repo). See
-	                       // FindProjectRoots below — computed once by
-	                       // cmd/skillet/main.go before constructing Engine.
+type InstallTarget struct {
+	Kind InstallTargetKind
+	// RepoRoot is set only when Kind == InstallTargetProject — an absolute
+	// path from e.roots.ProjectRoots/ClaudeProjectRoots, never arbitrary
+	// user input, so Install never writes outside a resolved project root.
+	RepoRoot string
 }
 ```
 
-### Resolving Project scope (new `internal/engine/project_root.go`)
+A `LibraryEntry` needs a `Kind` distinguishing a skill entry from a plugin
+entry; unlike `Skill`, a plugin *is* the entry (there's no per-skill-within-
+plugin granularity in the Library — CONTEXT.md's Bundle preview always shows
+whole-plugin entries, e.g. "plugin C (Auto)"). Confirm during implementation
+whether `Kind` needs a third value or whether `Source.Kind ==
+LibrarySourceMarketplace` is itself sufficient to mean "this entry is a
+plugin" (making a separate `Kind` field redundant for Library entries
+specifically) — don't carry two ways of saying the same thing.
 
-Per ADR 0003 and `docs/research/skill-mechanisms.md`'s exact quote —
-"REPO: `$CWD/.agents/skills`, `$CWD/../.agents/skills`,
-`$REPO_ROOT/.agents/skills`" — Codex's own repo-scope discovery is **three
-fixed candidate directories**, not an arbitrary walk-up through every
-ancestor: the current directory, its immediate parent, and the git repo root.
-Mirror this exactly for consistency between the two tools Skillet manages:
+### Persistence — `internal/engine/library.go`, `internal/engine/bundle.go`
 
-```go
-// FindProjectRoots returns the candidate project directories for cwd, in
-// priority order: cwd itself, cwd's parent, and the git repo root (found by
-// walking up looking for a .git entry — a directory for a normal repo, a
-// file for a worktree/submodule, per git's own convention). Duplicates
-// (e.g. cwd IS the repo root) are removed, keeping the first occurrence.
-// Returns an empty slice if cwd is not inside a git repo AND neither cwd
-// nor its parent has anything to offer — the caller still checks cwd/parent
-// even without a git root, matching Codex's own three-candidate list.
-func FindProjectRoots(cwd string) []string
-```
-
-**Verification gap to close before/during implementation:** this exact
-three-candidate rule is documented and confirmed for Codex's `.agents/skills`
-discovery. It is *not* independently confirmed for Claude Code's own
-`.claude/skills` project-scope discovery (no equivalent statement exists in
-`docs/research/skill-mechanisms.md` — that research only covers user-level
-Claude Code paths). Do a quick check against
-`https://code.claude.com/docs/en/skills.md` (or empirically, by creating a
-probe `.claude/skills/` at each of the three candidate levels and confirming
-which ones Claude Code actually picks up) before assuming it's identical.
-If it turns out Claude Code only ever looks at the exact cwd (no parent/root
-walk-up), apply `FindProjectRoots`'s three-candidate list only to the
-`.agents/skills` (Codex) scan and restrict the `.claude/skills` scan to
-`cwd` alone — flag this as a follow-up notice in code comments either way,
-the same way `skill-mechanisms.md` tracks its own gaps.
-
-`cmd/skillet/main.go` calls `os.Getwd()` and `FindProjectRoots(cwd)` before
-constructing `engine.Roots{...}`, adding the result as `ProjectRoots`.
-
-### Scanning (`internal/engine/project.go`, new)
-
-Reuse the existing per-folder parsing logic rather than duplicating it:
-
-- Extract the innermost per-entry loop body from `scanPersonal`
-  (`internal/engine/personal.go`) into a shared helper parameterized by
-  `Source`/`Tool`, e.g. `scanClaudeSkillFolder(root string, source Source, tool Tool) ([]Skill, []Notice)`.
-  `scanPersonal(claudeHome)` becomes a thin wrapper calling this with
-  `SourcePersonal, ToolClaudeCode`. **Preserve `scanPersonal`'s existing
-  "directory not found" Notice behavior for the user-level call** (tested in
-  `personal_test.go`) — do not change that test's expectations.
-- Similarly, add a `source Source` parameter to `scanCodexSkillRoot`
-  (`internal/engine/codex.go`), defaulting existing call sites (from
-  `scanCodex`) to pass `SourceCodex`, and set `Tool: ToolCodex` unconditionally
-  inside it (it's always the Codex mechanism regardless of Source).
-- New `scanProject(roots []string, dataDir string) ([]Skill, []Notice)`:
-  for each candidate in `roots` (already deduplicated by `FindProjectRoots`),
-  check `<candidate>/.claude/skills` and `<candidate>/.agents/skills` with a
-  plain `os.Stat` first — **if a candidate's directory doesn't exist, skip it
-  silently, no Notice.** Unlike the user-level scans (where a missing
-  `~/.claude/skills` is notable), 2 of the 3 project candidates almost always
-  won't have skill directories — emitting a Notice for each would make the
-  Notices section noisy on every single run. Only emit a Notice for a
-  directory that exists but is unreadable, or for a malformed `SKILL.md`
-  inside one that does exist (same as every other scanner). Call
-  `scanClaudeSkillFolder(dir, SourceProject, ToolClaudeCode)` and
-  `scanCodexSkillRoot(dir, SourceProject, disabled)` (Codex's `config.toml`
-  disabled-set — read it once via `readCodexDisabledConfig(codexHome)`,
-  passed in or re-read; duplicating that one small file read is fine, don't
-  over-engineer a shared cache for it) for the respective sub-paths.
-- Track which candidate directory produced each skill (needed for
-  `OriginRepo` at archive time) — either by setting a not-yet-in-`Skill`
-  field, or (simpler, since `Skill.Location` is already the absolute skill
-  folder path) deriving `OriginRepo` later from `Location` by checking which
-  `ProjectRoots` entry it falls under, in `archive.go`'s `classifyLocation`
-  (below) rather than threading a new field through `Skill`.
-
-### Inventory (`internal/engine/inventory.go`)
-
-Add the fourth scan alongside the existing three, extend
-`sourceSortOrder` with `SourceProject: 3` (default case becomes 4), and set
-`Tool` uniformly — `scanPersonal`/`scanPlugins` results get `ToolClaudeCode`
-tagged (if not already set by the scanner itself per the extraction above),
-`scanCodex` results get `ToolCodex`.
-
-### Action dispatch — minimal diffs, mechanisms already generalize
-
-The actual mechanism functions operate purely on `Skill.Location` (a folder
-path) and don't care which root produced it — confirmed by reading
-`setPersonalManualOnly`, `setCodexManualOnlyForSkill`
-(`internal/engine/manual_only.go`), and `suppressCodex`
-(`internal/engine/codex_suppress.go`): all three take a `Skill` and operate
-on `skill.Location`/`skill.Location + "/SKILL.md"` directly, with no
-Claude-home or Codex-home path baked in except `suppressCodex`'s writes to
-`<CodexHome>/config.toml`, which is correct to keep at the user level even
-for a Project skill (the `path`-keyed entry disambiguates by the skill's own
-absolute path — there is no evidence Codex supports a *project-scoped*
-config.toml, and none is needed since path-keying already works from any
-location). **This means only the dispatch `switch` statements need new
-`case`s — no mechanism function changes:**
+Follow `suppress.go`'s established pattern for Skillet-owned records: one
+JSON file per entry under `<DataDir>/library/<id>.json` and
+`<DataDir>/bundles/<id>.json` (see `suppress.go`'s
+"Suppression record storage" section and `loadSuppressionRecords`/
+`writeSuppressionRecord`/`removeSuppressionRecord` for the load-all/write-one/
+remove-one shape to mirror) — not the archive's move-a-directory model
+(nothing here is a file being relocated) and not a single flat list file
+(one-file-per-id keeps concurrent-write risk and diffing behavior consistent
+with how suppression records already work).
 
 ```go
-// SetManualOnly (manual_only.go): add
-case skill.Source == SourceProject && skill.Tool == ToolClaudeCode && skill.Kind == KindSkill:
-	return setPersonalManualOnly(skill, manualOnly)
-case skill.Source == SourceProject && skill.Tool == ToolCodex && skill.Kind == KindSkill:
-	return setCodexManualOnlyForSkill(skill, manualOnly)
+func (e *Engine) ListLibrary() ([]LibraryEntry, error)
+func (e *Engine) AddLibraryEntry(entry LibraryEntry) (LibraryEntry, error) // assigns ID, AddedAt
+func (e *Engine) RemoveLibraryEntry(id string) error // bookkeeping only — never touches any installed copy
 
-// Suppress / Unsuppress (suppress.go): add
-case skill.Source == SourceProject && skill.Tool == ToolCodex && skill.Kind == KindSkill:
-	return suppressCodex(e.roots.CodexHome, skill)   // / unsuppressCodex, respectively
+func (e *Engine) ListBundles() ([]Bundle, error)
+func (e *Engine) CreateBundle(name string) (Bundle, error)
+func (e *Engine) DeleteBundle(id string) error
+func (e *Engine) AddBundleMember(bundleID, libraryEntryID string, activation ActivationState) error
+func (e *Engine) RemoveBundleMember(bundleID, libraryEntryID string) error
+func (e *Engine) SetBundleMemberActivation(bundleID, libraryEntryID string, activation ActivationState) error
 ```
 
-There is deliberately **no** `Suppress` case for `SourceProject &&
-ToolClaudeCode` — matching today's rule that Suppress only applies to Plugin
-and Codex-mechanism skills; a Project/Claude-Code skill gets Archive +
-Manual-only only, same action set as Personal.
-
-### Archive (`internal/engine/archive.go`)
-
-`classifyLocation` currently checks `immediateChildOf` against
-`ClaudeHome/skills`, `CodexHome/skills`, `AgentsHome/skills`,
-`CodexHome/prompts` and returns `(Source, Kind, error)`. Extend its return to
-`(Source, Kind, Tool, originRepo string, error)` (or an equivalent small
-struct — your call) and add, for each entry in `e.roots.ProjectRoots`, two
-more checks: `immediateChildOf(<root>/.claude/skills, location)` →
-`(SourceProject, KindSkill, ToolClaudeCode, root, nil)`, and
-`immediateChildOf(<root>/.agents/skills, location)` →
-`(SourceProject, KindSkill, ToolCodex, root, nil)`. `Uninstall` sets the new
-`ArchiveEntry.Tool`/`.OriginRepo` fields from this result (empty `OriginRepo`
-for every non-Project source, matching the `omitempty` json tag).
-
-`ListArchive` needs a repo filter, per the resolved decision (Question 10 —
-"filter to current repo"):
-
-```go
-func (e *Engine) ListArchive() ([]ArchiveEntry, error) // unchanged signature —
-// filtering happens by comparing each entry's OriginRepo against
-// e.roots.ProjectRoots, which is already resolved once per run and stored on
-// Engine, so no new parameter is needed. Rule: keep every entry where
-// Source != SourceProject (always global — Personal/Codex/Plugin, unchanged
-// from v1), plus every entry where OriginRepo is present in e.roots.ProjectRoots.
-// A Project entry archived from a different repo than the one skillet is
-// currently running in is simply omitted from this run's Archive view (it
-// still exists on disk under ~/.skillet and reappears when skillet is next
-// run from that repo).
-```
-
-### `cmd/skillet/main.go`
-
-```go
-func main() {
-	home, err := os.UserHomeDir()
-	if err != nil { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
-	cwd, err := os.Getwd()
-	if err != nil { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
-
-	e := engine.New(engine.Roots{
-		ClaudeHome:   filepath.Join(home, ".claude"),
-		CodexHome:    filepath.Join(home, ".codex"),
-		AgentsHome:   filepath.Join(home, ".agents"),
-		DataDir:      filepath.Join(home, ".skillet"),
-		ProjectRoots: engine.FindProjectRoots(cwd),
-	})
-	// ... unchanged tea.NewProgram / p.Run()
-}
-```
-
-### TUI changes needed for Part 2 (on top of Part 1's structure)
-
-- Add a fourth styled group header ("Project") in `items.go`/`delegate.go`.
-- Render the `Tool` tag on Project rows only (e.g. a small `[Claude Code]` /
-  `[Codex]` badge after the name) — per ADR 0003, Personal/Plugin/Codex rows
-  never show a Tool tag since it would be redundant there.
-- Extend `keys.go`'s `Enabled()` checks (archive/manualOnly/suppress
-  bindings) to accept `SourceProject` alongside the existing
-  `SourcePersonal`/`SourceCodex` checks, matching the new engine dispatch
-  cases above exactly — the TUI's gating must never offer an action the
-  engine would reject, and must never hide one the engine now accepts.
-
-### Testing
-
-New `internal/engine/project_test.go`, `project_root_test.go` (or combined),
-following the existing `t.TempDir()` fixture pattern (no mocks) used
-throughout `internal/engine/*_test.go`:
-
-- `FindProjectRoots`: a fixture repo with a `.git` directory at the root, a
-  nested working directory 2+ levels deep — assert the three candidates
-  resolve correctly (cwd, parent, repo root) and are deduplicated when cwd
-  equals the repo root (single-level repo) or cwd's parent equals the repo
-  root.
-- No `.git` anywhere in the fixture tree (or up to a synthetic boundary) —
-  assert `FindProjectRoots` still returns cwd and its parent as candidates,
-  just no third "repo root" entry, and doesn't walk indefinitely up the real
-  filesystem past the fixture's temp directory (bound the walk-up, e.g. stop
-  at a passed-in ceiling directory in tests to avoid depending on the real
-  machine's directory structure — consider taking an optional ceiling param
-  purely for testability if the real implementation would otherwise walk to
-  `/`).
-- `scanProject`: a fixture with `.claude/skills/<name>/SKILL.md` at the
-  resolved repo root only (not at cwd or parent) → the skill appears with
-  `Source: SourceProject, Tool: ToolClaudeCode`, and candidates without a
-  `.claude/skills`/`.agents/skills` directory produce **zero Notices** (this
-  is the specific "don't be noisy" requirement above — assert
-  `len(notices) == 0` for the missing-directory-is-normal case, as distinct
-  from the existing Personal/Codex tests which assert a Notice *is* present
-  for their missing-root case).
-- A Codex repo-scoped skill (`.agents/skills/<name>/SKILL.md` at the repo
-  root, plus an `agents/openai.yaml` with `allow_implicit_invocation: false`)
-  → appears with `Source: SourceProject, Tool: ToolCodex, Activation:
-  ActivationManualOnly`.
-- `SetManualOnly`/`Suppress` dispatch: call each on a fixture `Skill{Source:
-  SourceProject, Tool: ToolClaudeCode, ...}` and `{Source: SourceProject,
-  Tool: ToolCodex, ...}` and assert the same file mutations as the existing
-  Personal/Codex tests (`manual_only_test.go`, `suppress_test.go`) — these
-  should pass with zero changes to the underlying mechanism functions, so a
-  failing test here means the dispatch `case` was written wrong, not that the
-  mechanism itself needs work.
-- Archive round-trip for a Project skill (mirroring `archive_test.go`'s
-  existing Personal round-trip): Uninstall → `ArchiveEntry.OriginRepo` set
-  correctly → Restore → tree byte-identical.
-- `ListArchive` repo filter: archive one Project skill from fixture repo A
-  and one from fixture repo B, construct an `Engine` with `ProjectRoots`
-  matching only repo A, assert `ListArchive()` returns repo A's entry plus
-  any Personal/Codex/Plugin entries, but not repo B's.
-
-Run `go vet ./...` and `go test ./...` for both parts before considering
-either done.
+`RemoveLibraryEntry` on an entry still referenced by one or more Bundles: per
+the "one-way copy, no ongoing sync" decision (ADR 0004), a Bundle only
+remembers `LibraryEntryID` + Activation, so removing the Library entry leaves
+a dangling reference. Resolve during implementation whether
+`RemoveLibraryEntry` should refuse (return an error naming the referencing
+Bundles) or cascade (silently drop the member from every Bundle) — this
+wasn't grilled explicitly; refusing is the safer default (matches Skillet's
+existing philosophy of never silently mutating something the user didn't
+directly act on) unless testing reveals it's more annoying than protective.
 
 ---
 
-## Explicitly out of scope for this pass
+## Part 2 — TUI: two new views
 
-- Shortlist and Seeding (CONTEXT.md defines both terms; no code exists) —
-  a later phase, not phase 2.
-- Any change to Plugin-skill scope (plugins remain user-level only; there is
-  no "Project plugin" concept — CONTEXT.md's Source/Tool split intentionally
-  only adds Project as a peer of Personal/Plugin/Codex, it does not turn
-  Plugin into a fourth Tool-bearing group).
-- Any settings/config file for Skillet itself (e.g. to override
-  `FindProjectRoots`' behavior) — cwd walk-up is the only resolution
-  mechanism per ADR 0003; don't add a flag "just in case."
+Adds `libraryView` and `bundleView` to `viewState` in `model.go`, alongside
+the existing `mainView`/`archiveView`. Follow `archive.go`'s
+list+delegate+render pattern (`archiveItem`, `archiveDelegate`,
+`buildArchiveItems`, `newArchiveList`) for both new views rather than
+inventing a new list-rendering approach.
+
+### Keybindings (proposed — not separately grilled; keep if they read
+naturally during implementation, adjust if they collide or confuse)
+
+Main view additions:
+- `l` — toggle "add to/remove from Library" for the selected row. Adding
+  auto-derives the `LibrarySource` from what Skillet already knows about
+  that row: a Personal/Codex skill's `Skill.Location` becomes
+  `LibrarySourceLocalPath`; a Plugin skill's `Skill.Plugin.{Marketplace,
+  Plugin}` becomes `LibrarySourceMarketplace`. No manual descriptor entry
+  needed for this path (confirmed in-session: "Both" — row-toggle handles
+  the already-installed case; the Library view's own "new entry" flow, below,
+  handles the not-yet-installed case).
+- `L` — switch to Library view (mirrors existing `a` for Archive).
+- `B` — switch to Bundle view.
+
+Library view:
+- `n` — new entry from scratch: prompts for `LibrarySourceKind` then the
+  corresponding field(s) (skills.sh `owner/repo`, git URL [+ optional ref/
+  subpath], marketplace + plugin name, or a local path) and a display name.
+- `d` — remove the selected entry from the Library (bookkeeping only, per
+  `RemoveLibraryEntry` above — never deletes anything on disk).
+- `i` — Install the selected entry: opens a target picker (Personal, or one
+  entry per resolved project root) then confirm-and-overwrite (existing
+  `pendingConfirm` pattern) if something already exists at that name/target.
+- `L`/`esc` — back to main view.
+
+Bundle view:
+- `n` — new Bundle (prompts for a name).
+- `enter`/`space` on a Bundle — expand to show/edit its members: add from a
+  Library-entry picker, remove a member, cycle a member's Activation
+  (`a`/`m`, matching main view's existing manual-only-toggle key choice for
+  consistency).
+- `i` on a Bundle — Install every member to a chosen target (same target
+  picker as the Library view's `i`), applying each member's stored
+  Activation as part of placement.
+- `d` — delete the selected Bundle (members' underlying Library entries are
+  untouched — only the Bundle's grouping/prefs are deleted).
+- `B`/`esc` — back to main view.
+
+### Target picker
+
+A small new prompt component (not a full view) offering "Personal" plus one
+row per `e.roots.ProjectRoots ∪ e.roots.ClaudeProjectRoots` (deduplicated,
+labeled by path) — reuse `renderConfirmOverlay`'s overlay styling
+(`confirm.go`) rather than building a second, differently-styled popup.
+
+---
+
+## Part 3 — Install engine
+
+`internal/engine/install.go`:
+
+```go
+func (e *Engine) InstallLibraryEntry(entry LibraryEntry, target InstallTarget, activation ActivationState) error
+func (e *Engine) InstallBundle(bundle Bundle, target InstallTarget) error // resolves + installs every member, applying each member's own Activation
+```
+
+Dispatch on `entry.Source.Kind`:
+
+- **`LibrarySourceLocalPath`**: straightforward directory copy from
+  `entry.Source.LocalPath` to the target's skills directory (`~/.claude/
+  skills/<name>` or `<repo>/.claude/skills/<name>` for a Claude Code entry;
+  the Codex equivalents for a Codex-tool entry). Lowest-risk source type —
+  no external process, no unresolved research from Part 0.
+- **`LibrarySourceGit`**: `git clone` (shallow, at `GitRef` if set) into a
+  scratch temp directory, then copy `GitSubPath` (or the repo root if unset)
+  into the target, same as the local-path case.
+- **`LibrarySourceSkillsSh`**: shells out to the CLI verified in Part 0,
+  with cwd/flags set per that verification's findings. Do not implement this
+  branch until Part 0 confirms the targeting mechanism — a wrong guess here
+  risks writing into the wrong directory silently.
+- **`LibrarySourceMarketplace`**: for a Plugin entry, "install" means
+  ensuring the plugin is installed at all (shell out to `claude plugin
+  install`, per Part 0) *and* enabled at the chosen target's scope
+  (`enabledPlugins` map — user `settings.json` for Personal, project
+  `settings.json` for a repo target, per `skill-mechanisms.md` line 42).
+  Also gated on Part 0.
+
+After placement, if `activation == ActivationManualOnly`, call the existing
+`SetManualOnly(skill, true)` (reusing `manual_only.go` — do not reimplement
+frontmatter/`agents/openai.yaml` editing here) constructed from the freshly
+placed skill's location. `ActivationAuto` needs no follow-up call (Auto is
+the default state for anything just placed).
+
+Conflict handling: confirm-and-overwrite (per the in-session decision),
+reusing the existing `pendingConfirm`/`executePending` pattern in `model.go`
+— show what's about to be replaced, wait for `y`. If a name collision exists
+at the target, the TUI raises the confirmation before `Install*` is called;
+the engine methods themselves can assume the caller already resolved that
+(matching how `Uninstall`/`Restore` don't re-confirm internally either).
+
+---
+
+## Testing
+
+New `internal/engine/library_test.go`, `bundle_test.go`, `install_test.go`
+following the existing `t.TempDir()` fixture pattern (no mocks):
+
+- Library CRUD round-trip (add/list/remove) for each `LibrarySourceKind`.
+- Bundle CRUD, including `SetBundleMemberActivation` changing an existing
+  member without disturbing others.
+- `RemoveLibraryEntry` behavior against a Bundle-referencing entry (whichever
+  of refuse/cascade is chosen in Part 1 — assert that specific behavior).
+- `InstallLibraryEntry` for `LibrarySourceLocalPath` and `LibrarySourceGit`
+  (fixture repos, no network) to both `InstallTargetPersonal` and
+  `InstallTargetProject` fixtures — assert file contents byte-identical to
+  source, and (for `ActivationManualOnly`) that the placed skill's frontmatter
+  reflects it via the existing `manual_only.go` mechanism.
+- `LibrarySourceSkillsSh`/`LibrarySourceMarketplace` installs: only what Part
+  0's findings make testable without live network/plugin-install side
+  effects — likely dependency-injecting the shell-out command rather than
+  actually invoking `npx`/`claude` in tests, mirroring how no existing test
+  in this repo invokes a real external process.
+
+Run `go build ./...`, `go vet ./...`, and `go test ./... -v` — all must pass.
 
 ## Verification
 
-```
-go build ./...
-go vet ./...
-go test ./... -v
-```
-
-All must pass. For the TUI redesign specifically, also run the built binary
-interactively (`go run ./cmd/skillet`) from inside this repo (which now has
-no `.claude/skills` or `.agents/skills` of its own — you may need to create a
-throwaway fixture skill under one of those to see the Project group render)
-and confirm: the list+detail split renders correctly at a real terminal size,
-resizing the terminal doesn't break layout, `?` toggles the full help list,
-and a confirmation overlay renders on top of a visibly-dimmed list rather
-than replacing it. Do not commit, push, or modify anything outside this
-repo. Report back: files changed, a summary of what each new/modified
-function does, the verification command output, and anything you were
-uncertain about or had to make a judgment call on — especially the Claude
-Code project-scope discovery verification gap flagged above.
+Same as phase 2's closing verification: run the built binary interactively
+(`go run ./cmd/skillet`) and confirm the full Install loop for at least one
+`LibrarySourceLocalPath` entry end-to-end (add a Personal skill to the
+Library via `l`, Install it to a throwaway project fixture, confirm the copy
+appears and its Activation preference took effect), plus Library/Bundle view
+navigation, before considering this phase done. Do not commit, push, or
+modify anything outside this repo. Report back: files changed, what Part 0's
+research actually found (especially if it changes Part 3's dispatch), the
+verification command output, and any judgment calls made against this spec's
+explicitly-flagged open questions (the `RemoveLibraryEntry` dangling-Bundle-
+reference behavior, and whether `LibraryEntry.Kind` is redundant with
+`Source.Kind`).

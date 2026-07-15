@@ -1,0 +1,11 @@
+# Library entries as install-source pointers, resolved fresh on Install
+
+Phase 3 (grilled and recorded 2026-07-08) adds a **Library** — a personal catalog of skills/plugins spanning Personal, Plugin, and Codex — where "latest version" matters: entries should always install whatever's current, not a stale copy from whenever they were added. We decided each Library entry stores an **install-source descriptor** (a skills.sh `owner/repo` reference, a git URL, a Claude/Codex marketplace pointer, or a local filesystem path) rather than a frozen snapshot of content. Install re-resolves that descriptor at the moment you press the key, copies the result to the chosen target (Personal or a repo), and then walks away — the installed copy becomes an ordinary Personal/Project skill with no ongoing link back to the Library entry, no version/hash tracking, and no drift detection. Re-running Install is how you "update": it overwrites with whatever the source currently has (see the confirm-and-overwrite Install-conflict decision from the same session).
+
+This matches Skillet's existing shape: it only ever acts when you press a key, never runs in the background or polls anything unprompted. Tracking versions or staleness would mean either eager network calls (skills.sh, git remotes, marketplaces) just to render a list, or a background poller — both a step change from how Skillet behaves everywhere else in the codebase.
+
+## Considered Options
+
+- **Snapshot content at add-to-Library time** — the naive reading of "shortlist" — rejected because it goes stale the moment you add it, defeating the actual goal ("always install the latest version").
+- **Track versions/hashes and surface drift proactively** ("this Library entry is 3 commits behind its source") — rejected: skills.sh, git, and marketplaces already have their own notion of "current"; duplicating that inside Skillet's own state adds a second source of truth to keep in sync, for a benefit (an unprompted staleness indicator) nothing else in the tool provides.
+- **Symlink installed copies back to a canonical local directory** — only coherent for the local-filesystem source type; skills.sh/git/marketplace-sourced entries have no local canonical copy to symlink to, so this would treat the four source types asymmetrically.

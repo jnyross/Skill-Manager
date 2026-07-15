@@ -9,6 +9,7 @@ import (
 type keyMap struct {
 	main            bool
 	library         bool
+	bundle          bool
 	move            key.Binding
 	archive         key.Binding
 	suppress        key.Binding
@@ -17,6 +18,11 @@ type keyMap struct {
 	libraryToggle   key.Binding
 	switchView      key.Binding
 	libraryView     key.Binding
+	bundleView      key.Binding
+	create          key.Binding
+	addMember       key.Binding
+	removeMember    key.Binding
+	expand          key.Binding
 	restore         key.Binding
 	purge           key.Binding
 	libraryRemove   key.Binding
@@ -35,6 +41,7 @@ func mainKeyMap(selected engine.Skill, ok bool, showAll bool) keyMap {
 	m.libraryToggle = key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "add/remove library"))
 	m.switchView = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "archive view"))
 	m.libraryView = key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "library view"))
+	m.bundleView = key.NewBinding(key.WithKeys("B"), key.WithHelp("B", "bundle view"))
 
 	m.move.SetEnabled(ok)
 	m.archive.SetEnabled(ok && canArchiveSkill(selected))
@@ -61,10 +68,32 @@ func libraryKeyMap(hasSelection bool, showAll bool) keyMap {
 	m := baseKeyMap(showAll)
 	m.library = true
 	m.libraryInstall = key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install"))
+	m.create = key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new entry"))
 	m.libraryRemove = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "remove from library"))
 	m.switchView = key.NewBinding(key.WithKeys("L", "esc"), key.WithHelp("L/esc", "main view"))
 
 	m.move.SetEnabled(hasSelection)
+	m.libraryInstall.SetEnabled(hasSelection)
+	m.libraryRemove.SetEnabled(hasSelection)
+	return m
+}
+
+func bundleKeyMap(hasSelection bool, showAll bool) keyMap {
+	m := baseKeyMap(showAll)
+	m.bundle = true
+	m.create = key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new bundle"))
+	m.addMember = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add member"))
+	m.removeMember = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "remove member"))
+	m.expand = key.NewBinding(key.WithKeys("enter", " "), key.WithHelp("enter/space", "expand/collapse"))
+	m.manualOnly = key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "cycle activation"))
+	m.libraryInstall = key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install bundle"))
+	m.libraryRemove = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete bundle"))
+	m.switchView = key.NewBinding(key.WithKeys("B", "esc"), key.WithHelp("B/esc", "main view"))
+	m.move.SetEnabled(hasSelection)
+	m.addMember.SetEnabled(hasSelection)
+	m.removeMember.SetEnabled(hasSelection)
+	m.expand.SetEnabled(hasSelection)
+	m.manualOnly.SetEnabled(hasSelection)
 	m.libraryInstall.SetEnabled(hasSelection)
 	m.libraryRemove.SetEnabled(hasSelection)
 	return m
@@ -94,6 +123,7 @@ func (m keyMap) ShortHelp() []key.Binding {
 			m.libraryToggle,
 			m.switchView,
 			m.libraryView,
+			m.bundleView,
 			m.showFullHelp,
 			m.quit,
 		}
@@ -102,11 +132,15 @@ func (m keyMap) ShortHelp() []key.Binding {
 		return []key.Binding{
 			m.move,
 			m.libraryInstall,
+			m.create,
 			m.libraryRemove,
 			m.switchView,
 			m.showFullHelp,
 			m.quit,
 		}
+	}
+	if m.bundle {
+		return []key.Binding{m.move, m.expand, m.create, m.addMember, m.removeMember, m.manualOnly, m.libraryInstall, m.libraryRemove, m.switchView, m.showFullHelp, m.quit}
 	}
 
 	return []key.Binding{
@@ -122,14 +156,20 @@ func (m keyMap) ShortHelp() []key.Binding {
 func (m keyMap) FullHelp() [][]key.Binding {
 	if m.main {
 		return [][]key.Binding{
-			{m.move, m.switchView, m.libraryView, m.showFullHelp, m.quit},
+			{m.move, m.switchView, m.libraryView, m.bundleView, m.showFullHelp, m.quit},
 			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle},
 		}
 	}
 	if m.library {
 		return [][]key.Binding{
 			{m.move, m.switchView, m.showFullHelp, m.quit},
-			{m.libraryInstall, m.libraryRemove},
+			{m.libraryInstall, m.libraryRemove, m.create},
+		}
+	}
+	if m.bundle {
+		return [][]key.Binding{
+			{m.move, m.switchView, m.showFullHelp, m.quit},
+			{m.create, m.expand, m.addMember, m.removeMember, m.manualOnly, m.libraryInstall, m.libraryRemove},
 		}
 	}
 
