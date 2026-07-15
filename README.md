@@ -47,8 +47,8 @@ its own data (the Archive) under `~/.skillet`. There is nothing to configure.
 ### Main view
 
 The main view lists every Skill Skillet found, grouped by Source —
-**Personal**, **Plugin**, and **Codex** (Project is not supported in this
-version). Each row shows the Skill's name, a truncated description, and its
+**Personal**, **Plugin**, **Codex**, and **Project**. Project rows identify
+whether Claude Code or Codex governs them. Each row shows the Skill's name, a truncated description, and its
 current Activation state (Auto, Manual-only, Suppressed, or Disabled). A
 Codex custom prompt is labeled `[prompt]`. A Plugin skill's row shows "one
 of N in `<plugin-name>`" so you can see how many other Skills would be
@@ -67,6 +67,9 @@ Keys:
 | `m` | Toggle Manual-only / Auto-activation | Personal skills, Codex skills (not prompts) |
 | `x` | Uninstall the selected Skill's whole plugin | Plugin skills |
 | `a` | Switch to the Archive view | — |
+| `l` | Add/remove the selected skill or plugin from Library | supported installed entries |
+| `L` | Switch to the Library view | — |
+| `B` | Switch to the Bundle view | — |
 | `q` / `ctrl+c` | Quit | — |
 
 Pressing a key for an action that doesn't apply to the selected row (for
@@ -94,6 +97,18 @@ waits for a keypress. Press `y` to proceed; any other key cancels and
 changes nothing. Browsing the list, moving the cursor, and switching between
 the main and Archive views never changes anything by themselves — only a
 confirmed `y` does.
+
+### Library and Bundles
+
+Library is a catalog of source pointers, not frozen copies. Press `L` to browse
+it, `n` to add a local-path, git, skills.sh, or marketplace entry, `i` to
+install the selected entry to Personal or a resolved Project, and `d` to remove
+only the catalog record. Install resolves the current source each time.
+
+Press `B` for Bundles: named groups of Library entries with a remembered Auto
+or Manual-only preference per member. Create a Bundle with `n`, add members
+with `a`, cycle member Activation with `m`, and install the whole Bundle with
+`i`. Existing destinations are listed for confirmation before replacement.
 
 ## Actions
 
@@ -139,6 +154,6 @@ document:
 
 ## Scope
 
-This version covers Personal, Plugin, and Codex skills and Codex custom
-prompts, all at the user level. Project skills (installed inside a single
-repository) are not yet supported.
+Skillet covers Personal, Plugin, Codex, and Project skills, Codex custom
+prompts, Library entries from local-path/git/skills.sh/marketplace sources,
+and Bundles installed to Personal or a resolved Project.

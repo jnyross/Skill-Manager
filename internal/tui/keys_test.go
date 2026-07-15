@@ -211,6 +211,26 @@ func TestArchiveKeyMapRequiresSelectedEntryForRestoreAndPurge(t *testing.T) {
 	}
 }
 
+func TestBundleKeyMapDisablesRowActionsWithoutSelection(t *testing.T) {
+	empty := bundleKeyMap(false, false)
+	for name, binding := range map[string]bool{
+		"move":             empty.move.Enabled(),
+		"expand":           empty.expand.Enabled(),
+		"add member":       empty.addMember.Enabled(),
+		"remove member":    empty.removeMember.Enabled(),
+		"cycle activation": empty.manualOnly.Enabled(),
+		"install bundle":   empty.libraryInstall.Enabled(),
+		"delete bundle":    empty.libraryRemove.Enabled(),
+	} {
+		if binding {
+			t.Fatalf("%s binding enabled without a Bundle selection", name)
+		}
+	}
+	if !empty.create.Enabled() {
+		t.Fatal("new Bundle binding disabled in an empty Bundle view")
+	}
+}
+
 func TestRejectReasonsMatchGates(t *testing.T) {
 	projectClaude := engine.Skill{Source: engine.SourceProject, Tool: engine.ToolClaudeCode, Kind: engine.KindSkill}
 	if reason := archiveUnavailableReason(projectClaude); reason != "" {

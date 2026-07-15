@@ -18,6 +18,7 @@ const (
 	mainView viewState = iota
 	archiveView
 	libraryView
+	bundleView
 )
 
 type pendingAction int
@@ -32,6 +33,7 @@ const (
 	pendingAutoActivate
 	pendingUninstallPlugin
 	pendingInstall
+	pendingInstallBundle
 )
 
 type pendingConfirm struct {
@@ -43,35 +45,44 @@ type pendingConfirm struct {
 	plugin      engine.PluginInfo
 	entry       engine.LibraryEntry
 	target      engine.InstallTarget
+	bundle      engine.Bundle
 }
 
 type Model struct {
-	engine        *engine.Engine
-	view          viewState
-	cursor        int // inventory skill index for main view
-	inv           engine.Inventory
-	list          list.Model
-	archiveList   list.Model
-	libraryList   list.Model
-	help          help.Model
-	archive       []engine.ArchiveEntry
-	library       []engine.LibraryEntry
-	pending       *pendingConfirm
-	installPicker *installPicker
-	status        string
-	width         int
-	height        int
-	detail        detailPane
+	engine         *engine.Engine
+	view           viewState
+	cursor         int // inventory skill index for main view
+	inv            engine.Inventory
+	list           list.Model
+	archiveList    list.Model
+	libraryList    list.Model
+	bundleList     list.Model
+	help           help.Model
+	archive        []engine.ArchiveEntry
+	library        []engine.LibraryEntry
+	bundles        []engine.Bundle
+	bundleExpanded map[string]bool
+	pending        *pendingConfirm
+	installPicker  *installPicker
+	sourcePicker   *librarySourcePicker
+	form           *textForm
+	memberPicker   *memberPicker
+	status         string
+	width          int
+	height         int
+	detail         detailPane
 }
 
 func NewModel(e *engine.Engine) *Model {
 	m := &Model{
-		engine:      e,
-		list:        newSkillList(nil),
-		archiveList: newArchiveList(nil),
-		libraryList: newLibraryList(nil),
-		help:        help.New(),
-		detail:      newDetailPane(),
+		engine:         e,
+		list:           newSkillList(nil),
+		archiveList:    newArchiveList(nil),
+		libraryList:    newLibraryList(nil),
+		bundleList:     newBundleList(nil),
+		help:           help.New(),
+		detail:         newDetailPane(),
+		bundleExpanded: make(map[string]bool),
 	}
 	m.refreshInventory()
 	return m
@@ -113,6 +124,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resizeList()
 		return m, nil
 	}
+	if m.sourcePicker != nil {
+		m.updateSourcePicker(key)
+		m.resizeList()
+		return m, nil
+	}
+	if m.form != nil {
+		m.updateForm(key)
+		m.resizeList()
+		return m, nil
+	}
+	if m.memberPicker != nil {
+		m.updateMemberPicker(key)
+		m.resizeList()
+		return m, nil
+	}
 
 	switch key.String() {
 	case "ctrl+c", "q":
@@ -139,6 +165,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.updateArchive(key.String())
 		case libraryView:
 			m.updateLibrary(key.String())
+		case bundleView:
+			m.updateBundle(key.String())
 		}
 	}
 
@@ -232,6 +260,9 @@ func (m *Model) updateMain(key string) {
 	case "L":
 		m.view = libraryView
 		m.refreshLibrary()
+	case "B":
+		m.view = bundleView
+		m.refreshBundles()
 	case "l":
 		m.toggleLibraryMembership()
 	}
@@ -288,6 +319,83 @@ func (m *Model) updateLibrary(key string) {
 		m.refreshLibrary()
 	case "i":
 		m.beginLibraryInstall()
+	case "n":
+		m.sourcePicker = &librarySourcePicker{}
+	}
+}
+
+func (m *Model) updateBundle(key string) {
+	row, selected := m.selectedBundleItem()
+	switch key {
+	case "B", "esc":
+		m.view = mainView
+		m.refreshInventory()
+	case "n":
+		m.form = newTextForm(formBundleName, []string{"Bundle name"})
+	case "enter", " ":
+		if !selected || row.member != nil {
+			return
+		}
+		m.bundleExpanded[row.bundle.ID] = !m.bundleExpanded[row.bundle.ID]
+		m.refreshBundles()
+	case "d":
+		if !selected || row.member != nil {
+			m.status = "Select a Bundle to delete."
+			return
+		}
+		if err := m.engine.DeleteBundle(row.bundle.ID); err != nil {
+			m.status = "Delete Bundle failed: " + err.Error()
+		} else {
+			m.status = "Deleted Bundle " + row.bundle.Name + "."
+			m.refreshBundles()
+		}
+	case "a":
+		if !selected {
+			m.status = "Select a Bundle or member first."
+			return
+		}
+		entries, err := m.engine.ListLibrary()
+		if err != nil {
+			m.status = "Library read failed: " + err.Error()
+			return
+		}
+		if len(entries) == 0 {
+			m.status = "Library is empty."
+			return
+		}
+		m.memberPicker = &memberPicker{bundle: row.bundle, entries: entries}
+	case "r":
+		if !selected || row.member == nil {
+			m.status = "Select a Bundle member to remove."
+			return
+		}
+		if err := m.engine.RemoveBundleMember(row.bundle.ID, row.member.LibraryEntryID); err != nil {
+			m.status = "Remove member failed: " + err.Error()
+		} else {
+			m.status = "Removed member from Bundle."
+			m.refreshBundles()
+		}
+	case "m":
+		if !selected || row.member == nil {
+			m.status = "Select a Bundle member to change Activation."
+			return
+		}
+		next := engine.ActivationManualOnly
+		if row.member.Activation == engine.ActivationManualOnly {
+			next = engine.ActivationAuto
+		}
+		if err := m.engine.SetBundleMemberActivation(row.bundle.ID, row.member.LibraryEntryID, next); err != nil {
+			m.status = "Activation failed: " + err.Error()
+		} else {
+			m.status = "Bundle member Activation: " + string(next)
+			m.refreshBundles()
+		}
+	case "i":
+		if !selected {
+			m.status = "Select a Bundle first."
+			return
+		}
+		m.beginBundleInstall(row.bundle)
 	}
 }
 
@@ -295,10 +403,6 @@ func (m *Model) beginLibraryInstall() {
 	selected, ok := m.selectedLibraryEntry()
 	if !ok {
 		m.status = "No Library entry selected."
-		return
-	}
-	if selected.Source.Kind != engine.LibrarySourceLocalPath {
-		m.status = "Install for this source kind is not supported yet."
 		return
 	}
 	options := buildInstallTargetOptions(m.engine)
@@ -311,6 +415,12 @@ func (m *Model) beginLibraryInstall() {
 		options: options,
 		cursor:  0,
 	}
+	m.status = ""
+}
+
+func (m *Model) beginBundleInstall(bundle engine.Bundle) {
+	options := buildInstallTargetOptions(m.engine)
+	m.installPicker = &installPicker{bundle: &bundle, options: options}
 	m.status = ""
 }
 
@@ -333,16 +443,74 @@ func (m *Model) updateInstallPicker(key string) {
 		}
 	case "enter":
 		opt := picker.options[picker.cursor]
+		if picker.bundle != nil {
+			bundle := *picker.bundle
+			m.installPicker = nil
+			m.confirmOrRunBundleInstall(bundle, opt.target)
+			return
+		}
 		entry := picker.entry
 		m.installPicker = nil
 		m.confirmOrRunInstall(entry, opt.target)
 	}
 }
 
+func (m *Model) confirmOrRunBundleInstall(bundle engine.Bundle, target engine.InstallTarget) {
+	entries, err := m.engine.ListLibrary()
+	if err != nil {
+		m.status = "Install Bundle failed: " + err.Error()
+		return
+	}
+	byID := make(map[string]engine.LibraryEntry, len(entries))
+	for _, entry := range entries {
+		byID[entry.ID] = entry
+	}
+	var collisions []string
+	for _, member := range bundle.Members {
+		entry, ok := byID[member.LibraryEntryID]
+		if !ok || entry.Source.Kind == engine.LibrarySourceMarketplace {
+			continue
+		}
+		if entry.Source.Kind == engine.LibrarySourceSkillsSh && entry.Source.SkillsShSkill == "" {
+			collisions = append(collisions, "all skills from "+entry.Source.SkillsShRepo+" (matching names)")
+			continue
+		}
+		dest, exists, err := m.engine.InstallDestination(entry, target)
+		if err != nil {
+			m.status = "Install Bundle failed: " + err.Error()
+			return
+		}
+		if exists {
+			collisions = append(collisions, dest)
+		}
+	}
+	if len(collisions) > 0 {
+		m.pending = &pendingConfirm{description: fmt.Sprintf("Install Bundle %q will replace: %s. y to confirm, any other key to cancel.", bundle.Name, strings.Join(collisions, ", ")), action: pendingInstallBundle, bundle: bundle, target: target}
+		return
+	}
+	m.runBundleInstall(bundle, target)
+}
+
+func (m *Model) runBundleInstall(bundle engine.Bundle, target engine.InstallTarget) {
+	if err := m.engine.InstallBundle(bundle.ID, target); err != nil {
+		m.status = "Install Bundle failed: " + err.Error()
+		return
+	}
+	m.status = fmt.Sprintf("Installed Bundle %q.", bundle.Name)
+}
+
 func (m *Model) confirmOrRunInstall(entry engine.LibraryEntry, target engine.InstallTarget) {
+	if entry.Source.Kind == engine.LibrarySourceMarketplace {
+		m.runInstall(entry, target)
+		return
+	}
 	dest, exists, err := m.engine.InstallDestination(entry, target)
 	if err != nil {
 		m.status = "Install failed: " + err.Error()
+		return
+	}
+	if entry.Source.Kind == engine.LibrarySourceSkillsSh && entry.Source.SkillsShSkill == "" {
+		m.pending = &pendingConfirm{description: fmt.Sprintf("Install every skill from %q? Existing skills with matching names may be replaced. y to confirm, any other key to cancel.", entry.Source.SkillsShRepo), action: pendingInstall, entry: entry, target: target}
 		return
 	}
 	if exists {
@@ -357,9 +525,123 @@ func (m *Model) confirmOrRunInstall(entry engine.LibraryEntry, target engine.Ins
 	m.runInstall(entry, target)
 }
 
+func (m *Model) updateSourcePicker(key tea.KeyMsg) {
+	p := m.sourcePicker
+	switch key.String() {
+	case "esc":
+		m.sourcePicker = nil
+		m.status = "Canceled."
+	case "up", "k":
+		if p.cursor > 0 {
+			p.cursor--
+		}
+	case "down", "j":
+		if p.cursor < len(librarySourceChoices)-1 {
+			p.cursor++
+		}
+	case "enter":
+		source := librarySourceChoices[p.cursor]
+		m.sourcePicker = nil
+		var fields []string
+		switch source {
+		case engine.LibrarySourceLocalPath:
+			fields = []string{"Name", "Tool (claude-code or codex)", "Local path"}
+		case engine.LibrarySourceGit:
+			fields = []string{"Name", "Tool (claude-code or codex)", "Git URL", "Git ref (optional)", "Git subpath (optional)"}
+		case engine.LibrarySourceSkillsSh:
+			fields = []string{"Name", "Tool (claude-code or codex)", "owner/repo", "Skill name (optional; blank means all)"}
+		case engine.LibrarySourceMarketplace:
+			fields = []string{"Name", "Marketplace name", "Plugin name", "Marketplace source (optional)"}
+		}
+		m.form = newTextForm(formLibraryEntry, fields)
+		m.form.source = source
+	}
+}
+
+func (m *Model) updateForm(key tea.KeyMsg) {
+	done, canceled := m.form.update(key)
+	if canceled {
+		m.form = nil
+		m.status = "Canceled."
+		return
+	}
+	if !done {
+		return
+	}
+	f := m.form
+	m.form = nil
+	if f.kind == formBundleName {
+		if _, err := m.engine.CreateBundle(f.values[0]); err != nil {
+			m.status = "Create Bundle failed: " + err.Error()
+		} else {
+			m.status = "Created Bundle."
+			m.refreshBundles()
+		}
+		return
+	}
+	entry := engine.LibraryEntry{Name: f.values[0], Kind: engine.KindSkill}
+	switch f.source {
+	case engine.LibrarySourceLocalPath:
+		entry.Tool = parseTool(f.values[1])
+		entry.Source = engine.LibrarySource{Kind: f.source, LocalPath: f.values[2]}
+	case engine.LibrarySourceGit:
+		entry.Tool = parseTool(f.values[1])
+		entry.Source = engine.LibrarySource{Kind: f.source, GitURL: f.values[2], GitRef: f.values[3], GitSubPath: f.values[4]}
+	case engine.LibrarySourceSkillsSh:
+		entry.Tool = parseTool(f.values[1])
+		entry.Source = engine.LibrarySource{Kind: f.source, SkillsShRepo: f.values[2], SkillsShSkill: f.values[3]}
+	case engine.LibrarySourceMarketplace:
+		entry.Kind = ""
+		entry.Source = engine.LibrarySource{Kind: f.source, Marketplace: f.values[1], PluginName: f.values[2], MarketplaceSource: f.values[3]}
+	}
+	if _, err := m.engine.AddLibraryEntry(entry); err != nil {
+		m.status = "Add Library entry failed: " + err.Error()
+	} else {
+		m.status = "Added " + entry.Name + " to Library."
+		m.refreshLibrary()
+	}
+}
+
+func parseTool(value string) engine.Tool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "claude", "claude-code", "claude code":
+		return engine.ToolClaudeCode
+	case "codex":
+		return engine.ToolCodex
+	default:
+		return engine.Tool(value)
+	}
+}
+
+func (m *Model) updateMemberPicker(key tea.KeyMsg) {
+	p := m.memberPicker
+	switch key.String() {
+	case "esc":
+		m.memberPicker = nil
+		m.status = "Canceled."
+	case "up", "k":
+		if p.cursor > 0 {
+			p.cursor--
+		}
+	case "down", "j":
+		if p.cursor < len(p.entries)-1 {
+			p.cursor++
+		}
+	case "enter":
+		entry := p.entries[p.cursor]
+		m.memberPicker = nil
+		if err := m.engine.AddBundleMember(p.bundle.ID, entry.ID, engine.ActivationAuto); err != nil {
+			m.status = "Add Bundle member failed: " + err.Error()
+		} else {
+			m.status = "Added " + entry.Name + " to Bundle."
+			m.refreshBundles()
+		}
+	}
+}
+
 func (m *Model) runInstall(entry engine.LibraryEntry, target engine.InstallTarget) {
-	// Library view Install defaults to Auto; Bundle Install will pass each
-	// member's remembered Activation later.
+	// Library view Install defaults to Auto; Bundle Install passes each
+	// member's remembered Activation through Engine.InstallBundle.
 	if err := m.engine.InstallLibraryEntry(entry, target, engine.ActivationAuto); err != nil {
 		m.status = "Install failed: " + err.Error()
 		return
@@ -379,6 +661,30 @@ func (m *Model) toggleLibraryMembership() {
 	}
 	if reason := libraryToggleUnavailableReason(selected); reason != "" {
 		m.status = reason
+		return
+	}
+	if selected.Source == engine.SourcePlugin && selected.Plugin != nil {
+		entries, err := m.engine.ListLibrary()
+		if err != nil {
+			m.status = "Library read failed: " + err.Error()
+			return
+		}
+		for _, entry := range entries {
+			if entry.Source.Kind == engine.LibrarySourceMarketplace && entry.Source.Marketplace == selected.Plugin.Marketplace && entry.Source.PluginName == selected.Plugin.Plugin {
+				if err := m.engine.RemoveLibraryEntry(entry.ID); err != nil {
+					m.status = "Remove from Library failed: " + err.Error()
+				} else {
+					m.status = "Removed plugin " + selected.Plugin.Plugin + " from Library."
+				}
+				return
+			}
+		}
+		entry, err := m.engine.AddLibraryEntry(engine.LibraryEntry{Name: selected.Plugin.Plugin, Source: engine.LibrarySource{Kind: engine.LibrarySourceMarketplace, Marketplace: selected.Plugin.Marketplace, PluginName: selected.Plugin.Plugin}})
+		if err != nil {
+			m.status = "Add to Library failed: " + err.Error()
+		} else {
+			m.status = "Added plugin " + entry.Name + " to Library."
+		}
 		return
 	}
 	if existing, found := m.engine.FindLibraryEntryByLocalPath(selected.Location); found {
@@ -473,6 +779,8 @@ func (m *Model) executePending() {
 		m.refreshInventory()
 	case pendingInstall:
 		m.runInstall(m.pending.entry, m.pending.target)
+	case pendingInstallBundle:
+		m.runBundleInstall(m.pending.bundle, m.pending.target)
 	}
 }
 
@@ -501,6 +809,8 @@ func (m *Model) moveCursor(delta int) {
 		m.moveListCursor(&m.archiveList, delta)
 	case libraryView:
 		m.moveListCursor(&m.libraryList, delta)
+	case bundleView:
+		m.moveListCursor(&m.bundleList, delta)
 	}
 }
 
@@ -594,14 +904,44 @@ func (m *Model) refreshLibrary() {
 	m.libraryList.Select(index)
 }
 
+func (m *Model) refreshBundles() {
+	bundles, err := m.engine.ListBundles()
+	if err != nil {
+		m.bundles = nil
+		_ = m.bundleList.SetItems(nil)
+		m.status = "Bundle read failed: " + err.Error()
+		return
+	}
+	m.bundles = bundles
+	library, err := m.engine.ListLibrary()
+	if err != nil {
+		m.status = "Library read failed: " + err.Error()
+		return
+	}
+	_ = m.bundleList.SetItems(buildBundleItems(bundles, library, m.bundleExpanded))
+}
+
 func (m *Model) View() string {
 	view := m.renderView()
 	if m.pending != nil {
 		return renderConfirmOverlay(view, m.pending.description, m.width, m.height)
 	}
 	if m.installPicker != nil {
-		desc := renderInstallPickerDescription(m.installPicker.entry.Name, m.installPicker.options, m.installPicker.cursor)
+		name := m.installPicker.entry.Name
+		if m.installPicker.bundle != nil {
+			name = m.installPicker.bundle.Name
+		}
+		desc := renderInstallPickerDescription(name, m.installPicker.options, m.installPicker.cursor)
 		return renderConfirmOverlay(view, desc, m.width, m.height)
+	}
+	if m.sourcePicker != nil {
+		return renderConfirmOverlay(view, renderLibrarySourcePicker(m.sourcePicker.cursor), m.width, m.height)
+	}
+	if m.form != nil {
+		return renderConfirmOverlay(view, m.form.render(), m.width, m.height)
+	}
+	if m.memberPicker != nil {
+		return renderConfirmOverlay(view, renderMemberPicker(m.memberPicker), m.width, m.height)
 	}
 	return view
 }
@@ -614,6 +954,8 @@ func (m *Model) renderView() string {
 		m.renderArchive(&b)
 	case libraryView:
 		m.renderLibrary(&b)
+	case bundleView:
+		m.renderBundles(&b)
 	default:
 		m.renderMain(&b)
 	}
@@ -674,6 +1016,18 @@ func (m *Model) renderLibrary(b *strings.Builder) {
 	b.WriteString("\n")
 }
 
+func (m *Model) renderBundles(b *strings.Builder) {
+	b.WriteString("Skillet Bundles\n")
+	b.WriteString(m.helpView())
+	b.WriteString("\n\n")
+	if len(m.bundles) == 0 {
+		b.WriteString("No Bundles yet. Press n to create one.\n")
+		return
+	}
+	b.WriteString(m.bundleList.View())
+	b.WriteString("\n")
+}
+
 func newSkillList(items []list.Item) list.Model {
 	model := list.New(items, skillDelegate{}, 0, 0)
 	model.SetShowTitle(false)
@@ -711,6 +1065,11 @@ func (m *Model) selectedLibraryEntry() (engine.LibraryEntry, bool) {
 		return engine.LibraryEntry{}, false
 	}
 	return item.entry, true
+}
+
+func (m *Model) selectedBundleItem() (bundleItem, bool) {
+	item, ok := m.bundleList.SelectedItem().(bundleItem)
+	return item, ok
 }
 
 func (m *Model) syncMainCursor() {
@@ -778,6 +1137,8 @@ func (m *Model) resizeList() {
 			height = max(1, len(m.archiveList.Items()))
 		case libraryView:
 			height = max(1, len(m.libraryList.Items()))
+		case bundleView:
+			height = max(1, len(m.bundleList.Items()))
 		default:
 			height = max(1, len(m.list.Items()))
 		}
@@ -789,6 +1150,9 @@ func (m *Model) resizeList() {
 		return
 	case libraryView:
 		m.libraryList.SetSize(width, height)
+		return
+	case bundleView:
+		m.bundleList.SetSize(width, height)
 		return
 	}
 
@@ -805,6 +1169,8 @@ func (m *Model) helpView() string {
 		return m.help.View(archiveKeyMap(len(m.archive) > 0, m.help.ShowAll))
 	case libraryView:
 		return m.help.View(libraryKeyMap(len(m.library) > 0, m.help.ShowAll))
+	case bundleView:
+		return m.help.View(bundleKeyMap(len(m.bundles) > 0, m.help.ShowAll))
 	default:
 		selected, ok := m.selectedMainSkill()
 		return m.help.View(mainKeyMap(selected, ok, m.help.ShowAll))
