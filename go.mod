@@ -1,6 +1,6 @@
 module github.com/jnyross/Skill-Manager
 
-go 1.24.2
+go 1.25.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
@@ -8,7 +8,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.2.4
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/charmbracelet/x/ansi v0.11.6
-	golang.org/x/sys v0.38.0
+	golang.org/x/sys v0.47.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
