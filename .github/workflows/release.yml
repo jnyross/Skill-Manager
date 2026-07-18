@@ -136,7 +136,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-13
+          - runner: macos-15-intel
             node: 22.14.0
             npm: 10.9.0
             pair: darwin/x64
@@ -221,7 +221,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-13
+          - runner: macos-15-intel
             package: darwin-x64
           - runner: macos-14
             package: darwin-arm64
@@ -320,7 +320,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: macos-13
+          - runner: macos-15-intel
             native: skillet-darwin-x64
           - runner: macos-14
             native: skillet-darwin-arm64
