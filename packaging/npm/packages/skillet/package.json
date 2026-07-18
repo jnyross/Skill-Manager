@@ -1,6 +1,6 @@
 {
   "name": "@jnyross/skillet",
-  "version": "0.2.0-dev.0",
+  "version": "0.1.0-rc.1",
   "description": "Manage agent skills across Claude Code and Codex",
   "license": "MIT",
   "repository": {
@@ -21,10 +21,10 @@
     "npm": ">=10.9.0"
   },
   "optionalDependencies": {
-    "@jnyross/skillet-darwin-arm64": "0.2.0-dev.0",
-    "@jnyross/skillet-darwin-x64": "0.2.0-dev.0",
-    "@jnyross/skillet-linux-arm64": "0.2.0-dev.0",
-    "@jnyross/skillet-linux-x64": "0.2.0-dev.0"
+    "@jnyross/skillet-darwin-arm64": "0.1.0-rc.1",
+    "@jnyross/skillet-darwin-x64": "0.1.0-rc.1",
+    "@jnyross/skillet-linux-arm64": "0.1.0-rc.1",
+    "@jnyross/skillet-linux-x64": "0.1.0-rc.1"
   },
   "publishConfig": {
     "access": "public"
