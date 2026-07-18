@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 env:
-  GO_VERSION: '1.24.2'
+  GO_VERSION: '1.25.5'
   PUBLISH_NODE_VERSION: '24.11.1'
   PUBLISH_NPM_VERSION: '11.6.2'
 
