@@ -211,7 +211,7 @@ jobs:
           DIST_TAG: ${{ needs.verify-tag.outputs.dist-tag }}
         run: |
           for package in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
-            npm publish "artifacts/jnyross-skillet-$package-${{ needs.verify-tag.outputs.version }}.tgz" \
+            npm publish "./artifacts/jnyross-skillet-$package-${{ needs.verify-tag.outputs.version }}.tgz" \
               --access public --provenance --tag "$DIST_TAG"
           done
 
@@ -312,7 +312,7 @@ jobs:
           path: artifacts
       - env:
           DIST_TAG: ${{ needs.verify-tag.outputs.dist-tag }}
-        run: npm publish "artifacts/jnyross-skillet-${{ needs.verify-tag.outputs.version }}.tgz" --access public --provenance --tag "$DIST_TAG"
+        run: npm publish "./artifacts/jnyross-skillet-${{ needs.verify-tag.outputs.version }}.tgz" --access public --provenance --tag "$DIST_TAG"
 
   production-installed-command-gate:
     needs: [verify-tag, publish-launcher-last]
