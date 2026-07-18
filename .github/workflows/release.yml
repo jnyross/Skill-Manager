@@ -361,9 +361,11 @@ jobs:
           expected="$(awk -v file="$filename" '$2 == file {print $1}' artifacts/SHA256SUMS)"
           test "$(shasum -a 256 "production/$filename" | awk '{print $1}')" = "$expected"
           npm install --global --prefix "$prefix" --ignore-scripts "@jnyross/skillet@$VERSION"
-          installed_scope="$prefix/lib/node_modules/@jnyross"
-          test -d "$installed_scope/$EXPECTED_NATIVE"
-          test "$(find "$installed_scope" -maxdepth 1 -type d -name 'skillet-*' | wc -l | tr -d ' ')" = 1
+          # npm nests a global package's dependencies inside the package's own
+          # node_modules, so the platform package lives under the launcher.
+          native_scope="$prefix/lib/node_modules/@jnyross/skillet/node_modules/@jnyross"
+          test -d "$native_scope/$EXPECTED_NATIVE"
+          test "$(find "$native_scope" -maxdepth 1 -type d -name 'skillet-*' | wc -l | tr -d ' ')" = 1
           "$prefix/bin/skillet" --version | grep -F "skillet $VERSION "
           python3 packaging/npm/scripts/pty-smoke.py "$prefix/bin/skillet"
           cd "$consumer"
