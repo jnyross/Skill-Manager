@@ -27,6 +27,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # actions/checkout fetches tags peeled; re-fetch the real tag object
+          # so the annotated-tag requirement can be verified.
+          git fetch --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
           test "$(git cat-file -t "$GITHUB_REF_NAME")" = tag
           version="${GITHUB_REF_NAME#v}"
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
