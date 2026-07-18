@@ -55,13 +55,7 @@ func TestSetupCommandDrivesRealTerminalFlowAndFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(source, "SKILL.md"), []byte("---\nname: probe\ndescription: Probe\n---\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	member := catalog.Member{
-		Name: "probe", UpstreamActivation: "manual-only", VerificationPrompt: "Return only SKILLET_DISCOVERED_PROBE.",
-		Source:  catalog.Source{Repository: "fixture", Subpath: "skills/probe", ReviewedRevision: strings.Repeat("a", 40), ContentSHA256: strings.Repeat("a", 64)},
-		License: catalog.License{SPDX: "MIT", Notice: "LICENSE", NoticeSHA256: strings.Repeat("b", 64), Evidence: "license-text"},
-		Recipes: []catalog.Recipe{{Tool: "claude-code", Scope: "project", Artifact: "direct-skill"}, {Tool: "codex", Scope: "project", Artifact: "direct-skill"}},
-	}
-	c := catalog.Catalog{Version: "test.1", Members: []catalog.Member{member}, Bundles: []catalog.Bundle{{ID: "probe-bundle", Name: "Probe", Members: []string{"probe"}}}}
+	c := probeCatalog("license-text")
 	oldDefaults := setupTerminalDefaults
 	setupTerminalDefaults = func() workspaceSetup.TerminalOptions {
 		return workspaceSetup.TerminalOptions{Catalog: c, Resolver: fixtureResolver{source: source}, ToolPreflight: func(context.Context) []workspaceSetup.ToolResult { return nil }}
@@ -89,6 +83,58 @@ func TestSetupCommandDrivesRealTerminalFlowAndFiles(t *testing.T) {
 	if !strings.Contains(string(codexConfig), "allow_implicit_invocation: true") {
 		t.Fatal("--auto did not render Codex activation")
 	}
+	for _, label := range []string{"Receipt: ", "Local verification: "} {
+		path := lineValue(t, stdout.String(), label)
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("result names %s%s but it does not exist: %v", label, path, err)
+		}
+	}
+}
+
+func TestSetupCommandFocusesBlockedOutcomeOnStderr(t *testing.T) {
+	c := probeCatalog("declaration-only")
+	oldDefaults := setupTerminalDefaults
+	setupTerminalDefaults = func() workspaceSetup.TerminalOptions {
+		return workspaceSetup.TerminalOptions{Catalog: c, ToolPreflight: func(context.Context) []workspaceSetup.ToolResult { return nil }}
+	}
+	t.Cleanup(func() { setupTerminalDefaults = oldDefaults })
+	target := filepath.Join(t.TempDir(), "project")
+	var stdout, stderr bytes.Buffer
+
+	code := runWithInput([]string{"setup", "--path", target, "--bundles", "probe-bundle", "--yes", "--static"}, strings.NewReader(""), &stdout, &stderr)
+	if code != 1 {
+		t.Fatalf("exit = %d, want 1; stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "Blocked:") || !strings.Contains(stderr.String(), "license evidence") {
+		t.Fatalf("stderr does not focus the blocker: %q", stderr.String())
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Fatalf("blocked setup mutated the target: %v", err)
+	}
+}
+
+// lineValue extracts the value after a "Label: " prefix from one output line.
+func lineValue(t *testing.T, output, label string) string {
+	t.Helper()
+	for _, line := range strings.Split(output, "\n") {
+		if strings.HasPrefix(line, label) {
+			return strings.TrimSpace(strings.TrimPrefix(line, label))
+		}
+	}
+	t.Fatalf("output has no %q line: %q", label, output)
+	return ""
+}
+
+// probeCatalog is the one-member fixture catalog shared by the setup
+// command tests; licenseEvidence decides whether the governance gate blocks.
+func probeCatalog(licenseEvidence string) catalog.Catalog {
+	member := catalog.Member{
+		Name: "probe", UpstreamActivation: "manual-only", VerificationPrompt: "Return only SKILLET_DISCOVERED_PROBE.",
+		Source:  catalog.Source{Repository: "fixture", Subpath: "skills/probe", ReviewedRevision: strings.Repeat("a", 40), ContentSHA256: strings.Repeat("a", 64)},
+		License: catalog.License{SPDX: "MIT", Notice: "LICENSE", NoticeSHA256: strings.Repeat("b", 64), Evidence: licenseEvidence},
+		Recipes: []catalog.Recipe{{Tool: "claude-code", Scope: "project", Artifact: "direct-skill"}, {Tool: "codex", Scope: "project", Artifact: "direct-skill"}},
+	}
+	return catalog.Catalog{Version: "test.1", Members: []catalog.Member{member}, Bundles: []catalog.Bundle{{ID: "probe-bundle", Name: "Probe", Members: []string{"probe"}}}}
 }
 
 type fixtureResolver struct{ source string }
