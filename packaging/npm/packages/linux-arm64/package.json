@@ -1,6 +1,6 @@
 {
   "name": "@jnyross/skillet-linux-arm64",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-rc.3",
   "description": "Skillet native binary for Linux arm64",
   "license": "MIT",
   "repository": {
