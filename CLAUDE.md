@@ -16,16 +16,18 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 
 ### Default local install and verification
 
-Until the public npm channel exists, test and install Skillet from the current
-working tree using a fresh isolated Go build cache. The default acceptance path
-is: run `go test ./...`, run `go vet ./...`, build `./cmd/skillet` with
-`CGO_ENABLED=0` to a temporary candidate, then install that exact tested file to
+A public `@next` release (`v0.1.0-rc.1`) of `@jnyross/skillet` is now available
+on npm. For development and testing, install Skillet from the current working
+tree using a fresh isolated Go build cache. The default acceptance path is: run
+`go test ./...`, run `go vet ./...`, build `./cmd/skillet` with `CGO_ENABLED=0`
+to a temporary candidate, then install that exact tested file to
 `~/go/bin/skillet`. Verify the installed file is byte-identical to the candidate
 and launch the installed `skillet` command for a real start-and-clean-quit smoke
 test. Preserve `~/.skillet`, managed skills, archives, and unrelated working-tree
 changes; a local reinstall replaces only the executable. Do not describe this
-source workflow as the future public install channel: ADR 0006 reserves that
-contract for `npm install --global @jnyross/skillet` once published.
+source workflow as the stable public install channel: ADR 0006 reserves that
+contract for `npm install --global @jnyross/skillet@latest`, which remains gated
+until the stable release.
 
 ### Codex skill discovery
 

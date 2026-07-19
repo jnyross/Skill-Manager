@@ -29,7 +29,6 @@ func TestCompareDriftClassifiesEveryGovernedSurface(t *testing.T) {
 		edit  func(*setup.BoundaryEvidence)
 		class setup.DriftClass
 	}{
-		{"source boundary", func(e *setup.BoundaryEvidence) { e.Subpath = "skills/renamed" }, setup.DriftSourceBoundary},
 		{"content", func(e *setup.BoundaryEvidence) { e.ContentSHA256 = digest('c') }, setup.DriftContent},
 		{"license", func(e *setup.BoundaryEvidence) { e.LicenseSHA256 = digest('d') }, setup.DriftLicense},
 		{"scripts", func(e *setup.BoundaryEvidence) { e.Scripts = []string{"scripts/new.sh"} }, setup.DriftScripts},

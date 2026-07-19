@@ -286,7 +286,7 @@ labeled by path) — reuse `renderConfirmOverlay`'s overlay styling
 
 ```go
 func (e *Engine) InstallLibraryEntry(entry LibraryEntry, target InstallTarget, activation ActivationState) error
-func (e *Engine) InstallBundle(bundle Bundle, target InstallTarget) error // resolves + installs every member, applying each member's own Activation
+func (e *Engine) InstallBundle(bundleID string, target InstallTarget) error // resolves + installs every member, applying each member's own Activation
 ```
 
 Dispatch on `entry.Source.Kind`:

@@ -16,8 +16,8 @@ import (
 func setUpTwoPluginFixture(t *testing.T) (f fixture, pluginXInstallPath, pluginYInstallPath string) {
 	t.Helper()
 	f = newFixture(t)
-	pluginXInstallPath = filepath.Join(f.root, "plugin-cache", "marketplace-x", "plugin-x", "v1")
-	pluginYInstallPath = filepath.Join(f.root, "plugin-cache", "marketplace-y", "plugin-y", "v1")
+	pluginXInstallPath = filepath.Join(f.roots.ClaudeHome, "plugins", "cache", "marketplace-x", "plugin-x", "v1")
+	pluginYInstallPath = filepath.Join(f.roots.ClaudeHome, "plugins", "cache", "marketplace-y", "plugin-y", "v1")
 	writeSkill(t, filepath.Join(pluginXInstallPath, "skills", "skill-a"), "skill-a", "Skill A description", "")
 	writeSkill(t, filepath.Join(pluginXInstallPath, "skills", "skill-b"), "skill-b", "Skill B description", "")
 	writeSkill(t, filepath.Join(pluginYInstallPath, "skills", "skill-c"), "skill-c", "Skill C description", "")
@@ -254,7 +254,7 @@ func TestUninstallPluginSettingsJSONWithoutEnabledPluginsEntry(t *testing.T) {
 
 func TestUninstallPluginMultipleScopeEntriesRemovesWholeKeyButOnlyUserCacheDir(t *testing.T) {
 	f := newFixture(t)
-	userInstallPath := filepath.Join(f.root, "plugin-cache", "marketplace-x", "plugin-x", "v1")
+	userInstallPath := filepath.Join(f.roots.ClaudeHome, "plugins", "cache", "marketplace-x", "plugin-x", "v1")
 	projectInstallPath := filepath.Join(f.root, "project-plugin-cache", "plugin-x")
 	writeSkill(t, filepath.Join(userInstallPath, "skills", "skill-a"), "skill-a", "Skill A description", "")
 	mkdirAll(t, projectInstallPath)
@@ -286,5 +286,51 @@ func TestUninstallPluginMultipleScopeEntriesRemovesWholeKeyButOnlyUserCacheDir(t
 	// it on disk rather than deleting a path it has never inventoried.
 	if _, err := os.Stat(projectInstallPath); err != nil {
 		t.Fatalf("project-scoped install path unexpectedly removed: %v", err)
+	}
+}
+
+func TestUninstallPluginRejectsOutOfCacheInstallPath(t *testing.T) {
+	f := newFixture(t)
+	userInstallPath := filepath.Join(f.root, "outside-cache", "marketplace-x", "plugin-x", "v1")
+	writeSkill(t, filepath.Join(userInstallPath, "skills", "skill-a"), "skill-a", "Skill A description", "")
+	writePluginManifest(t, f.roots.ClaudeHome, map[string][]map[string]string{
+		"plugin-x@marketplace-x": {
+			{"scope": "user", "installPath": userInstallPath, "version": "1.0.0"},
+		},
+	})
+	e := engine.New(f.roots)
+	plugin := mustFindPluginInfo(t, e.Inventory(), "skill-a")
+
+	if err := e.UninstallPlugin(plugin); err == nil {
+		t.Fatalf("expected error for out-of-cache install path")
+	}
+
+	if _, err := os.Stat(userInstallPath); err != nil {
+		t.Fatalf("out-of-cache directory unexpectedly removed: %v", err)
+	}
+}
+
+func TestUninstallPluginRejectsDotDotEscapedInstallPath(t *testing.T) {
+	f := newFixture(t)
+	cacheRoot := filepath.Join(f.roots.ClaudeHome, "plugins", "cache")
+	// Actual directory lives outside the cache root.
+	escapedPath := filepath.Join(f.root, "escaped", "plugin-x")
+	writeSkill(t, filepath.Join(escapedPath, "skills", "skill-a"), "skill-a", "Skill A description", "")
+	// Manifest entry uses a ..-escaped path that resolves to escapedPath.
+	userInstallPath := filepath.Join(cacheRoot, "..", "..", "..", "escaped", "plugin-x")
+	writePluginManifest(t, f.roots.ClaudeHome, map[string][]map[string]string{
+		"plugin-x@marketplace-x": {
+			{"scope": "user", "installPath": userInstallPath, "version": "1.0.0"},
+		},
+	})
+	e := engine.New(f.roots)
+	plugin := mustFindPluginInfo(t, e.Inventory(), "skill-a")
+
+	if err := e.UninstallPlugin(plugin); err == nil {
+		t.Fatalf("expected error for ..-escaped install path")
+	}
+
+	if _, err := os.Stat(escapedPath); err != nil {
+		t.Fatalf("escaped directory unexpectedly removed: %v", err)
 	}
 }

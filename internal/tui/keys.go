@@ -11,6 +11,10 @@ type keyMap struct {
 	library         bool
 	bundle          bool
 	move            key.Binding
+	page            key.Binding
+	jump            key.Binding
+	search          key.Binding
+	detailScroll    key.Binding
 	archive         key.Binding
 	suppress        key.Binding
 	manualOnly      key.Binding
@@ -35,6 +39,10 @@ type keyMap struct {
 func mainKeyMap(selected engine.Skill, ok bool, showAll bool) keyMap {
 	m := baseKeyMap(showAll)
 	m.main = true
+	m.page = key.NewBinding(key.WithKeys("pgup", "pgdown"), key.WithHelp("pgup/pgdn", "page"))
+	m.jump = key.NewBinding(key.WithKeys("home", "end"), key.WithHelp("home/end", "jump"))
+	m.search = key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search"))
+	m.detailScroll = key.NewBinding(key.WithKeys("ctrl+pgup", "ctrl+pgdown", "ctrl+u", "ctrl+d"), key.WithHelp("ctrl+pgup/dn", "scroll detail"))
 	m.archive = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "archive"))
 	m.suppress = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "suppress/un-suppress"))
 	m.manualOnly = key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "manual-only/auto-activate"))
@@ -46,6 +54,10 @@ func mainKeyMap(selected engine.Skill, ok bool, showAll bool) keyMap {
 	m.setup = key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "setup workspace"))
 
 	m.move.SetEnabled(ok)
+	m.page.SetEnabled(ok)
+	m.jump.SetEnabled(ok)
+	m.search.SetEnabled(ok)
+	m.detailScroll.SetEnabled(ok)
 	m.archive.SetEnabled(ok && canArchiveSkill(selected))
 	m.suppress.SetEnabled(ok && canSuppressSkill(selected))
 	m.manualOnly.SetEnabled(ok && canToggleManualOnly(selected))
@@ -116,16 +128,12 @@ func baseKeyMap(showAll bool) keyMap {
 
 func (m keyMap) ShortHelp() []key.Binding {
 	if m.main {
+		// Keep the short help to 5–6 bindings so it does not truncate on an
+		// 80-column terminal. Full help (press ?) contains the rest.
 		return []key.Binding{
 			m.move,
 			m.archive,
-			m.suppress,
-			m.manualOnly,
-			m.uninstallPlugin,
-			m.libraryToggle,
 			m.switchView,
-			m.libraryView,
-			m.bundleView,
 			m.setup,
 			m.showFullHelp,
 			m.quit,
@@ -160,7 +168,8 @@ func (m keyMap) FullHelp() [][]key.Binding {
 	if m.main {
 		return [][]key.Binding{
 			{m.move, m.switchView, m.libraryView, m.bundleView, m.setup, m.showFullHelp, m.quit},
-			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle},
+			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle, m.detailScroll},
+			{m.page, m.jump, m.search},
 		}
 	}
 	if m.library {

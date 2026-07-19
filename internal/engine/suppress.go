@@ -136,6 +136,10 @@ func applySuppressions(skills []Skill, records []SuppressionRecord) []Notice {
 			matched[suppressionID(record.Marketplace, record.Plugin, record.SkillName)] = true
 
 			skillMDPath := filepath.Join(skill.Location, "SKILL.md")
+			if err := guardSkillMDPath(skill.Location, skillMDPath); err != nil {
+				notices = append(notices, Notice{Message: fmt.Sprintf("Suppressed skill %s (%s@%s): could not re-check frontmatter: %v", skill.Name, record.Plugin, record.Marketplace, err)})
+				break
+			}
 			fm, err := parseSkillFrontmatter(skillMDPath)
 			if err != nil {
 				notices = append(notices, Notice{Message: fmt.Sprintf("Suppressed skill %s (%s@%s): could not re-check frontmatter: %v", skill.Name, record.Plugin, record.Marketplace, err)})
@@ -264,6 +268,63 @@ func isSuppressionApplied(fm skillFrontmatter) bool {
 		fm.UserInvocable != nil && !*fm.UserInvocable
 }
 
+// guardSkillMDPath refuses to follow a SKILL.md path that is a symlink or
+// that resolves outside the skill's own directory tree. Callers pass the
+// skill's root directory (the folder containing SKILL.md) and the full path
+// to SKILL.md. A missing file is allowed through so the ordinary read/write
+// error path can report it; a dangling symlink is still refused because
+// os.Lstat reports the symlink mode.
+func guardSkillMDPath(skillDir, path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("check skill path: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("skill SKILL.md is a symlink")
+	}
+
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return fmt.Errorf("resolve skill path: %w", err)
+	}
+	return pathUnderRoot(skillDir, resolved)
+}
+
+// pathUnderRoot reports whether target is root itself or strictly inside
+// root, after resolving symlinks in both and converting to clean absolute
+// paths.
+func pathUnderRoot(root, target string) error {
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return fmt.Errorf("resolve skill root: %w", err)
+	}
+	absRoot, err = filepath.EvalSymlinks(absRoot)
+	if err != nil {
+		return fmt.Errorf("resolve skill root: %w", err)
+	}
+	absTarget, err := filepath.Abs(target)
+	if err != nil {
+		return fmt.Errorf("resolve skill path: %w", err)
+	}
+	absTarget, err = filepath.EvalSymlinks(absTarget)
+	if err != nil {
+		return fmt.Errorf("resolve skill path: %w", err)
+	}
+	absRoot = filepath.Clean(absRoot)
+	absTarget = filepath.Clean(absTarget)
+
+	if absTarget == absRoot {
+		return nil
+	}
+	if strings.HasPrefix(absTarget, absRoot+string(filepath.Separator)) {
+		return nil
+	}
+	return fmt.Errorf("skill path resolves outside skill directory tree")
+}
+
 // splitFrontmatterSpan locates the YAML block within a SKILL.md's raw bytes
 // (the "---\n<yaml>\n---\n<body>" shape parseFrontmatter also reads),
 // returning the byte offsets of the YAML block itself, excluding both "---"
@@ -295,6 +356,9 @@ func lineText(line string) string {
 // replaced in place, or a new line is appended to the block if the key isn't
 // present yet.
 func setFrontmatterFields(path string, fields []frontmatterField) error {
+	if err := guardSkillMDPath(filepath.Dir(path), path); err != nil {
+		return err
+	}
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read frontmatter: %w", err)
@@ -329,6 +393,9 @@ func setFrontmatterFields(path string, fields []frontmatterField) error {
 // untouched. A no-op (not an error) if none of the keys are present, so
 // callers (Unsuppress) can call it unconditionally.
 func removeFrontmatterFields(path string, keys []string) error {
+	if err := guardSkillMDPath(filepath.Dir(path), path); err != nil {
+		return err
+	}
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read frontmatter: %w", err)

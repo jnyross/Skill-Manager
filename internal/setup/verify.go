@@ -15,6 +15,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type commandRunner interface {
+	Run(cmd *exec.Cmd) error
+	CombinedOutput(cmd *exec.Cmd) ([]byte, error)
+}
+
+type osCommandRunner struct{}
+
+func (osCommandRunner) Run(cmd *exec.Cmd) error { return cmd.Run() }
+
+func (osCommandRunner) CombinedOutput(cmd *exec.Cmd) ([]byte, error) { return cmd.CombinedOutput() }
+
+var defaultCommandRunner commandRunner = osCommandRunner{}
+
 type MemberProbe struct {
 	Name       string `json:"name"`
 	Discovered bool   `json:"discovered"`
@@ -98,7 +111,7 @@ func (prober CommandProber) Probe(ctx context.Context, target string, root *os.R
 		}
 		result.Executable = executable
 		version := exec.CommandContext(ctx, executable, "--version")
-		if output, versionErr := version.CombinedOutput(); versionErr == nil {
+		if output, versionErr := defaultCommandRunner.CombinedOutput(version); versionErr == nil {
 			result.Version = strings.TrimSpace(string(output))
 		}
 		result.Authenticated = checkAuthentication(ctx, result.Tool, executable)
@@ -158,7 +171,9 @@ func staticResults(target string, receipt WorkspaceReceipt) []ToolResult {
 				result.Dependencies = append(result.Dependencies, DependencyResult{Member: member.Name, Name: dependency.Name, Optional: dependency.Optional, Ready: ready, Reason: reason})
 			}
 		}
-		result.NextAction = fmt.Sprintf("Install and authenticate %s, then rerun skillet setup verification", toolExecutable(result.Tool))
+		if !result.StaticVerified {
+			result.NextAction = fmt.Sprintf("Rerun skillet setup after fixing %s static verification: %s", toolExecutable(result.Tool), result.Reason)
+		}
 	}
 	return results
 }
@@ -275,7 +290,7 @@ func checkAuthentication(ctx context.Context, tool, executable string) bool {
 	} else {
 		command = exec.CommandContext(ctx, executable, "login", "status")
 	}
-	return command.Run() == nil
+	return defaultCommandRunner.Run(command) == nil
 }
 
 func runMemberProbe(ctx context.Context, tool, executable, target string, root *os.Root, member ReceiptMember) (bool, string) {
@@ -285,7 +300,7 @@ func runMemberProbe(ctx context.Context, tool, executable, target string, root *
 		command = exec.CommandContext(ctx, executable, "--setting-sources", "project", "-p", prompt, "--no-session-persistence", "--output-format", "json", "--tools", "", "--disallowedTools", "mcp__*")
 		command.Env = isolatedClaudeEnvironment()
 		command.Dir = target
-		output, err := command.CombinedOutput()
+		output, err := defaultCommandRunner.CombinedOutput(command)
 		if err != nil {
 			return false, strings.TrimSpace(string(output))
 		}
@@ -313,7 +328,7 @@ func runMemberProbe(ctx context.Context, tool, executable, target string, root *
 		}
 		defer cleanup()
 		command.Env = environment
-		output, err := command.CombinedOutput()
+		output, err := defaultCommandRunner.CombinedOutput(command)
 		if err != nil {
 			return false, strings.TrimSpace(string(output))
 		}

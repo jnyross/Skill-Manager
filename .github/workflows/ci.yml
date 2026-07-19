@@ -18,7 +18,7 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: test -z "$(gofmt -l cmd internal)"
-      - run: go test ./...
+      - run: go test -race ./...
       - run: go vet ./...
       - run: CGO_ENABLED=0 go build -trimpath -o "$RUNNER_TEMP/skillet" ./cmd/skillet
       - run: |
@@ -44,3 +44,75 @@ jobs:
       - run: npm install --global npm@${{ matrix.npm }}
       - run: node --test packaging/npm/packages/skillet/test/*.test.cjs
       - run: node packaging/npm/scripts/validate-packages.mjs
+
+  release-dry-run:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: packaging/npm/package.json
+      - run: npm install --global npm@10.9.0
+      - name: Build native binaries
+        run: |
+          set -e
+          version="$(jq -r .version packaging/npm/package.json)"
+          commit="${{ github.sha }}"
+          buildDate="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          ldflags="-s -w -X main.version=${version} -X main.commit=${commit} -X main.buildDate=${buildDate}"
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$ldflags" -o packaging/npm/packages/linux-x64/bin/skillet ./cmd/skillet
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "$ldflags" -o packaging/npm/packages/linux-arm64/bin/skillet ./cmd/skillet
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$ldflags" -o packaging/npm/packages/darwin-x64/bin/skillet ./cmd/skillet
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "$ldflags" -o packaging/npm/packages/darwin-arm64/bin/skillet ./cmd/skillet
+          chmod +x packaging/npm/packages/*/bin/skillet
+      - name: Pack artifacts
+        run: node packaging/npm/scripts/pack-artifacts.mjs "$RUNNER_TEMP/skillet-artifacts"
+      - name: Verify local install
+        run: EXPECTED_PLATFORM_PAIR=linux/x64 node packaging/npm/scripts/verify-local-install.mjs "$RUNNER_TEMP/skillet-artifacts"
+
+  catalog-integrity:
+    runs-on: ubuntu-24.04
+    env:
+      SKILLET_CATALOG_SOURCE_ROOT: ${{ runner.temp }}/catalog-sources
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.14.0
+      - name: Clone pinned catalog sources
+        run: |
+          set -e
+          root="$SKILLET_CATALOG_SOURCE_ROOT"
+          mkdir -p "$root"
+          clone() {
+            dir="$1"
+            url="$2"
+            rev="$3"
+            mkdir -p "$root/$dir"
+            cd "$root/$dir"
+            git init -q
+            git remote add origin "$url"
+            git fetch -q --depth 1 origin "$rev"
+            git -c advice.detachedHead=false checkout -q "$rev"
+          }
+          clone matt https://github.com/mattpocock/skills.git e9fcdf95b402d360f90f1db8d776d5dd450f9234
+          clone superpowers https://github.com/obra/superpowers.git d884ae04edebef577e82ff7c4e143debd0bbec99
+          clone vercel https://github.com/vercel-labs/agent-skills.git f8a72b9603728bb92a217a879b7e62e43ad76c81
+          clone anthropic https://github.com/anthropics/skills.git 9d2f1ae187231d8199c64b5b762e1bdf2244733d
+          clone dotnet https://github.com/dotnet/skills.git 79a2ada302fe8feb884ab33e1bfc2bddae3ee7ce
+      - name: Run catalog matrix test
+        run: go test ./internal/setup -run TestReviewedCatalogStaticMatrixInBothTools -v
+      - name: Verify built-in catalog is up to date
+        run: |
+          node scripts/generate-built-in-catalog.mjs
+          git diff --exit-code internal/catalog/catalog.json

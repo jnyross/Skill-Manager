@@ -139,6 +139,23 @@ func validateBundleActivation(activation ActivationState) error {
 	return nil
 }
 
+// validateSinglePathSegment rejects IDs that could escape their intended
+// directory when used in a filepath.Join. It accepts any non-empty name that
+// is not ".", not "..", and contains no path separators.
+func validateSinglePathSegment(id, kind string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("%s: empty id", kind)
+	}
+	if id == "." || id == ".." {
+		return fmt.Errorf("%s: id %q is not a valid name", kind, id)
+	}
+	if strings.ContainsAny(id, string(filepath.Separator)+"/") {
+		return fmt.Errorf("%s: id %q contains path separator", kind, id)
+	}
+	return nil
+}
+
 func bundleDir(dataDir string) string { return filepath.Join(dataDir, "bundles") }
 
 func bundlePath(dataDir, id string) string { return filepath.Join(bundleDir(dataDir), id+".json") }
@@ -157,8 +174,8 @@ func (e *Engine) newBundleID(name string) string {
 }
 
 func (e *Engine) loadBundle(id string) (Bundle, error) {
-	if strings.TrimSpace(id) == "" {
-		return Bundle{}, fmt.Errorf("bundle: empty id")
+	if err := validateSinglePathSegment(id, "bundle"); err != nil {
+		return Bundle{}, err
 	}
 	data, err := os.ReadFile(bundlePath(e.roots.DataDir, id))
 	if err != nil {
@@ -176,8 +193,8 @@ func (e *Engine) loadBundle(id string) (Bundle, error) {
 }
 
 func (e *Engine) loadLibraryEntry(id string) (LibraryEntry, error) {
-	if strings.TrimSpace(id) == "" {
-		return LibraryEntry{}, fmt.Errorf("Library entry: empty id")
+	if err := validateSinglePathSegment(id, "Library entry"); err != nil {
+		return LibraryEntry{}, err
 	}
 	entries, err := e.ListLibrary()
 	if err != nil {

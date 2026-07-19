@@ -39,8 +39,8 @@ func (e *Engine) AddLibraryEntry(entry LibraryEntry) (LibraryEntry, error) {
 // skill at LocalPath or any other source. It refuses to leave dangling Bundle
 // references and names every Bundle the user must update first.
 func (e *Engine) RemoveLibraryEntry(id string) error {
-	if strings.TrimSpace(id) == "" {
-		return fmt.Errorf("remove library entry: empty id")
+	if err := validateSinglePathSegment(id, "remove library entry"); err != nil {
+		return err
 	}
 	bundles, err := e.ListBundles()
 	if err != nil {

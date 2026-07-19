@@ -16,7 +16,7 @@ type MemberResolver interface {
 }
 
 type TerminalOptions struct {
-	Catalog          catalog.Catalog
+	Catalog          *catalog.Catalog
 	Resolver         MemberResolver
 	Service          *Service
 	Path             string
@@ -31,13 +31,18 @@ type TerminalOptions struct {
 }
 
 func RunTerminal(ctx context.Context, input io.Reader, output io.Writer, options TerminalOptions) (Result, error) {
-	c := options.Catalog
-	if c.Version == "" {
+	var c catalog.Catalog
+	if options.Catalog == nil {
 		loaded, err := catalog.Load()
 		if err != nil {
 			return Result{}, err
 		}
 		c = loaded
+	} else {
+		if err := options.Catalog.Validate(); err != nil {
+			return Result{}, fmt.Errorf("invalid injected catalog: %w", err)
+		}
+		c = *options.Catalog
 	}
 	resolver := options.Resolver
 	if resolver == nil {
@@ -59,7 +64,7 @@ func RunTerminal(ctx context.Context, input io.Reader, output io.Writer, options
 		if pickErr == nil {
 			target = strings.TrimSpace(picked)
 		} else if pickErr == ErrPickerCanceled {
-			return Result{Outcome: OutcomeBlocked, NextAction: "Setup canceled in the folder picker"}, nil
+			return Result{Outcome: OutcomeCanceled, NextAction: "Setup canceled in the folder picker"}, nil
 		} else {
 			fmt.Fprintf(output, "Native folder picker unavailable: %v\nUsing guarded terminal path entry.\n", pickErr)
 		}
@@ -68,7 +73,7 @@ func RunTerminal(ctx context.Context, input io.Reader, output io.Writer, options
 		fmt.Fprint(output, "Project folder (blank cancels): ")
 		target = readLine(reader)
 		if target == "" {
-			return Result{Outcome: OutcomeBlocked, NextAction: "Setup canceled before selecting a folder"}, nil
+			return Result{Outcome: OutcomeCanceled, NextAction: "Setup canceled before selecting a folder"}, nil
 		}
 	}
 
@@ -92,7 +97,7 @@ func RunTerminal(ctx context.Context, input io.Reader, output io.Writer, options
 		fmt.Fprint(output, "Bundle ids, comma separated (blank cancels): ")
 		line := readLine(reader)
 		if line == "" {
-			return Result{Outcome: OutcomeBlocked, NextAction: "Setup canceled before selecting a Bundle"}, nil
+			return Result{Outcome: OutcomeCanceled, NextAction: "Setup canceled before selecting a Bundle"}, nil
 		}
 		bundleIDs = splitIDs(line)
 	}

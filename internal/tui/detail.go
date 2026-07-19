@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/viewport"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/jnyross/Skill-Manager/internal/engine"
 )
@@ -41,7 +42,7 @@ func (p *detailPane) setSize(width, height int) {
 	// without jumping to top when the selection is unchanged.
 	if p.content != "" {
 		y := p.vp.YOffset
-		p.vp.SetContent(p.content)
+		p.applyContent()
 		p.vp.SetYOffset(y)
 	}
 }
@@ -49,13 +50,18 @@ func (p *detailPane) setSize(width, height int) {
 // setSkill replaces detail content when the selected skill changes. Unchanged
 // content is a no-op so scroll position survives unrelated Update cycles.
 func (p *detailPane) setSkill(skill engine.Skill, ok bool) {
-	content := detailContent(skill, ok)
+	content := detailContent(skill, ok, p.vp.Width)
 	if content == p.content {
 		return
 	}
 	p.content = content
-	p.vp.SetContent(content)
+	p.applyContent()
 	p.vp.GotoTop()
+}
+
+// applyContent sets the viewport content.
+func (p *detailPane) applyContent() {
+	p.vp.SetContent(p.content)
 }
 
 func (p *detailPane) scrollHalf(delta int) {
@@ -77,28 +83,48 @@ func (p detailPane) render() string {
 	if height < 1 {
 		height = 1
 	}
+
+	view := p.vp.View()
+	if p.vp.TotalLineCount() > p.vp.Height {
+		// Overlay a "more" hint on the last visible line so the user knows
+		// the pane is scrollable.
+		lines := strings.Split(view, "\n")
+		if len(lines) > 0 {
+			lines = lines[:len(lines)-1]
+		}
+		lines = append(lines, skillMetaStyle.Render("↓ more"))
+		view = strings.Join(lines, "\n")
+	}
+
 	return detailPaneStyle.
 		Width(width).
 		Height(height).
-		Render(p.vp.View())
+		Render(view)
 }
 
-func detailContent(skill engine.Skill, ok bool) string {
+func detailContent(skill engine.Skill, ok bool, width int) string {
 	if !ok {
 		return skillMetaStyle.Render("No skill selected.")
+	}
+
+	if width < 1 {
+		width = 1
 	}
 
 	var b strings.Builder
 	b.WriteString(detailTitleStyle.Render(skill.Name))
 	b.WriteString("\n\n")
-	writeDetailField(&b, "Description", skill.Description)
-	writeDetailField(&b, "Location", skill.Location)
 	writeDetailField(&b, "Source", string(skill.Source))
 	if skill.Source == engine.SourceProject {
 		writeDetailField(&b, "Tool", string(skill.Tool))
 	}
 	writeDetailField(&b, "Kind", string(skill.Kind))
 	writeDetailField(&b, "Activation", activationStyle(skill.Activation).Render(string(skill.Activation)))
+	if skill.Tool == engine.ToolCodex && skill.DeclaredManualOnlyForClaude && skill.Activation == engine.ActivationAuto {
+		writeDetailField(&b, "Note", "SKILL.md declares manual-only for Claude Code; no effect in Codex")
+	}
+	writeDetailField(&b, "Description", skill.Description)
+	writeDetailWrappedField(&b, "Location", skill.Location, width)
 	if skill.Source == engine.SourcePlugin && skill.Plugin != nil {
 		writeDetailField(&b, "Plugin", fmt.Sprintf("one of %d in %s", skill.Plugin.SkillCount, skill.Plugin.Plugin))
 	}
@@ -112,5 +138,16 @@ func writeDetailField(b *strings.Builder, label, value string) {
 	b.WriteString(detailLabelStyle.Render(label))
 	b.WriteString("\n")
 	b.WriteString(value)
+	b.WriteString("\n\n")
+}
+
+func writeDetailWrappedField(b *strings.Builder, label, value string, width int) {
+	if value == "" {
+		value = "-"
+	}
+	b.WriteString(detailLabelStyle.Render(label))
+	b.WriteString("\n")
+	wrapped := lipgloss.NewStyle().Width(width).Render(value)
+	b.WriteString(wrapped)
 	b.WriteString("\n\n")
 }

@@ -102,18 +102,18 @@ func removeCodexConfigFile(codexHome string) error {
 // reinstateCodexConfigEntries splices previously removed blocks back into
 // <codexHome>/config.toml, one at a time, converting each entry's skeleton
 // offset into the correct position in the config file as it currently
-// stands. Recomputing against the live file on every insertion (rather than
-// against the state at removal time) is what makes this safe when another
-// Codex skill's config entries were archived or restored in between: the
-// skeleton is unaffected by any of Skillet's own block insertions/removals,
-// so it remains a stable coordinate space regardless of interleaving.
+// stands. A missing config.toml is treated as an empty file, so restoring a
+// Codex skill works after a prior Unsuppress deleted the config. Recomputing
+// against the live file on every insertion (rather than against the state at
+// removal time) is what makes this safe when another Codex skill's config
+// entries were archived or restored in between: the skeleton is unaffected by
+// any of Skillet's own block insertions/removals, so it remains a stable
+// coordinate space regardless of interleaving.
 func reinstateCodexConfigEntries(codexHome string, entries []RemovedConfigEntry) error {
-	configPath := filepath.Join(codexHome, "config.toml")
-	data, err := os.ReadFile(configPath)
+	content, err := readCodexConfigOrEmpty(codexHome)
 	if err != nil {
-		return fmt.Errorf("read codex config: %w", err)
+		return err
 	}
-	content := string(data)
 
 	for _, e := range entries {
 		pos, err := filePositionForSkeletonOffset(content, e.Offset)
@@ -141,14 +141,15 @@ type keptSegment struct {
 // `[[skills.config]]` array-table block (per
 // docs/research/skill-mechanisms.md, the observed shape is
 // `path`/`name`/`enabled` keys), regardless of which skill each references,
-// and returns their byte spans. A block runs from its `[[skills.config]]`
-// header line through its last non-blank line before the next line that
-// opens a table, or EOF. Trailing blank lines are deliberately excluded from
-// the span (left as skeleton/kept content, see buildSkeleton) rather than
-// absorbed into whichever block happens to precede them: attributing a
-// separator blank line to one block would give two adjacent blocks the same
-// skeleton offset, making their relative order unrecoverable when both are
-// archived and later restored out of order.
+// and returns their byte spans. Header detection tolerates extra whitespace
+// inside the brackets and inline `#` comments on the header line. A block
+// runs from its header line through its last non-blank line before the next
+// line that opens a table, or EOF. Trailing blank lines are deliberately
+// excluded from the span (left as skeleton/kept content, see buildSkeleton)
+// rather than absorbed into whichever block happens to precede them:
+// attributing a separator blank line to one block would give two adjacent
+// blocks the same skeleton offset, making their relative order unrecoverable
+// when both are archived and later restored out of order.
 func skillsConfigBlockSpans(content string) []byteSpan {
 	lines := splitLinesPreserveOffsets(content)
 
@@ -156,7 +157,7 @@ func skillsConfigBlockSpans(content string) []byteSpan {
 	offset := 0
 	for i := 0; i < len(lines); i++ {
 		line := lines[i]
-		if strings.TrimSpace(line) != "[[skills.config]]" {
+		if !isSkillsConfigHeader(line) {
 			offset += len(line)
 			continue
 		}
@@ -284,4 +285,36 @@ func splitLinesPreserveOffsets(content string) []string {
 		lines = append(lines, content[start:])
 	}
 	return lines
+}
+
+// isSkillsConfigHeader reports whether line is a `[[skills.config]]` array-table
+// header, tolerating hand-edited whitespace inside the brackets and trailing
+// `#` comments.
+func isSkillsConfigHeader(line string) bool {
+	line = stripInlineComment(line)
+	return strings.Join(strings.Fields(line), "") == "[[skills.config]]"
+}
+
+// stripInlineComment returns the portion of line before the first unquoted `#`
+// character. It is intentionally conservative (used only for header detection)
+// and does not treat `\#` as escaped outside of quoted strings.
+func stripInlineComment(line string) string {
+	var inSingle, inDouble bool
+	for i, r := range line {
+		switch r {
+		case '\'':
+			if !inDouble {
+				inSingle = !inSingle
+			}
+		case '"':
+			if !inSingle {
+				inDouble = !inDouble
+			}
+		case '#':
+			if !inSingle && !inDouble {
+				return line[:i]
+			}
+		}
+	}
+	return line
 }

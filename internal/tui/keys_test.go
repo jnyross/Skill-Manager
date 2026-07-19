@@ -265,6 +265,61 @@ func TestRejectReasonsMatchGates(t *testing.T) {
 	}
 }
 
+func TestMainShortHelpFits80Columns(t *testing.T) {
+	m := mainKeyMap(engine.Skill{Source: engine.SourcePersonal, Kind: engine.KindSkill}, true, false)
+	short := m.ShortHelp()
+	if len(short) > 6 {
+		t.Fatalf("main ShortHelp has %d bindings, want at most 6", len(short))
+	}
+
+	has := func(desc string) bool {
+		for _, b := range short {
+			if b.Help().Desc == desc {
+				return true
+			}
+		}
+		return false
+	}
+	if !has("quit") {
+		t.Fatalf("main ShortHelp missing quit binding")
+	}
+	if !has("setup workspace") {
+		t.Fatalf("main ShortHelp missing setup workspace binding")
+	}
+
+	// Less-frequent actions should be full-help only.
+	for _, desc := range []string{"suppress/un-suppress", "manual-only/auto-activate", "uninstall plugin"} {
+		if has(desc) {
+			t.Fatalf("main ShortHelp should not contain %q", desc)
+		}
+	}
+}
+
+func TestMainFullHelpContainsLessFrequentActions(t *testing.T) {
+	m := mainKeyMap(engine.Skill{Source: engine.SourcePersonal, Kind: engine.KindSkill}, true, false)
+	full := m.FullHelp()
+
+	var found []string
+	for _, row := range full {
+		for _, b := range row {
+			found = append(found, b.Help().Desc)
+		}
+	}
+
+	for _, desc := range []string{"suppress/un-suppress", "manual-only/auto-activate", "uninstall plugin", "library view", "bundle view"} {
+		present := false
+		for _, d := range found {
+			if d == desc {
+				present = true
+				break
+			}
+		}
+		if !present {
+			t.Fatalf("main FullHelp missing %q", desc)
+		}
+	}
+}
+
 func TestNeedsCodexRestartHint(t *testing.T) {
 	cases := []struct {
 		name  string

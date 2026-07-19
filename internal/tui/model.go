@@ -34,6 +34,8 @@ const (
 	pendingUninstallPlugin
 	pendingInstall
 	pendingInstallBundle
+	pendingRemoveLibraryEntry
+	pendingDeleteBundle
 )
 
 type pendingConfirm struct {
@@ -48,6 +50,17 @@ type pendingConfirm struct {
 	bundle      engine.Bundle
 }
 
+type installStartedMsg struct {
+	desc string
+}
+
+type installFinishedMsg struct {
+	err      error
+	desc     string
+	target   engine.InstallTarget
+	isBundle bool
+}
+
 type Model struct {
 	engine         *engine.Engine
 	view           viewState
@@ -59,6 +72,7 @@ type Model struct {
 	bundleList     list.Model
 	help           help.Model
 	archive        []engine.ArchiveEntry
+	archiveNotices []engine.Notice
 	library        []engine.LibraryEntry
 	bundles        []engine.Bundle
 	bundleExpanded map[string]bool
@@ -69,9 +83,13 @@ type Model struct {
 	form           *textForm
 	memberPicker   *memberPicker
 	status         string
+	installing     string
+	installWork    func() tea.Msg
 	width          int
 	height         int
 	detail         detailPane
+	searching      bool
+	searchQuery    string
 }
 
 func NewModel(e *engine.Engine) *Model {
@@ -103,29 +121,59 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	switch msg := msg.(type) {
+	case installStartedMsg:
+		m.installing = msg.desc
+		m.status = "Installing " + msg.desc + "…"
+		work := m.installWork
+		m.installWork = nil
+		return m, work
+	case installFinishedMsg:
+		m.installing = ""
+		if msg.err != nil {
+			prefix := "Install"
+			if msg.isBundle {
+				prefix = "Install Bundle"
+			}
+			m.status = formatActionError(prefix+" failed: ", msg.err)
+		} else {
+			if msg.isBundle {
+				m.status = fmt.Sprintf("Installed Bundle %q.", msg.desc)
+			} else {
+				where := "Personal"
+				if msg.target.Kind == engine.InstallTargetProject {
+					where = msg.target.RepoRoot
+				}
+				m.status = fmt.Sprintf("Installed %q → %s.", msg.desc, where)
+			}
+		}
+		return m, nil
+	}
+
 	key, ok := msg.(tea.KeyMsg)
 	if !ok {
 		return m, nil
 	}
 
 	if m.pending != nil {
+		var cmd tea.Cmd
 		if strings.ToLower(key.String()) == "y" {
-			m.executePending()
+			cmd = m.executePending()
 		} else {
 			m.status = "Canceled."
 		}
 		m.pending = nil
 		m.resizeList()
-		return m, nil
+		return m, cmd
 	}
 
 	if m.installPicker != nil {
 		if key.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
-		m.updateInstallPicker(key.String())
+		cmd := m.updateInstallPicker(key.String())
 		m.resizeList()
-		return m, nil
+		return m, cmd
 	}
 	if m.sourcePicker != nil {
 		m.updateSourcePicker(key)
@@ -143,6 +191,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if m.searching {
+		if key.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+		m.updateSearch(key)
+		m.resizeList()
+		return m, nil
+	}
+
 	switch key.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
@@ -152,13 +209,34 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.moveCursor(-1)
 	case "down", "j":
 		m.moveCursor(1)
-	case "pgup", "ctrl+u":
+	case "pgup":
+		if m.view == mainView {
+			m.pageMainCursor(-1)
+		}
+	case "pgdown":
+		if m.view == mainView {
+			m.pageMainCursor(1)
+		}
+	case "ctrl+pgup", "ctrl+u":
 		if m.view == mainView {
 			m.detail.scrollHalf(-1)
 		}
-	case "pgdown", "ctrl+d":
+	case "ctrl+pgdown", "ctrl+d":
 		if m.view == mainView {
 			m.detail.scrollHalf(1)
+		}
+	case "home":
+		if m.view == mainView {
+			m.jumpMainCursor(false)
+		}
+	case "end":
+		if m.view == mainView {
+			m.jumpMainCursor(true)
+		}
+	case "/":
+		if m.view == mainView {
+			m.searching = true
+			m.searchQuery = ""
 		}
 	default:
 		switch m.view {
@@ -235,7 +313,7 @@ func (m *Model) updateMain(key string) {
 		}
 		names := pluginSkillNames(m.inv.Skills, *selected.Plugin)
 		m.pending = &pendingConfirm{
-			description: fmt.Sprintf("Uninstall plugin %q (%s@%s)? This removes all %d skills: %s. y to confirm, any other key to cancel.",
+			description: fmt.Sprintf("Uninstall plugin %q (%s@%s)? This permanently deletes the plugin's files and cannot be undone; it is not an Archive operation. This removes all %d skills: %s. y to confirm, any other key to cancel.",
 				selected.Plugin.Plugin, selected.Plugin.Plugin, selected.Plugin.Marketplace, len(names), strings.Join(names, ", ")),
 			action: pendingUninstallPlugin,
 			plugin: *selected.Plugin,
@@ -265,12 +343,15 @@ func (m *Model) updateMain(key string) {
 		}
 	case "a":
 		m.view = archiveView
+		m.status = ""
 		m.refreshArchive()
 	case "L":
 		m.view = libraryView
+		m.status = ""
 		m.refreshLibrary()
 	case "B":
 		m.view = bundleView
+		m.status = ""
 		m.refreshBundles()
 	case "l":
 		m.toggleLibraryMembership()
@@ -281,7 +362,7 @@ func (m *Model) updateArchive(key string) {
 	switch key {
 	case "a", "esc":
 		m.view = mainView
-		m.cursor = 0
+		m.status = ""
 		m.refreshInventory()
 	case "r":
 		selected, ok := m.selectedArchiveEntry()
@@ -312,7 +393,7 @@ func (m *Model) updateLibrary(key string) {
 	switch key {
 	case "L", "esc":
 		m.view = mainView
-		m.cursor = 0
+		m.status = ""
 		m.refreshInventory()
 	case "d":
 		selected, ok := m.selectedLibraryEntry()
@@ -320,12 +401,12 @@ func (m *Model) updateLibrary(key string) {
 			m.status = "No Library entry selected."
 			return
 		}
-		if err := m.engine.RemoveLibraryEntry(selected.ID); err != nil {
-			m.status = "Remove from Library failed: " + err.Error()
-			return
+		m.pending = &pendingConfirm{
+			description: fmt.Sprintf("Remove %q from Library? y to confirm, any other key to cancel.", selected.Name),
+			action:      pendingRemoveLibraryEntry,
+			id:          selected.ID,
+			entry:       selected,
 		}
-		m.status = "Removed " + selected.Name + " from Library."
-		m.refreshLibrary()
 	case "i":
 		m.beginLibraryInstall()
 	case "n":
@@ -338,6 +419,7 @@ func (m *Model) updateBundle(key string) {
 	switch key {
 	case "B", "esc":
 		m.view = mainView
+		m.status = ""
 		m.refreshInventory()
 	case "n":
 		m.form = newTextForm(formBundleName, []string{"Bundle name"})
@@ -352,11 +434,11 @@ func (m *Model) updateBundle(key string) {
 			m.status = "Select a Bundle to delete."
 			return
 		}
-		if err := m.engine.DeleteBundle(row.bundle.ID); err != nil {
-			m.status = "Delete Bundle failed: " + err.Error()
-		} else {
-			m.status = "Deleted Bundle " + row.bundle.Name + "."
-			m.refreshBundles()
+		m.pending = &pendingConfirm{
+			description: fmt.Sprintf("Delete Bundle %q? y to confirm, any other key to cancel.", row.bundle.Name),
+			action:      pendingDeleteBundle,
+			id:          row.bundle.ID,
+			bundle:      row.bundle,
 		}
 	case "a":
 		if !selected {
@@ -365,7 +447,7 @@ func (m *Model) updateBundle(key string) {
 		}
 		entries, err := m.engine.ListLibrary()
 		if err != nil {
-			m.status = "Library read failed: " + err.Error()
+			m.status = formatActionError("Library read failed: ", err)
 			return
 		}
 		if len(entries) == 0 {
@@ -379,7 +461,7 @@ func (m *Model) updateBundle(key string) {
 			return
 		}
 		if err := m.engine.RemoveBundleMember(row.bundle.ID, row.member.LibraryEntryID); err != nil {
-			m.status = "Remove member failed: " + err.Error()
+			m.status = formatActionError("Remove member failed: ", err)
 		} else {
 			m.status = "Removed member from Bundle."
 			m.refreshBundles()
@@ -394,7 +476,7 @@ func (m *Model) updateBundle(key string) {
 			next = engine.ActivationAuto
 		}
 		if err := m.engine.SetBundleMemberActivation(row.bundle.ID, row.member.LibraryEntryID, next); err != nil {
-			m.status = "Activation failed: " + err.Error()
+			m.status = formatActionError("Activation failed: ", err)
 		} else {
 			m.status = "Bundle member Activation: " + string(next)
 			m.refreshBundles()
@@ -433,10 +515,10 @@ func (m *Model) beginBundleInstall(bundle engine.Bundle) {
 	m.status = ""
 }
 
-func (m *Model) updateInstallPicker(key string) {
+func (m *Model) updateInstallPicker(key string) tea.Cmd {
 	picker := m.installPicker
 	if picker == nil {
-		return
+		return nil
 	}
 	switch key {
 	case "esc", "q":
@@ -455,20 +537,20 @@ func (m *Model) updateInstallPicker(key string) {
 		if picker.bundle != nil {
 			bundle := *picker.bundle
 			m.installPicker = nil
-			m.confirmOrRunBundleInstall(bundle, opt.target)
-			return
+			return m.confirmOrRunBundleInstall(bundle, opt.target)
 		}
 		entry := picker.entry
 		m.installPicker = nil
-		m.confirmOrRunInstall(entry, opt.target)
+		return m.confirmOrRunInstall(entry, opt.target)
 	}
+	return nil
 }
 
-func (m *Model) confirmOrRunBundleInstall(bundle engine.Bundle, target engine.InstallTarget) {
+func (m *Model) confirmOrRunBundleInstall(bundle engine.Bundle, target engine.InstallTarget) tea.Cmd {
 	entries, err := m.engine.ListLibrary()
 	if err != nil {
-		m.status = "Install Bundle failed: " + err.Error()
-		return
+		m.status = formatActionError("Install Bundle failed: ", err)
+		return nil
 	}
 	byID := make(map[string]engine.LibraryEntry, len(entries))
 	for _, entry := range entries {
@@ -486,8 +568,8 @@ func (m *Model) confirmOrRunBundleInstall(bundle engine.Bundle, target engine.In
 		}
 		dest, exists, err := m.engine.InstallDestination(entry, target)
 		if err != nil {
-			m.status = "Install Bundle failed: " + err.Error()
-			return
+			m.status = formatActionError("Install Bundle failed: ", err)
+			return nil
 		}
 		if exists {
 			collisions = append(collisions, dest)
@@ -495,32 +577,35 @@ func (m *Model) confirmOrRunBundleInstall(bundle engine.Bundle, target engine.In
 	}
 	if len(collisions) > 0 {
 		m.pending = &pendingConfirm{description: fmt.Sprintf("Install Bundle %q will replace: %s. y to confirm, any other key to cancel.", bundle.Name, strings.Join(collisions, ", ")), action: pendingInstallBundle, bundle: bundle, target: target}
-		return
+		return nil
 	}
-	m.runBundleInstall(bundle, target)
+	return m.startInstall(bundle.Name, target, true, func() error {
+		return m.engine.InstallBundle(bundle.ID, target)
+	})
 }
 
 func (m *Model) runBundleInstall(bundle engine.Bundle, target engine.InstallTarget) {
 	if err := m.engine.InstallBundle(bundle.ID, target); err != nil {
-		m.status = "Install Bundle failed: " + err.Error()
+		m.status = formatActionError("Install Bundle failed: ", err)
 		return
 	}
 	m.status = fmt.Sprintf("Installed Bundle %q.", bundle.Name)
 }
 
-func (m *Model) confirmOrRunInstall(entry engine.LibraryEntry, target engine.InstallTarget) {
+func (m *Model) confirmOrRunInstall(entry engine.LibraryEntry, target engine.InstallTarget) tea.Cmd {
 	if entry.Source.Kind == engine.LibrarySourceMarketplace {
-		m.runInstall(entry, target)
-		return
+		return m.startInstall(entry.Name, target, false, func() error {
+			return m.engine.InstallLibraryEntry(entry, target, engine.ActivationAuto)
+		})
 	}
 	dest, exists, err := m.engine.InstallDestination(entry, target)
 	if err != nil {
-		m.status = "Install failed: " + err.Error()
-		return
+		m.status = formatActionError("Install failed: ", err)
+		return nil
 	}
 	if entry.Source.Kind == engine.LibrarySourceSkillsSh && entry.Source.SkillsShSkill == "" {
 		m.pending = &pendingConfirm{description: fmt.Sprintf("Install every skill from %q? Existing skills with matching names may be replaced. y to confirm, any other key to cancel.", entry.Source.SkillsShRepo), action: pendingInstall, entry: entry, target: target}
-		return
+		return nil
 	}
 	if exists {
 		m.pending = &pendingConfirm{
@@ -529,9 +614,11 @@ func (m *Model) confirmOrRunInstall(entry engine.LibraryEntry, target engine.Ins
 			entry:       entry,
 			target:      target,
 		}
-		return
+		return nil
 	}
-	m.runInstall(entry, target)
+	return m.startInstall(entry.Name, target, false, func() error {
+		return m.engine.InstallLibraryEntry(entry, target, engine.ActivationAuto)
+	})
 }
 
 func (m *Model) updateSourcePicker(key tea.KeyMsg) {
@@ -581,7 +668,7 @@ func (m *Model) updateForm(key tea.KeyMsg) {
 	m.form = nil
 	if f.kind == formBundleName {
 		if _, err := m.engine.CreateBundle(f.values[0]); err != nil {
-			m.status = "Create Bundle failed: " + err.Error()
+			m.status = formatActionError("Create Bundle failed: ", err)
 		} else {
 			m.status = "Created Bundle."
 			m.refreshBundles()
@@ -604,7 +691,7 @@ func (m *Model) updateForm(key tea.KeyMsg) {
 		entry.Source = engine.LibrarySource{Kind: f.source, Marketplace: f.values[1], PluginName: f.values[2], MarketplaceSource: f.values[3]}
 	}
 	if _, err := m.engine.AddLibraryEntry(entry); err != nil {
-		m.status = "Add Library entry failed: " + err.Error()
+		m.status = formatActionError("Add Library entry failed: ", err)
 	} else {
 		m.status = "Added " + entry.Name + " to Library."
 		m.refreshLibrary()
@@ -640,7 +727,7 @@ func (m *Model) updateMemberPicker(key tea.KeyMsg) {
 		entry := p.entries[p.cursor]
 		m.memberPicker = nil
 		if err := m.engine.AddBundleMember(p.bundle.ID, entry.ID, engine.ActivationAuto); err != nil {
-			m.status = "Add Bundle member failed: " + err.Error()
+			m.status = formatActionError("Add Bundle member failed: ", err)
 		} else {
 			m.status = "Added " + entry.Name + " to Bundle."
 			m.refreshBundles()
@@ -648,11 +735,24 @@ func (m *Model) updateMemberPicker(key tea.KeyMsg) {
 	}
 }
 
+func (m *Model) startInstall(desc string, target engine.InstallTarget, isBundle bool, work func() error) tea.Cmd {
+	if m.installing != "" {
+		m.status = "Install already in progress."
+		return nil
+	}
+	m.installing = desc
+	m.installWork = func() tea.Msg {
+		err := work()
+		return installFinishedMsg{err: err, desc: desc, target: target, isBundle: isBundle}
+	}
+	return func() tea.Msg { return installStartedMsg{desc: desc} }
+}
+
 func (m *Model) runInstall(entry engine.LibraryEntry, target engine.InstallTarget) {
 	// Library view Install defaults to Auto; Bundle Install passes each
 	// member's remembered Activation through Engine.InstallBundle.
 	if err := m.engine.InstallLibraryEntry(entry, target, engine.ActivationAuto); err != nil {
-		m.status = "Install failed: " + err.Error()
+		m.status = formatActionError("Install failed: ", err)
 		return
 	}
 	where := "Personal"
@@ -675,13 +775,13 @@ func (m *Model) toggleLibraryMembership() {
 	if selected.Source == engine.SourcePlugin && selected.Plugin != nil {
 		entries, err := m.engine.ListLibrary()
 		if err != nil {
-			m.status = "Library read failed: " + err.Error()
+			m.status = formatActionError("Library read failed: ", err)
 			return
 		}
 		for _, entry := range entries {
 			if entry.Source.Kind == engine.LibrarySourceMarketplace && entry.Source.Marketplace == selected.Plugin.Marketplace && entry.Source.PluginName == selected.Plugin.Plugin {
 				if err := m.engine.RemoveLibraryEntry(entry.ID); err != nil {
-					m.status = "Remove from Library failed: " + err.Error()
+					m.status = formatActionError("Remove from Library failed: ", err)
 				} else {
 					m.status = "Removed plugin " + selected.Plugin.Plugin + " from Library."
 				}
@@ -690,7 +790,7 @@ func (m *Model) toggleLibraryMembership() {
 		}
 		entry, err := m.engine.AddLibraryEntry(engine.LibraryEntry{Name: selected.Plugin.Plugin, Source: engine.LibrarySource{Kind: engine.LibrarySourceMarketplace, Marketplace: selected.Plugin.Marketplace, PluginName: selected.Plugin.Plugin}})
 		if err != nil {
-			m.status = "Add to Library failed: " + err.Error()
+			m.status = formatActionError("Add to Library failed: ", err)
 		} else {
 			m.status = "Added plugin " + entry.Name + " to Library."
 		}
@@ -698,7 +798,7 @@ func (m *Model) toggleLibraryMembership() {
 	}
 	if existing, found := m.engine.FindLibraryEntryByLocalPath(selected.Location); found {
 		if err := m.engine.RemoveLibraryEntry(existing.ID); err != nil {
-			m.status = "Remove from Library failed: " + err.Error()
+			m.status = formatActionError("Remove from Library failed: ", err)
 			return
 		}
 		m.status = "Removed " + selected.Name + " from Library."
@@ -714,40 +814,40 @@ func (m *Model) toggleLibraryMembership() {
 		},
 	})
 	if err != nil {
-		m.status = "Add to Library failed: " + err.Error()
+		m.status = formatActionError("Add to Library failed: ", err)
 		return
 	}
 	m.status = "Added " + entry.Name + " to Library."
 }
 
-func (m *Model) executePending() {
+func (m *Model) executePending() tea.Cmd {
 	switch m.pending.action {
 	case pendingUninstall:
 		entry, err := m.engine.Uninstall(m.pending.location)
 		if err != nil {
-			m.status = "Archive failed: " + err.Error()
-			return
+			m.status = formatActionError("Archive failed: ", err)
+			return nil
 		}
 		m.status = "Archived " + entry.Name + "."
 		m.refreshInventory()
 	case pendingRestore:
 		if err := m.engine.Restore(m.pending.id); err != nil {
-			m.status = "Restore failed: " + err.Error()
-			return
+			m.status = formatActionError("Restore failed: ", err)
+			return nil
 		}
 		m.status = "Restored archive entry."
 		m.refreshArchive()
 	case pendingPurge:
 		if err := m.engine.Purge(m.pending.id); err != nil {
-			m.status = "Purge failed: " + err.Error()
-			return
+			m.status = formatActionError("Purge failed: ", err)
+			return nil
 		}
 		m.status = "Purged archive entry."
 		m.refreshArchive()
 	case pendingSuppress:
 		if err := m.engine.Suppress(m.pending.skill); err != nil {
-			m.status = "Suppress failed: " + err.Error()
-			return
+			m.status = formatActionError("Suppress failed: ", err)
+			return nil
 		}
 		m.status = "Suppressed " + m.pending.skill.Name + "."
 		if needsCodexRestartHint(m.pending.skill) {
@@ -756,8 +856,8 @@ func (m *Model) executePending() {
 		m.refreshInventory()
 	case pendingUnsuppress:
 		if err := m.engine.Unsuppress(m.pending.skill); err != nil {
-			m.status = "Un-suppress failed: " + err.Error()
-			return
+			m.status = formatActionError("Un-suppress failed: ", err)
+			return nil
 		}
 		m.status = "Un-suppressed " + m.pending.skill.Name + "."
 		if needsCodexRestartHint(m.pending.skill) {
@@ -766,31 +866,56 @@ func (m *Model) executePending() {
 		m.refreshInventory()
 	case pendingManualOnly:
 		if err := m.engine.SetManualOnly(m.pending.skill, true); err != nil {
-			m.status = "Manual-only failed: " + err.Error()
-			return
+			m.status = formatActionError("Manual-only failed: ", err)
+			return nil
 		}
 		m.status = "Made " + m.pending.skill.Name + " Manual-only."
 		m.refreshInventory()
 	case pendingAutoActivate:
 		if err := m.engine.SetManualOnly(m.pending.skill, false); err != nil {
-			m.status = "Auto-activation failed: " + err.Error()
-			return
+			m.status = formatActionError("Auto-activation failed: ", err)
+			return nil
 		}
 		m.status = "Restored Auto-activation for " + m.pending.skill.Name + "."
 		m.refreshInventory()
 	case pendingUninstallPlugin:
 		plugin := m.pending.plugin
 		if err := m.engine.UninstallPlugin(plugin); err != nil {
-			m.status = "Uninstall plugin failed: " + err.Error()
-			return
+			m.status = formatActionError("Uninstall plugin failed: ", err)
+			return nil
 		}
 		m.status = "Uninstalled plugin " + plugin.Plugin + "."
 		m.refreshInventory()
 	case pendingInstall:
-		m.runInstall(m.pending.entry, m.pending.target)
+		entry := m.pending.entry
+		target := m.pending.target
+		return m.startInstall(entry.Name, target, false, func() error {
+			return m.engine.InstallLibraryEntry(entry, target, engine.ActivationAuto)
+		})
 	case pendingInstallBundle:
-		m.runBundleInstall(m.pending.bundle, m.pending.target)
+		bundle := m.pending.bundle
+		target := m.pending.target
+		return m.startInstall(bundle.Name, target, true, func() error {
+			return m.engine.InstallBundle(bundle.ID, target)
+		})
+	case pendingRemoveLibraryEntry:
+		entry := m.pending.entry
+		if err := m.engine.RemoveLibraryEntry(entry.ID); err != nil {
+			m.status = formatActionError("Remove from Library failed: ", err)
+			return nil
+		}
+		m.status = "Removed " + entry.Name + " from Library."
+		m.refreshLibrary()
+	case pendingDeleteBundle:
+		bundle := m.pending.bundle
+		if err := m.engine.DeleteBundle(bundle.ID); err != nil {
+			m.status = formatActionError("Delete Bundle failed: ", err)
+			return nil
+		}
+		m.status = "Deleted Bundle " + bundle.Name + "."
+		m.refreshBundles()
 	}
+	return nil
 }
 
 // pluginSkillNames returns the names of every skill in skills belonging to
@@ -799,6 +924,28 @@ func (m *Model) executePending() {
 // acceptance criterion: "the confirmation lists all N skills in the plugin
 // before proceeding"). Built client-side from the Inventory() result
 // already held by the model, rather than a new engine listing method.
+// formatActionError prefixes an engine error with a user-facing action label,
+// but avoids stutter when the engine error already begins with the same verb
+// (e.g. "install:" or "suppress skill:").
+func formatActionError(prefix string, err error) string {
+	if err == nil {
+		return strings.TrimSuffix(prefix, ": ") + "."
+	}
+	msg := err.Error()
+	loweredMsg := strings.ToLower(strings.TrimSpace(msg))
+	loweredPrefix := strings.ToLower(prefix)
+	if strings.HasPrefix(loweredMsg, loweredPrefix) {
+		return msg
+	}
+	// Normalize hyphenation so "Un-suppress" matches engine "unsuppress".
+	verb := strings.SplitN(loweredPrefix, " ", 2)[0]
+	normVerb := strings.ReplaceAll(verb, "-", "")
+	if strings.HasPrefix(loweredMsg, verb) || strings.HasPrefix(loweredMsg, normVerb) {
+		return msg
+	}
+	return prefix + msg
+}
+
 func pluginSkillNames(skills []engine.Skill, plugin engine.PluginInfo) []string {
 	var names []string
 	for _, skill := range skills {
@@ -811,6 +958,7 @@ func pluginSkillNames(skills []engine.Skill, plugin engine.PluginInfo) []string 
 }
 
 func (m *Model) moveCursor(delta int) {
+	m.status = ""
 	switch m.view {
 	case mainView:
 		m.moveMainCursor(delta)
@@ -860,6 +1008,82 @@ func (m *Model) moveMainCursor(delta int) {
 	m.refreshDetail()
 }
 
+func (m *Model) pageMainCursor(pages int) {
+	m.status = ""
+	m.cursor += pages * m.mainPageSize()
+	m.clampMainCursor()
+	m.selectMainCursor()
+	m.refreshDetail()
+}
+
+func (m *Model) jumpMainCursor(toEnd bool) {
+	m.status = ""
+	if toEnd {
+		m.cursor = len(m.inv.Skills) - 1
+	} else {
+		m.cursor = 0
+	}
+	m.clampMainCursor()
+	m.selectMainCursor()
+	m.refreshDetail()
+}
+
+func (m *Model) clampMainCursor() {
+	if len(m.inv.Skills) == 0 {
+		m.cursor = 0
+		return
+	}
+	if m.cursor < 0 {
+		m.cursor = 0
+	}
+	if m.cursor >= len(m.inv.Skills) {
+		m.cursor = len(m.inv.Skills) - 1
+	}
+}
+
+func (m *Model) mainPageSize() int {
+	if h := m.list.Height(); h > 1 {
+		return h
+	}
+	return 10
+}
+
+func (m *Model) updateSearch(key tea.KeyMsg) {
+	switch key.Type {
+	case tea.KeyEsc:
+		m.searching = false
+		m.searchQuery = ""
+	case tea.KeyEnter:
+		m.searching = false
+	case tea.KeyBackspace:
+		if len(m.searchQuery) == 0 {
+			m.searching = false
+			return
+		}
+		runes := []rune(m.searchQuery)
+		m.searchQuery = string(runes[:len(runes)-1])
+		m.applySearch()
+	case tea.KeyRunes:
+		m.searchQuery += string(key.Runes)
+		m.applySearch()
+	}
+}
+
+func (m *Model) applySearch() {
+	query := strings.ToLower(m.searchQuery)
+	if query == "" {
+		return
+	}
+	for i, skill := range m.inv.Skills {
+		if strings.Contains(strings.ToLower(skill.Name), query) {
+			m.cursor = i
+			m.selectMainCursor()
+			m.refreshDetail()
+			return
+		}
+	}
+}
+
 func (m *Model) refreshInventory() {
 	m.inv = m.engine.Inventory()
 	if m.cursor >= len(m.inv.Skills) {
@@ -872,14 +1096,16 @@ func (m *Model) refreshInventory() {
 }
 
 func (m *Model) refreshArchive() {
-	entries, err := m.engine.ListArchive()
+	entries, notices, err := m.engine.ListArchive()
 	if err != nil {
 		m.archive = nil
+		m.archiveNotices = nil
 		_ = m.archiveList.SetItems(nil)
-		m.status = "Archive read failed: " + err.Error()
+		m.status = formatActionError("Archive read failed: ", err)
 		return
 	}
 	m.archive = entries
+	m.archiveNotices = notices
 	_ = m.archiveList.SetItems(buildArchiveItems(m.archive))
 	if len(m.archive) == 0 {
 		m.archiveList.Select(0)
@@ -897,7 +1123,7 @@ func (m *Model) refreshLibrary() {
 	if err != nil {
 		m.library = nil
 		_ = m.libraryList.SetItems(nil)
-		m.status = "Library read failed: " + err.Error()
+		m.status = formatActionError("Library read failed: ", err)
 		return
 	}
 	m.library = entries
@@ -918,13 +1144,13 @@ func (m *Model) refreshBundles() {
 	if err != nil {
 		m.bundles = nil
 		_ = m.bundleList.SetItems(nil)
-		m.status = "Bundle read failed: " + err.Error()
+		m.status = formatActionError("Bundle read failed: ", err)
 		return
 	}
 	m.bundles = bundles
 	library, err := m.engine.ListLibrary()
 	if err != nil {
-		m.status = "Library read failed: " + err.Error()
+		m.status = formatActionError("Library read failed: ", err)
 		return
 	}
 	_ = m.bundleList.SetItems(buildBundleItems(bundles, library, m.bundleExpanded))
@@ -971,7 +1197,11 @@ func (m *Model) renderView() string {
 
 	if m.status != "" {
 		b.WriteString("\n")
-		b.WriteString(m.status)
+		if isStatusError(m.status) {
+			b.WriteString(statusErrorStyle.Render(m.status))
+		} else {
+			b.WriteString(m.status)
+		}
 		b.WriteString("\n")
 	}
 	return b.String()
@@ -983,7 +1213,7 @@ func (m *Model) renderMain(b *strings.Builder) {
 	b.WriteString("\n\n")
 
 	if len(m.inv.Skills) == 0 {
-		b.WriteString("No skills found.\n")
+		b.WriteString("No skills found. Press S to set up a workspace.\n")
 	} else {
 		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), " ", m.detail.render()))
 		b.WriteString("\n")
@@ -997,6 +1227,13 @@ func (m *Model) renderMain(b *strings.Builder) {
 			b.WriteString("\n")
 		}
 	}
+
+	if m.searching {
+		b.WriteString("\n")
+		b.WriteString("Search: ")
+		b.WriteString(m.searchQuery)
+		b.WriteString("\n")
+	}
 }
 
 func (m *Model) renderArchive(b *strings.Builder) {
@@ -1005,11 +1242,20 @@ func (m *Model) renderArchive(b *strings.Builder) {
 	b.WriteString("\n\n")
 
 	if len(m.archive) == 0 {
-		b.WriteString("Archive is empty.\n")
-		return
+		b.WriteString("Archive is empty. Press a to return to the inventory.\n")
+	} else {
+		b.WriteString(m.archiveList.View())
+		b.WriteString("\n")
 	}
-	b.WriteString(m.archiveList.View())
-	b.WriteString("\n")
+
+	if len(m.archiveNotices) > 0 {
+		b.WriteString("\nNotices\n")
+		for _, notice := range m.archiveNotices {
+			b.WriteString("- ")
+			b.WriteString(notice.Message)
+			b.WriteString("\n")
+		}
+	}
 }
 
 func (m *Model) renderLibrary(b *strings.Builder) {
@@ -1018,7 +1264,7 @@ func (m *Model) renderLibrary(b *strings.Builder) {
 	b.WriteString("\n\n")
 
 	if len(m.library) == 0 {
-		b.WriteString("Library is empty.\n")
+		b.WriteString("Library is empty. Press n to add a new entry.\n")
 		return
 	}
 	b.WriteString(m.libraryList.View())
@@ -1138,6 +1384,9 @@ func (m *Model) resizeList() {
 	if m.status != "" {
 		reserved += 2 // blank line, status line
 	}
+	if m.searching {
+		reserved++ // search input line
+	}
 
 	height := m.height - reserved
 	if height < 1 {
@@ -1210,4 +1459,13 @@ func splitPaneWidths(width int) (int, int) {
 		listWidth = width - gap - detailWidth
 	}
 	return listWidth, detailWidth
+}
+
+// isStatusError reports whether a status message should be rendered as an
+// error. It covers operation failures and user-facing rejection reasons.
+func isStatusError(status string) bool {
+	return strings.Contains(status, "failed:") ||
+		strings.Contains(status, "only available") ||
+		strings.HasPrefix(status, "No ") ||
+		strings.HasPrefix(status, "Select ")
 }

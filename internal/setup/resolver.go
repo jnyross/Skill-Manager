@@ -18,7 +18,6 @@ import (
 type DriftClass string
 
 const (
-	DriftSourceBoundary DriftClass = "source-boundary"
 	DriftContent        DriftClass = "content"
 	DriftLicense        DriftClass = "license"
 	DriftScripts        DriftClass = "scripts"
@@ -73,9 +72,6 @@ func CompareDrift(member catalog.Member, resolved BoundaryEvidence) DriftReview 
 	review := DriftReview{ReviewedRevision: member.Source.ReviewedRevision, ResolvedRevision: resolved.Revision}
 	add := func(class DriftClass, reviewed, actual string) {
 		review.Changes = append(review.Changes, DriftChange{Class: class, Reviewed: reviewed, Resolved: actual})
-	}
-	if filepath.ToSlash(resolved.Subpath) != filepath.ToSlash(member.Source.Subpath) {
-		add(DriftSourceBoundary, member.Source.Subpath, resolved.Subpath)
 	}
 	if resolved.ContentSHA256 != member.Source.ContentSHA256 {
 		add(DriftContent, member.Source.ContentSHA256, resolved.ContentSHA256)

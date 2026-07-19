@@ -61,6 +61,12 @@ type Skill struct {
 	Location    string
 	Activation  ActivationState
 	Plugin      *PluginInfo
+	// DeclaredManualOnlyForClaude is true when a Codex-scanned SKILL.md
+	// declares disable-model-invocation: true. In Claude Code that field
+	// means manual-only, but Codex runtime activation is governed by
+	// agents/openai.yaml, so the declared intent has no effect in Codex.
+	// The detail pane uses this flag to surface the mismatch.
+	DeclaredManualOnlyForClaude bool
 }
 
 type Notice struct {
@@ -104,8 +110,10 @@ type SuppressionRecord struct {
 
 // RemovedConfigEntry records a stale Codex config.toml `[[skills.config]]`
 // block removed on Uninstall, so Restore can splice it back byte-identically.
-// Offset is the byte position within the config file (as it stands after
-// removal) where Raw must be reinserted.
+// Offset is a skeleton-relative byte position (see internal/engine/
+// codex_config.go buildSkeleton) where Raw must be reinserted, so it stays
+// valid even when other Codex skills' config entries are archived or restored
+// in between.
 type RemovedConfigEntry struct {
 	Offset int    `json:"offset"`
 	Raw    string `json:"raw"`

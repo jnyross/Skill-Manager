@@ -201,6 +201,11 @@ func TestInstallLibraryEntryMarketplaceAddsUnknownThenInstalls(t *testing.T) {
 	if !reflect.DeepEqual(r.commands, want) {
 		t.Fatalf("commands = %#v, want %#v", r.commands, want)
 	}
+	settings := readJSONFile(t, filepath.Join(repo, ".claude", "settings.json"))
+	enabled, ok := settings["enabledPlugins"].(map[string]any)
+	if !ok || enabled["plugin@catalog"] != true {
+		t.Fatalf("settings.json enabledPlugins = %#v, want plugin@catalog true", enabled)
+	}
 }
 
 func TestInstallLibraryEntryMarketplaceKnownSkipsAdd(t *testing.T) {
@@ -215,6 +220,11 @@ func TestInstallLibraryEntryMarketplaceKnownSkipsAdd(t *testing.T) {
 	if len(r.commands) != 1 || !reflect.DeepEqual(r.commands[0].Args, []string{"plugin", "install", "plugin@catalog", "--scope", "user"}) {
 		t.Fatalf("commands = %#v", r.commands)
 	}
+	settings := readJSONFile(t, filepath.Join(f.roots.ClaudeHome, "settings.json"))
+	enabled, ok := settings["enabledPlugins"].(map[string]any)
+	if !ok || enabled["plugin@catalog"] != true {
+		t.Fatalf("settings.json enabledPlugins = %#v, want plugin@catalog true", enabled)
+	}
 }
 
 func TestInstallLibraryEntryMarketplaceUnknownRequiresSource(t *testing.T) {
@@ -224,6 +234,88 @@ func TestInstallLibraryEntryMarketplaceUnknownRequiresSource(t *testing.T) {
 	entry := engine.LibraryEntry{Name: "plugin", Source: engine.LibrarySource{Kind: engine.LibrarySourceMarketplace, Marketplace: "catalog", PluginName: "plugin"}}
 	err := e.InstallLibraryEntry(entry, engine.InstallTarget{Kind: engine.InstallTargetPersonal}, engine.ActivationAuto)
 	if err == nil || !strings.Contains(err.Error(), "marketplace source") {
+		t.Fatalf("error = %v", err)
+	}
+	if len(r.commands) != 0 {
+		t.Fatalf("commands = %#v", r.commands)
+	}
+}
+
+func TestInstallLibraryEntryMarketplaceRejectsManualOnly(t *testing.T) {
+	f := newFixture(t)
+	writeFile(t, filepath.Join(f.roots.ClaudeHome, "plugins", "known_marketplaces.json"), `{"catalog": {}}`)
+	r := &recordingRunner{}
+	e := engine.NewWithCommandRunner(f.roots, r)
+	entry := engine.LibraryEntry{Name: "plugin", Source: engine.LibrarySource{Kind: engine.LibrarySourceMarketplace, Marketplace: "catalog", PluginName: "plugin"}}
+	err := e.InstallLibraryEntry(entry, engine.InstallTarget{Kind: engine.InstallTargetPersonal}, engine.ActivationManualOnly)
+	if err == nil || !strings.Contains(err.Error(), "Manual-only") {
+		t.Fatalf("error = %v", err)
+	}
+	if len(r.commands) != 0 {
+		t.Fatalf("commands = %#v", r.commands)
+	}
+}
+
+func TestInstallLibraryEntryMarketplaceRejectsLeadingDash(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		entry engine.LibraryEntry
+	}{
+		{"plugin", engine.LibraryEntry{Name: "plugin", Source: engine.LibrarySource{Kind: engine.LibrarySourceMarketplace, Marketplace: "catalog", PluginName: "-plugin"}}},
+		{"marketplace", engine.LibraryEntry{Name: "plugin", Source: engine.LibrarySource{Kind: engine.LibrarySourceMarketplace, Marketplace: "-catalog", PluginName: "plugin"}}},
+		{"source", engine.LibraryEntry{Name: "plugin", Source: engine.LibrarySource{Kind: engine.LibrarySourceMarketplace, Marketplace: "catalog", PluginName: "plugin", MarketplaceSource: "-owner/catalog"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			r := &recordingRunner{}
+			e := engine.NewWithCommandRunner(f.roots, r)
+			err := e.InstallLibraryEntry(tc.entry, engine.InstallTarget{Kind: engine.InstallTargetPersonal}, engine.ActivationAuto)
+			if err == nil || !strings.Contains(err.Error(), "starts with '-'") {
+				t.Fatalf("error = %v", err)
+			}
+			if len(r.commands) != 0 {
+				t.Fatalf("commands = %#v", r.commands)
+			}
+		})
+	}
+}
+
+func TestInstallLibraryEntryGitRejectsLeadingDash(t *testing.T) {
+	f := newFixture(t)
+	r := &recordingRunner{}
+	e := engine.NewWithCommandRunner(f.roots, r)
+	entry := engine.LibraryEntry{Name: "bad", Kind: engine.KindSkill, Tool: engine.ToolClaudeCode, Source: engine.LibrarySource{Kind: engine.LibrarySourceGit, GitURL: "--evil"}}
+	err := e.InstallLibraryEntry(entry, engine.InstallTarget{Kind: engine.InstallTargetPersonal}, engine.ActivationAuto)
+	if err == nil || !strings.Contains(err.Error(), "URL starts with '-'") {
+		t.Fatalf("error = %v", err)
+	}
+	if len(r.commands) != 0 {
+		t.Fatalf("commands = %#v", r.commands)
+	}
+}
+
+func TestInstallLibraryEntryGitUsesEndOfOptions(t *testing.T) {
+	f := newFixture(t)
+	r := &recordingRunner{}
+	e := engine.NewWithCommandRunner(f.roots, r)
+	entry := engine.LibraryEntry{Name: "ok", Kind: engine.KindSkill, Tool: engine.ToolClaudeCode, Source: engine.LibrarySource{Kind: engine.LibrarySourceGit, GitURL: "file:///tmp/repo", GitRef: "main"}}
+	_ = e.InstallLibraryEntry(entry, engine.InstallTarget{Kind: engine.InstallTargetPersonal}, engine.ActivationAuto)
+	if len(r.commands) != 1 {
+		t.Fatalf("commands = %#v", r.commands)
+	}
+	want := []string{"clone", "--depth", "1", "--branch", "main", "--", "file:///tmp/repo"}
+	if !reflect.DeepEqual(r.commands[0].Args[:len(want)], want) {
+		t.Fatalf("command args = %#v, want prefix %#v", r.commands[0].Args, want)
+	}
+}
+
+func TestInstallLibraryEntrySkillsShRejectsLeadingDash(t *testing.T) {
+	f := newFixture(t)
+	r := &recordingRunner{}
+	e := engine.NewWithCommandRunner(f.roots, r)
+	entry := engine.LibraryEntry{Name: "bad", Kind: engine.KindSkill, Tool: engine.ToolClaudeCode, Source: engine.LibrarySource{Kind: engine.LibrarySourceSkillsSh, SkillsShRepo: "-owner/repo", SkillsShSkill: "one"}}
+	err := e.InstallLibraryEntry(entry, engine.InstallTarget{Kind: engine.InstallTargetPersonal}, engine.ActivationAuto)
+	if err == nil || !strings.Contains(err.Error(), "repo starts with '-'") {
 		t.Fatalf("error = %v", err)
 	}
 	if len(r.commands) != 0 {

@@ -3,8 +3,7 @@
 Install or upgrade the supported Skillet command:
 
 ```sh
-npm install --global @jnyross/skillet
-npm install --global @jnyross/skillet@latest
+npm install --global @jnyross/skillet@next
 ```
 
 npm selects the matching native macOS or Linux package. If optional

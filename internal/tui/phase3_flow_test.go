@@ -188,7 +188,14 @@ func pressTUIKey(m *Model, key string) {
 	default:
 		msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)}
 	}
-	m.Update(msg)
+	_, cmd := m.Update(msg)
+	for cmd != nil {
+		next := cmd()
+		if next == nil {
+			break
+		}
+		_, cmd = m.Update(next)
+	}
 }
 
 func typeTUIText(m *Model, value string) {

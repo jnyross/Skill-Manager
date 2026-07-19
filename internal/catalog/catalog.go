@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,6 +14,10 @@ import (
 
 //go:embed catalog.json
 var builtInJSON []byte
+
+// ErrUnknownBundle is returned by SelectBundles when a requested bundle ID
+// does not exist in the catalog.
+var ErrUnknownBundle = errors.New("unknown built-in catalog bundle")
 
 type Catalog struct {
 	SchemaVersion int      `json:"schemaVersion"`
@@ -213,29 +218,18 @@ func (c Catalog) SelectBundles(ids []string) (Selection, error) {
 
 	selection := Selection{CatalogVersion: c.Version}
 	seenMember := make(map[string]bool)
-	hasMatt := false
-	hasSuperpowers := false
 	for _, id := range ids {
 		bundle, ok := bundlesByID[id]
 		if !ok {
-			return Selection{}, fmt.Errorf("unknown built-in catalog bundle %q", id)
+			return Selection{}, fmt.Errorf("%w %q", ErrUnknownBundle, id)
 		}
 		selection.Bundles = append(selection.Bundles, bundle)
-		if strings.HasPrefix(id, "matt-") {
-			hasMatt = true
-		}
-		if id == "superpowers-workflow" {
-			hasSuperpowers = true
-		}
 		for _, name := range bundle.Members {
 			if !seenMember[name] {
 				selection.Members = append(selection.Members, membersByName[name])
 				seenMember[name] = true
 			}
 		}
-	}
-	if hasMatt && hasSuperpowers {
-		selection.Warnings = append(selection.Warnings, "Superpowers overlaps the selected Matt engineering workflow; confirm both before setup")
 	}
 	return selection, nil
 }

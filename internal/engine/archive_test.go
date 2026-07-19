@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -36,9 +37,12 @@ func TestArchiveUninstallPersonalSkill(t *testing.T) {
 	if _, ok := findSkill(e.Inventory(), engine.SourcePersonal, "to-archive"); ok {
 		t.Fatalf("archived skill still appears in inventory")
 	}
-	entries, err := e.ListArchive()
+	entries, notices, err := e.ListArchive()
 	if err != nil {
 		t.Fatalf("list archive: %v", err)
+	}
+	if len(notices) != 0 {
+		t.Fatalf("unexpected archive notices: %#v", notices)
 	}
 	if len(entries) != 1 {
 		t.Fatalf("archive length = %d, want 1: %#v", len(entries), entries)
@@ -216,9 +220,12 @@ func TestListArchiveFiltersProjectEntriesToCurrentRepo(t *testing.T) {
 	currentRoots := f.roots
 	currentRoots.ClaudeProjectRoots = []string{repoA}
 	currentRoots.ProjectRoots = []string{repoA}
-	entries, err := engine.New(currentRoots).ListArchive()
+	entries, notices, err := engine.New(currentRoots).ListArchive()
 	if err != nil {
 		t.Fatalf("list archive: %v", err)
+	}
+	if len(notices) != 0 {
+		t.Fatalf("unexpected archive notices: %#v", notices)
 	}
 
 	for _, entry := range []engine.ArchiveEntry{entryAClaude, entryACodex, entryPersonal, entryCodex} {
@@ -300,9 +307,12 @@ func TestArchivePurgeRemovesArchiveEntry(t *testing.T) {
 	if err := e.Purge(entry.ID); err != nil {
 		t.Fatalf("purge: %v", err)
 	}
-	entries, err := e.ListArchive()
+	entries, notices, err := e.ListArchive()
 	if err != nil {
 		t.Fatalf("list archive: %v", err)
+	}
+	if len(notices) != 0 {
+		t.Fatalf("unexpected archive notices: %#v", notices)
 	}
 	if archiveContains(entries, entry.ID) {
 		t.Fatalf("purged archive entry still listed: %#v", entries)
@@ -320,12 +330,33 @@ func TestReadOnlyMethodsLeaveFixtureTreeUnchanged(t *testing.T) {
 	e := engine.New(f.roots)
 
 	_ = e.Inventory()
-	if _, err := e.ListArchive(); err != nil {
+	if _, _, err := e.ListArchive(); err != nil {
 		t.Fatalf("list archive: %v", err)
 	}
 
 	after := snapshotTree(t, f.root)
 	assertSnapshotsEqual(t, before, after)
+}
+
+func TestListArchiveSkipsMalformedEntry(t *testing.T) {
+	f := newFixture(t)
+	archiveRoot := filepath.Join(f.roots.DataDir, "archive")
+	mkdirAll(t, filepath.Join(archiveRoot, "empty-dir"))
+
+	e := engine.New(f.roots)
+	entries, notices, err := e.ListArchive()
+	if err != nil {
+		t.Fatalf("list archive: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected 0 entries, got %d: %#v", len(entries), entries)
+	}
+	if len(notices) != 1 {
+		t.Fatalf("expected 1 notice, got %d: %#v", len(notices), notices)
+	}
+	if !strings.Contains(notices[0].Message, "empty-dir") {
+		t.Fatalf("notice does not mention malformed dir: %s", notices[0].Message)
+	}
 }
 
 func writeArchiveProvenance(t *testing.T, roots engine.Roots, entry engine.ArchiveEntry) {

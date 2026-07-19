@@ -416,3 +416,90 @@ func TestSetManualOnlyRefusesInlinePolicyValueRatherThanCorrupting(t *testing.T)
 		t.Fatalf("policy file was modified despite the refused edit: %q", after)
 	}
 }
+
+func TestSetManualOnlyRejectsAbsoluteSymlinkEscapingTree(t *testing.T) {
+	f := newFixture(t)
+	folder := writeSkill(t, filepath.Join(f.roots.ClaudeHome, "skills", "loop-me"), "loop-me", "Loop description", "")
+	skillMDPath := filepath.Join(folder, "SKILL.md")
+
+	outsideDir := filepath.Join(f.root, "outside")
+	mkdirAll(t, outsideDir)
+	outsidePath := filepath.Join(outsideDir, "SKILL.md")
+	writeFile(t, outsidePath, "---\nname: outside\ndescription: outside\n---\nBody\n")
+
+	if err := os.Remove(skillMDPath); err != nil {
+		t.Fatalf("remove original SKILL.md: %v", err)
+	}
+	if err := os.Symlink(outsidePath, skillMDPath); err != nil {
+		t.Skipf("symlinks not supported: %v", err)
+	}
+
+	e := engine.New(f.roots)
+	skill := engine.Skill{
+		Name:     "loop-me",
+		Source:   engine.SourcePersonal,
+		Kind:     engine.KindSkill,
+		Location: folder,
+	}
+
+	if err := e.SetManualOnly(skill, true); err == nil {
+		t.Fatalf("SetManualOnly(true) on an absolute symlink escape should return an error")
+	}
+	if err := e.SetManualOnly(skill, false); err == nil {
+		t.Fatalf("SetManualOnly(false) on an absolute symlink escape should return an error")
+	}
+
+	data, err := os.ReadFile(outsidePath)
+	if err != nil {
+		t.Fatalf("read outside target: %v", err)
+	}
+	if strings.Contains(string(data), "disable-model-invocation") {
+		t.Fatalf("symlink target outside the skill tree was modified: %s", data)
+	}
+}
+
+func TestSetManualOnlyRejectsRelativeSymlinkEscapingTree(t *testing.T) {
+	f := newFixture(t)
+	folder := writeSkill(t, filepath.Join(f.roots.ClaudeHome, "skills", "loop-me"), "loop-me", "Loop description", "")
+	skillMDPath := filepath.Join(folder, "SKILL.md")
+
+	outsideDir := filepath.Join(f.root, "outside")
+	mkdirAll(t, outsideDir)
+	outsidePath := filepath.Join(outsideDir, "SKILL.md")
+	writeFile(t, outsidePath, "---\nname: outside\ndescription: outside\n---\nBody\n")
+
+	relTarget, err := filepath.Rel(folder, outsidePath)
+	if err != nil {
+		t.Fatalf("compute relative symlink target: %v", err)
+	}
+
+	if err := os.Remove(skillMDPath); err != nil {
+		t.Fatalf("remove original SKILL.md: %v", err)
+	}
+	if err := os.Symlink(relTarget, skillMDPath); err != nil {
+		t.Skipf("symlinks not supported: %v", err)
+	}
+
+	e := engine.New(f.roots)
+	skill := engine.Skill{
+		Name:     "loop-me",
+		Source:   engine.SourcePersonal,
+		Kind:     engine.KindSkill,
+		Location: folder,
+	}
+
+	if err := e.SetManualOnly(skill, true); err == nil {
+		t.Fatalf("SetManualOnly(true) on a relative symlink escape should return an error")
+	}
+	if err := e.SetManualOnly(skill, false); err == nil {
+		t.Fatalf("SetManualOnly(false) on a relative symlink escape should return an error")
+	}
+
+	data, err := os.ReadFile(outsidePath)
+	if err != nil {
+		t.Fatalf("read outside target: %v", err)
+	}
+	if strings.Contains(string(data), "disable-model-invocation") {
+		t.Fatalf("symlink target outside the skill tree was modified: %s", data)
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/jnyross/Skill-Manager/internal/engine"
 )
@@ -63,11 +64,32 @@ func renderSkillItem(skill engine.Skill, selected bool, width int) string {
 	}
 
 	activation := activationStyle(skill.Activation).Render(string(skill.Activation))
-	line := fmt.Sprintf("%s %s | %s%s",
-		cursor,
+	styledPluginText := skillMetaStyle.Render(pluginText)
+
+	cursorPrefix := cursor + " "
+	sep := " | "
+	fixed := lipgloss.Width(cursorPrefix) + lipgloss.Width(sep) +
+		lipgloss.Width(activation) + lipgloss.Width(styledPluginText)
+	nameMax := width - fixed
+	if nameMax < 0 {
+		// Drop plugin metadata on very narrow terminals so the Activation label survives.
+		styledPluginText = ""
+		fixed = lipgloss.Width(cursorPrefix) + lipgloss.Width(sep) + lipgloss.Width(activation)
+		nameMax = width - fixed
+		if nameMax < 0 {
+			nameMax = 0
+		}
+	}
+	if nameMax >= 0 && lipgloss.Width(label) > nameMax {
+		label = ansi.Truncate(label, nameMax, "…")
+	}
+
+	line := fmt.Sprintf("%s%s%s%s%s",
+		cursorPrefix,
 		selectedSkillName(label, selected),
+		sep,
 		activation,
-		skillMetaStyle.Render(pluginText),
+		styledPluginText,
 	)
 
 	style := skillRowStyle

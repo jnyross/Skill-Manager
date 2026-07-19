@@ -10,6 +10,8 @@ import { startLocalRegistry } from './local-registry.mjs';
 const npmRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const artifactDirectory = path.resolve(process.argv[2] || path.join(npmRoot, 'artifacts'));
 const record = JSON.parse(fs.readFileSync(path.join(artifactDirectory, 'artifacts.json'), 'utf8'));
+const versionParts = record.version.split('.');
+const brokenTestVersion = `${versionParts[0]}.${versionParts[1]}.${Number(versionParts[2]) + 1}-broken-test`;
 const expectedPlatformPackage = platformPackage(process.platform, process.arch);
 if (process.env.EXPECTED_PLATFORM_PAIR) {
   assert.equal(`${process.platform}/${process.arch}`, process.env.EXPECTED_PLATFORM_PAIR);
@@ -30,7 +32,7 @@ const registry = await startLocalRegistry({
   extraArtifacts: priorArtifacts,
   brokenVersions: {
     '@jnyross/skillet': {
-      '0.1.1': { ...launcherManifest, optionalDependencies: mapValues(launcherManifest.optionalDependencies, () => '0.1.1') },
+      [brokenTestVersion]: { ...launcherManifest, optionalDependencies: mapValues(launcherManifest.optionalDependencies, () => brokenTestVersion) },
     },
   },
 });
@@ -80,7 +82,7 @@ try {
     assert.equal(fs.readFileSync(path.join(home, relative), 'utf8'), contents, `${relative} changed during upgrade`);
   }
 
-  const failedUpgrade = await npmInstallResult(prefix, ['@jnyross/skillet@0.1.1'], registry.origin);
+  const failedUpgrade = await npmInstallResult(prefix, ['@jnyross/skillet@' + brokenTestVersion], registry.origin);
   assert.notEqual(failedUpgrade.status, 0, 'broken upgrade unexpectedly succeeded');
   const afterFailure = run(installed, ['--version'], { HOME: home });
   assert.equal(afterFailure.status, 0, afterFailure.stderr);

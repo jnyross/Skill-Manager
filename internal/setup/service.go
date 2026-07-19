@@ -8,11 +8,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/jnyross/Skill-Manager/internal/catalog"
 )
+
+const stagingLockTimeout = 15 * time.Minute
 
 type Outcome string
 
@@ -21,6 +27,7 @@ const (
 	OutcomeConfiguredUnverified Outcome = "Configured-unverified"
 	OutcomeVerified             Outcome = "Verified"
 	OutcomePartial              Outcome = "Partial"
+	OutcomeCanceled             Outcome = "Canceled"
 )
 
 type Request struct {
@@ -175,6 +182,9 @@ func NewServiceWith(prober Prober, hooks ApplyHooks) *Service {
 }
 
 func (service *Service) Plan(_ context.Context, request Request) (Plan, error) {
+	if runtime.GOOS == "windows" {
+		return Plan{}, fmt.Errorf("guided Setup is Unix-only for v0.1.0")
+	}
 	target, needGit, err := normalizeTarget(request.TargetPath)
 	if err != nil {
 		return Plan{}, err
@@ -390,7 +400,19 @@ func (service *Service) Plan(_ context.Context, request Request) (Plan, error) {
 	return plan, nil
 }
 
-func (service *Service) Apply(ctx context.Context, plan Plan) (Result, error) {
+func (service *Service) Apply(ctx context.Context, plan Plan) (result Result, err error) {
+	operationID := operationIdentity(plan.desired)
+	stageRoot := filepath.ToSlash(filepath.Join(".skillet", "staging", operationID))
+	defer func() {
+		if r := recover(); r != nil {
+			result = Result{
+				Outcome:    OutcomeBlocked,
+				NextAction: fmt.Sprintf("%s/.skillet/staging/%s may be inconsistent; inspect backups and staging, then delete staging to retry.", plan.TargetPath, operationID),
+			}
+			panic(r)
+		}
+	}()
+
 	if len(plan.Blockers) != 0 {
 		return Result{Outcome: OutcomeBlocked, NextAction: strings.Join(plan.Blockers, "; ")}, nil
 	}
@@ -435,16 +457,25 @@ func (service *Service) Apply(ctx context.Context, plan Plan) (Result, error) {
 		return result, err
 	}
 
-	operationID := operationIdentity(plan.desired)
-	stageRoot := filepath.ToSlash(filepath.Join(".skillet", "staging", operationID))
+	lockPath := filepath.ToSlash(filepath.Join(stageRoot, "staging.lock"))
 	rollbackRoot := filepath.ToSlash(filepath.Join(stageRoot, "rollback"))
 	if _, statErr := root.Lstat(filepath.FromSlash(stageRoot)); statErr == nil {
-		return Result{Outcome: OutcomeBlocked}, fmt.Errorf("refusing pre-existing setup staging path %s", stageRoot)
+		blockedResult, blocked, blockErr := handlePreexistingStaging(root, plan.TargetPath, stageRoot, lockPath)
+		if blockErr != nil {
+			return Result{Outcome: OutcomeBlocked}, blockErr
+		}
+		if blocked {
+			return blockedResult, nil
+		}
 	} else if !os.IsNotExist(statErr) {
 		return Result{Outcome: OutcomeBlocked}, statErr
 	}
 	if err := root.MkdirAll(filepath.FromSlash(stageRoot), 0o755); err != nil {
 		return Result{}, err
+	}
+	if err := writeStagingLock(root, lockPath); err != nil {
+		_ = root.RemoveAll(filepath.FromSlash(stageRoot))
+		return Result{Outcome: OutcomeBlocked}, err
 	}
 	type promotedFile struct {
 		relative string
@@ -519,6 +550,9 @@ func (service *Service) Apply(ctx context.Context, plan Plan) (Result, error) {
 	}
 
 	for _, change := range plan.Changes {
+		if err := ctx.Err(); err != nil {
+			return fail(err)
+		}
 		if change.State == ChangeExactAdoption || change.State == ChangeManagedUnchanged {
 			continue
 		}
@@ -571,6 +605,9 @@ func (service *Service) Apply(ctx context.Context, plan Plan) (Result, error) {
 		}
 		promoted = append(promoted, promotedFile{relative: change.Path, hadPrior: hadPrior})
 	}
+	if err := ctx.Err(); err != nil {
+		return fail(err)
+	}
 	if service.hooks.ExternalAction != nil {
 		undo, repairAction, externalErr := service.hooks.ExternalAction(ctx, plan.TargetPath)
 		if externalErr != nil {
@@ -588,7 +625,10 @@ func (service *Service) Apply(ctx context.Context, plan Plan) (Result, error) {
 			return Result{Outcome: OutcomeBlocked, NextAction: externalErr.Error()}, nil
 		}
 	}
-	result, err := service.finalizeVerification(ctx, plan.TargetPath, root, plan, backups)
+	if err := ctx.Err(); err != nil {
+		return fail(err)
+	}
+	result, err = service.finalizeVerification(ctx, plan.TargetPath, root, plan, backups)
 	if err != nil || result.Outcome == OutcomeBlocked {
 		if result.Outcome == "" {
 			result.Outcome = OutcomeBlocked
@@ -1034,6 +1074,74 @@ func mergeIgnore(existing []byte, line string) []byte {
 		text += "\n"
 	}
 	return []byte(text + line + "\n")
+}
+
+func writeStagingLock(root *os.Root, lockPath string) error {
+	contents := fmt.Sprintf("pid: %d\nstarted: %s\n", os.Getpid(), time.Now().UTC().Format(time.RFC3339))
+	return writeRootFile(root, filepath.FromSlash(lockPath), []byte(contents), 0o644)
+}
+
+func readStagingLock(root *os.Root, lockPath string) (int, time.Time, error) {
+	contents, err := root.ReadFile(filepath.FromSlash(lockPath))
+	if err != nil {
+		return 0, time.Time{}, err
+	}
+	var pid int
+	var started time.Time
+	for _, line := range strings.Split(string(contents), "\n") {
+		if strings.HasPrefix(line, "pid:") {
+			if value, parseErr := strconv.Atoi(strings.TrimSpace(line[len("pid:"):])); parseErr == nil {
+				pid = value
+			}
+		}
+		if strings.HasPrefix(line, "started:") {
+			if value, parseErr := time.Parse(time.RFC3339, strings.TrimSpace(line[len("started:"):])); parseErr == nil {
+				started = value
+			}
+		}
+	}
+	if pid == 0 || started.IsZero() {
+		return 0, time.Time{}, fmt.Errorf("incomplete staging lock at %s", lockPath)
+	}
+	return pid, started, nil
+}
+
+func isProcessRunning(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	err = process.Signal(syscall.Signal(0))
+	return err == nil || errors.Is(err, syscall.EPERM)
+}
+
+func handlePreexistingStaging(root *os.Root, targetPath, stageRoot, lockPath string) (Result, bool, error) {
+	pid, started, lockErr := readStagingLock(root, lockPath)
+	stale := false
+	switch {
+	case lockErr != nil:
+		stale = true
+	case pid == os.Getpid():
+		stale = true
+	case !isProcessRunning(pid):
+		stale = true
+	case time.Since(started) > stagingLockTimeout:
+		stale = true
+	}
+	if !stale {
+		opID := filepath.Base(stageRoot)
+		return Result{
+			Outcome:    OutcomeBlocked,
+			NextAction: fmt.Sprintf("%s/.skillet/staging/%s is locked by another running Skillet process (PID %d). Close that process or delete the directory to continue.", targetPath, opID, pid),
+		}, true, nil
+	}
+	if err := root.RemoveAll(filepath.FromSlash(stageRoot)); err != nil && !os.IsNotExist(err) {
+		return Result{Outcome: OutcomeBlocked}, false, fmt.Errorf("remove stale staging %s: %w", stageRoot, err)
+	}
+	return Result{}, false, nil
 }
 
 func operationIdentity(files map[string][]byte) string {

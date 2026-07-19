@@ -170,3 +170,22 @@ func TestFindLibraryEntryByLocalPath(t *testing.T) {
 		t.Fatal("expected no match for other path")
 	}
 }
+
+func TestRemoveLibraryEntryRejectsMalformedIDs(t *testing.T) {
+	f := newFixture(t)
+	e := engine.New(f.roots)
+
+	malformed := []string{"", " ", ".", "..", "../../foo", "foo/bar", `foo\bar`}
+	for _, id := range malformed {
+		t.Run(label(id), func(t *testing.T) {
+			if err := e.RemoveLibraryEntry(id); err == nil {
+				t.Fatalf("RemoveLibraryEntry(%q) succeeded, want error", id)
+			}
+		})
+	}
+
+	outside := filepath.Join(f.root, "foo.json")
+	if _, err := os.Stat(outside); !os.IsNotExist(err) {
+		t.Fatalf("malformed id created file outside data dir: %s", outside)
+	}
+}

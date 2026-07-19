@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/jnyross/Skill-Manager/internal/catalog"
 	"github.com/jnyross/Skill-Manager/internal/engine"
 	workspaceSetup "github.com/jnyross/Skill-Manager/internal/setup"
 	"github.com/jnyross/Skill-Manager/internal/tui"
@@ -35,6 +37,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 func runWithInput(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
+		if args[0] == "-h" || args[0] == "--help" {
+			fmt.Fprintln(stdout, "usage: skillet [--version|version|setup]")
+			return 0
+		}
 		if len(args) == 1 && (args[0] == "--version" || args[0] == "version") {
 			if version == "" || version == "dev" {
 				fmt.Fprintf(stdout, "skillet development (commit %s, built %s)\n", commit, buildDate)
@@ -81,6 +87,10 @@ func runWithInput(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
+		if result.Outcome == workspaceSetup.OutcomeCanceled {
+			fmt.Fprintln(stdout, "Setup canceled.")
+			return 0
+		}
 		if result.Outcome == workspaceSetup.OutcomeBlocked {
 			fmt.Fprintf(stderr, "Blocked: %s\n", result.NextAction)
 			return 1
@@ -91,7 +101,7 @@ func runWithInput(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 
 func runSetup(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("skillet setup", flag.ContinueOnError)
-	flags.SetOutput(stderr)
+	flags.SetOutput(stdout)
 	pathValue := flags.String("path", "", "project folder to configure")
 	bundlesValue := flags.String("bundles", "", "comma-separated Built-in catalog bundle ids")
 	yes := flags.Bool("yes", false, "apply the reviewed plan without the final confirmation prompt")
@@ -101,6 +111,9 @@ func runSetup(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	autoActivation := flags.String("auto", "", "comma-separated selected members to configure for automatic invocation")
 	staticOnly := flags.Bool("static", false, "configure and statically verify without authenticated Tool probes")
 	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 2
 	}
 	if flags.NArg() != 0 {
@@ -130,7 +143,14 @@ func runSetup(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	})
 	if err != nil {
 		fmt.Fprintln(stderr, err)
+		if errors.Is(err, catalog.ErrUnknownBundle) {
+			return 2
+		}
 		return 1
+	}
+	if result.Outcome == workspaceSetup.OutcomeCanceled {
+		fmt.Fprintln(stdout, "Setup canceled.")
+		return 0
 	}
 	if result.Outcome == workspaceSetup.OutcomeBlocked {
 		if result.NextAction != "" {

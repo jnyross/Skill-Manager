@@ -692,8 +692,11 @@ func resolvedNamed(t *testing.T, name string) setup.ResolvedMember {
 	writeFile(t, filepath.Join(source, "SKILL.md"), "---\nname: "+name+"\ndescription: Probe\n---\nBody\n")
 	return setup.ResolvedMember{
 		Member: catalog.Member{
-			Name: name, UpstreamActivation: "auto",
-			Source:  catalog.Source{Repository: "fixture", Subpath: "skills/" + name, ReviewedRevision: digest('a')[:40], ContentSHA256: digest('a')},
+			Name: name, Family: "fixture", UpstreamActivation: "auto", VerificationPrompt: "Return only SKILLET_DISCOVERED_" + name + ".",
+			Source: catalog.Source{
+				Repository: "fixture", Subpath: "skills/" + name, ReviewedRevision: digest('a')[:40],
+				ContentSHA256: digest('a'), MetadataSHA256: digest('b'), DependencyEvidenceSHA256: digest('c'), ExternalActionEvidenceSHA256: digest('d'),
+			},
 			License: catalog.License{SPDX: "MIT", Notice: "LICENSE", NoticeSHA256: digest('b'), Evidence: "license-text"},
 			Recipes: []catalog.Recipe{{Tool: "claude-code", Scope: "project", Artifact: "direct-skill"}, {Tool: "codex", Scope: "project", Artifact: "direct-skill"}},
 		},

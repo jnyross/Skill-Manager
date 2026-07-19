@@ -79,6 +79,63 @@ func TestArchiveRestoreCodexSkillReinstatesConfigEntryByteIdentical(t *testing.T
 	assertSnapshotsEqual(t, before, after)
 }
 
+func TestArchiveRestoreCodexSkillAfterConfigFileDeleted(t *testing.T) {
+	f := newFixture(t)
+	skillFolder := writeSkill(t, filepath.Join(f.roots.CodexHome, "skills", "codex-skill"), "codex-skill", "Codex description", "")
+	skillMD := filepath.Join(skillFolder, "SKILL.md")
+
+	configBefore := "[[skills.config]]\npath = " + strconv.Quote(skillMD) + "\nenabled = false\n"
+	configPath := filepath.Join(f.roots.CodexHome, "config.toml")
+	writeFile(t, configPath, configBefore)
+
+	e := engine.New(f.roots)
+	entry, err := e.Uninstall(skillFolder)
+	if err != nil {
+		t.Fatalf("uninstall: %v", err)
+	}
+
+	// Simulate a prior Unsuppress that deleted the config file after removing
+	// the only remaining entry.
+	if err := os.Remove(configPath); err != nil {
+		t.Fatalf("remove config: %v", err)
+	}
+
+	if err := e.Restore(entry.ID); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+
+	got, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after restore: %v", err)
+	}
+	if string(got) != configBefore {
+		t.Fatalf("config after restore = %q, want %q", string(got), configBefore)
+	}
+}
+
+func TestArchiveRestoreCodexSkillWithHandEditedHeader(t *testing.T) {
+	f := newFixture(t)
+	skillFolder := writeSkill(t, filepath.Join(f.roots.CodexHome, "skills", "codex-skill"), "codex-skill", "Codex description", "")
+	skillMD := filepath.Join(skillFolder, "SKILL.md")
+
+	configBefore := "[[ skills.config ]] # disabled\npath = " + strconv.Quote(skillMD) + "\nenabled = false\n"
+	writeFile(t, filepath.Join(f.roots.CodexHome, "config.toml"), configBefore)
+
+	before := snapshotTree(t, f.root)
+	e := engine.New(f.roots)
+
+	entry, err := e.Uninstall(skillFolder)
+	if err != nil {
+		t.Fatalf("uninstall: %v", err)
+	}
+	if err := e.Restore(entry.ID); err != nil {
+		t.Fatalf("restore: %v", err)
+	}
+
+	after := snapshotTree(t, f.root)
+	assertSnapshotsEqual(t, before, after)
+}
+
 func TestArchiveUninstallCodexSkillByNameMatch(t *testing.T) {
 	f := newFixture(t)
 	skillFolder := writeSkill(t, filepath.Join(f.roots.AgentsHome, "skills", "named-skill"), "named-skill", "Named skill", "")
@@ -264,9 +321,12 @@ func TestArchivePurgeCodexSkillDoesNotRestoreConfig(t *testing.T) {
 	if string(got) != "" {
 		t.Fatalf("config after purge = %q, want empty (entry stays removed)", string(got))
 	}
-	entries, err := e.ListArchive()
+	entries, notices, err := e.ListArchive()
 	if err != nil {
 		t.Fatalf("list archive: %v", err)
+	}
+	if len(notices) != 0 {
+		t.Fatalf("unexpected archive notices: %#v", notices)
 	}
 	if archiveContains(entries, entry.ID) {
 		t.Fatalf("purged archive entry still listed: %#v", entries)

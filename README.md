@@ -19,13 +19,10 @@ tidying up your Skills doesn't mean risking one you'll want back later.
 The first public Distribution channel is the scoped npm package:
 
 ```sh
-npm install --global @jnyross/skillet
+npm install --global @jnyross/skillet@next
 skillet --version
 skillet
 ```
-
-The package is not published yet. Until the release gate is complete, build
-from a local clone instead:
 
 ```
 git clone https://github.com/jnyross/Skill-Manager.git
@@ -36,9 +33,9 @@ go build -o skillet ./cmd/skillet
 The npm channel requires Node.js 22.14 or newer and npm 10.9 or newer. It
 installs a small JavaScript launcher and one native binary selected for macOS
 or Linux on arm64 or x64; it runs no install lifecycle scripts. Upgrade through
-the same channel with `npm install --global @jnyross/skillet@latest`.
+the same channel with `npm install --global @jnyross/skillet@next`.
 
-Building from source requires Go 1.24.2 or later (see `go.mod`).
+Building from source requires Go 1.25.0 or later (see `go.mod`).
 
 ## Usage
 
@@ -50,14 +47,17 @@ skillet
 
 Skillet resolves everything it needs from your home directory: Claude Code
 state under `~/.claude`, Codex state under `~/.codex` and `~/.agents`, and
-its own data (the Archive) under `~/.skillet`. There is nothing to configure.
+its own data (the Archive) under `~/.skillet`. Project skills are discovered
+from the current working directory up to the repository root (`ADR 0003`).
+There is nothing to configure.
 
 ### Main view
 
 The main view lists every Skill Skillet found, grouped by Source —
 **Personal**, **Plugin**, **Codex**, and **Project**. Project rows identify
-whether Claude Code or Codex governs them. Each row shows the Skill's name, a truncated description, and its
-current Activation state (Auto, Manual-only, Suppressed, or Disabled). A
+whether Claude Code or Codex governs them. Each row shows the Skill's name and its
+current Activation state (Auto, Manual-only, Suppressed, or Disabled); the full
+description appears in the detail pane. A
 Codex custom prompt is labeled `[prompt]`. A Plugin skill's row shows "one
 of N in `<plugin-name>`" so you can see how many other Skills would be
 affected by removing that plugin. If any Skills couldn't be read (a
@@ -70,14 +70,18 @@ Keys:
 | Key | Action | Applies to |
 |---|---|---|
 | `up` / `k`, `down` / `j` | Move the cursor | everywhere |
-| `u` | Archive the selected Skill | Personal, Codex (skills and prompts) |
-| `s` | Suppress / un-suppress the selected Skill | Plugin skills, Codex skills |
-| `m` | Toggle Manual-only / Auto-activation | Personal skills, Codex skills (not prompts) |
+| `enter` / `space` | Select or expand the current item | main view |
+| `pgup` / `pgdown` | Scroll the detail pane | main view |
+| `u` | Archive the selected Skill | Personal, Codex (skills and prompts), Project |
+| `s` | Suppress / un-suppress the selected Skill | Plugin skills, Codex skills, Project Codex skills |
+| `m` | Toggle Manual-only / Auto-activation | Personal skills, Codex skills (not prompts), Project skills |
 | `x` | Uninstall the selected Skill's whole plugin | Plugin skills |
 | `a` | Switch to the Archive view | — |
 | `l` | Add/remove the selected skill or plugin from Library | supported installed entries |
 | `L` | Switch to the Library view | — |
 | `B` | Switch to the Bundle view | — |
+| `S` | Setup workspace | main view |
+| `?` | Show/hide full help | everywhere |
 | `q` / `ctrl+c` | Quit | — |
 
 Pressing a key for an action that doesn't apply to the selected row (for
@@ -115,17 +119,22 @@ only the catalog record. Install resolves the current source each time.
 
 Press `B` for Bundles: named groups of Library entries with a remembered Auto
 or Manual-only preference per member. Create a Bundle with `n`, add members
-with `a`, cycle member Activation with `m`, and install the whole Bundle with
-`i`. Existing destinations are listed for confirmation before replacement.
+with `a`, remove a member with `r`, delete a Bundle with `d`, cycle member
+Activation with `m`, expand or collapse a Bundle with `enter`/`space`, and
+install the whole Bundle with `i`. Existing destinations are listed for
+confirmation before replacement.
 
 ### Guided Project setup
 
-Guided setup is available in development builds with either `skillet setup` or
+Guided setup is available with either `skillet setup` or
 `S` from the main inventory. Both entry points use the same setup service. The
 main-TUI action offers the native macOS folder picker and falls back to guarded
 terminal path entry if the picker is unavailable; the direct command starts at
 the terminal path flow. Root, home, files, and nested non-root repository paths
 are rejected before mutation.
+
+**Guided Setup is Unix-only for v0.1.0.** Running `skillet setup` on Windows
+returns a clear error before any mutation.
 
 The Built-in catalog version `2026.07.15.2` contains 48 exact source boundaries:
 21 Matt Pocock engineering/collaboration skills, the coherent 14-skill

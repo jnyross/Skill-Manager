@@ -51,6 +51,10 @@ var (
 					Foreground(lipgloss.AdaptiveColor{Light: "#C2410C", Dark: "#FB923C"})
 	activationDisabledStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "#B91C1C", Dark: "#FCA5A5"})
+
+	statusErrorStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.AdaptiveColor{Light: "#B91C1C", Dark: "#FCA5A5"})
 )
 
 func sourceHeaderStyle(source engine.Source) lipgloss.Style {

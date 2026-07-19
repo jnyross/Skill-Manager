@@ -298,3 +298,108 @@ func TestSuppressReadOnlySessionLeavesTreeByteIdenticalWhenNoSuppressions(t *tes
 	after := snapshotTree(t, f.root)
 	assertSnapshotsEqual(t, before, after)
 }
+
+func TestSuppressRejectsAbsoluteSymlinkEscapingTree(t *testing.T) {
+	f, installPathV1, _ := setUpSuppressibleFixture(t)
+	skillFolder := filepath.Join(installPathV1, "skills", "loop-me")
+	skillMDPath := filepath.Join(skillFolder, "SKILL.md")
+
+	outsideDir := filepath.Join(f.root, "outside")
+	mkdirAll(t, outsideDir)
+	outsidePath := filepath.Join(outsideDir, "SKILL.md")
+	writeFile(t, outsidePath, "---\nname: outside\ndescription: outside\n---\nBody\n")
+
+	if err := os.Remove(skillMDPath); err != nil {
+		t.Fatalf("remove original SKILL.md: %v", err)
+	}
+	if err := os.Symlink(outsidePath, skillMDPath); err != nil {
+		t.Skipf("symlinks not supported: %v", err)
+	}
+
+	e := engine.New(f.roots)
+	skill := engine.Skill{
+		Name:     "loop-me",
+		Source:   engine.SourcePlugin,
+		Kind:     engine.KindSkill,
+		Location: skillFolder,
+		Plugin:   &engine.PluginInfo{Marketplace: "marketplace-x", Plugin: "plugin-x"},
+	}
+
+	if err := e.Suppress(skill); err == nil {
+		t.Fatalf("Suppress on an absolute symlink escape should return an error")
+	}
+	if err := e.Unsuppress(skill); err == nil {
+		t.Fatalf("Unsuppress on an absolute symlink escape should return an error")
+	}
+
+	data, err := os.ReadFile(outsidePath)
+	if err != nil {
+		t.Fatalf("read outside target: %v", err)
+	}
+	if strings.Contains(string(data), "disable-model-invocation") || strings.Contains(string(data), "user-invocable") {
+		t.Fatalf("symlink target outside the skill tree was modified: %s", data)
+	}
+
+	records, err := os.ReadDir(filepath.Join(f.roots.DataDir, "suppressed"))
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("read suppression records: %v", err)
+	}
+	if len(records) != 0 {
+		t.Fatalf("expected no suppression record to be written, got %d", len(records))
+	}
+}
+
+func TestSuppressRejectsRelativeSymlinkEscapingTree(t *testing.T) {
+	f, installPathV1, _ := setUpSuppressibleFixture(t)
+	skillFolder := filepath.Join(installPathV1, "skills", "loop-me")
+	skillMDPath := filepath.Join(skillFolder, "SKILL.md")
+
+	outsideDir := filepath.Join(f.root, "outside")
+	mkdirAll(t, outsideDir)
+	outsidePath := filepath.Join(outsideDir, "SKILL.md")
+	writeFile(t, outsidePath, "---\nname: outside\ndescription: outside\n---\nBody\n")
+
+	relTarget, err := filepath.Rel(skillFolder, outsidePath)
+	if err != nil {
+		t.Fatalf("compute relative symlink target: %v", err)
+	}
+
+	if err := os.Remove(skillMDPath); err != nil {
+		t.Fatalf("remove original SKILL.md: %v", err)
+	}
+	if err := os.Symlink(relTarget, skillMDPath); err != nil {
+		t.Skipf("symlinks not supported: %v", err)
+	}
+
+	e := engine.New(f.roots)
+	skill := engine.Skill{
+		Name:     "loop-me",
+		Source:   engine.SourcePlugin,
+		Kind:     engine.KindSkill,
+		Location: skillFolder,
+		Plugin:   &engine.PluginInfo{Marketplace: "marketplace-x", Plugin: "plugin-x"},
+	}
+
+	if err := e.Suppress(skill); err == nil {
+		t.Fatalf("Suppress on a relative symlink escape should return an error")
+	}
+	if err := e.Unsuppress(skill); err == nil {
+		t.Fatalf("Unsuppress on a relative symlink escape should return an error")
+	}
+
+	data, err := os.ReadFile(outsidePath)
+	if err != nil {
+		t.Fatalf("read outside target: %v", err)
+	}
+	if strings.Contains(string(data), "disable-model-invocation") || strings.Contains(string(data), "user-invocable") {
+		t.Fatalf("symlink target outside the skill tree was modified: %s", data)
+	}
+
+	records, err := os.ReadDir(filepath.Join(f.roots.DataDir, "suppressed"))
+	if err != nil && !os.IsNotExist(err) {
+		t.Fatalf("read suppression records: %v", err)
+	}
+	if len(records) != 0 {
+		t.Fatalf("expected no suppression record to be written, got %d", len(records))
+	}
+}

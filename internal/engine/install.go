@@ -18,7 +18,7 @@ import (
 // have confirmed overwrite when the destination name collides.
 func (e *Engine) InstallLibraryEntry(entry LibraryEntry, target InstallTarget, activation ActivationState) error {
 	if entry.Source.Kind == LibrarySourceMarketplace {
-		return e.installMarketplace(entry, target)
+		return e.installMarketplace(entry, target, activation)
 	}
 
 	dest, _, err := e.InstallDestination(entry, target)
@@ -120,6 +120,11 @@ func (e *Engine) validateInstallTarget(target InstallTarget) error {
 }
 
 func (e *Engine) installGit(source LibrarySource, dest string) error {
+	gitURL := strings.TrimSpace(source.GitURL)
+	if strings.HasPrefix(gitURL, "-") {
+		return fmt.Errorf("install git: URL starts with '-'")
+	}
+
 	tmp, err := os.MkdirTemp("", "skillet-git-install-")
 	if err != nil {
 		return fmt.Errorf("install git: create temporary directory: %w", err)
@@ -128,10 +133,13 @@ func (e *Engine) installGit(source LibrarySource, dest string) error {
 
 	cloneDir := filepath.Join(tmp, "repo")
 	args := []string{"clone", "--depth", "1"}
-	if strings.TrimSpace(source.GitRef) != "" {
-		args = append(args, "--branch", source.GitRef)
+	if ref := strings.TrimSpace(source.GitRef); ref != "" {
+		if strings.HasPrefix(ref, "-") {
+			return fmt.Errorf("install git: ref starts with '-'")
+		}
+		args = append(args, "--branch", ref)
 	}
-	args = append(args, source.GitURL, cloneDir)
+	args = append(args, "--", gitURL, cloneDir)
 	if err := e.runCommand(Command{Name: "git", Args: args}, "clone git source"); err != nil {
 		return err
 	}
@@ -154,6 +162,10 @@ func (e *Engine) installSkillsSh(entry LibraryEntry, target InstallTarget) error
 	if err := e.validateInstallTarget(target); err != nil {
 		return err
 	}
+	repo := strings.TrimSpace(entry.Source.SkillsShRepo)
+	if strings.HasPrefix(repo, "-") {
+		return fmt.Errorf("install skills.sh: repo starts with '-'")
+	}
 	agent := ""
 	switch entry.Tool {
 	case ToolClaudeCode:
@@ -163,10 +175,13 @@ func (e *Engine) installSkillsSh(entry LibraryEntry, target InstallTarget) error
 	default:
 		return fmt.Errorf("install skills.sh: tool is required (Claude Code or Codex), got %q", entry.Tool)
 	}
-	args := []string{"skills", "add", entry.Source.SkillsShRepo, "-a", agent, "-y", "--copy"}
+	args := []string{"skills", "add", repo, "-a", agent, "-y", "--copy"}
 	skill := strings.TrimSpace(entry.Source.SkillsShSkill)
 	if skill == "" {
 		skill = "*"
+	}
+	if strings.HasPrefix(skill, "-") {
+		return fmt.Errorf("install skills.sh: skill starts with '-'")
 	}
 	args = append(args, "--skill", skill)
 	command := Command{Name: "npx", Args: args}
@@ -226,26 +241,44 @@ func (e *Engine) setSkillsShSourceManualOnly(entry LibraryEntry, target InstallT
 	return nil
 }
 
-func (e *Engine) installMarketplace(entry LibraryEntry, target InstallTarget) error {
+func (e *Engine) installMarketplace(entry LibraryEntry, target InstallTarget, activation ActivationState) error {
+	if activation == ActivationManualOnly {
+		return fmt.Errorf("install marketplace: Manual-only activation is not supported for marketplace plugins")
+	}
 	if err := e.validateInstallTarget(target); err != nil {
 		return err
 	}
+	pluginName := strings.TrimSpace(entry.Source.PluginName)
+	marketplace := strings.TrimSpace(entry.Source.Marketplace)
+	if strings.HasPrefix(pluginName, "-") || strings.HasPrefix(marketplace, "-") {
+		return fmt.Errorf("install marketplace: plugin or marketplace name starts with '-'")
+	}
+	key := pluginName + "@" + marketplace
 	if !e.marketplaceKnown(entry.Source.Marketplace) {
-		if strings.TrimSpace(entry.Source.MarketplaceSource) == "" {
+		source := strings.TrimSpace(entry.Source.MarketplaceSource)
+		if source == "" {
 			return fmt.Errorf("install marketplace: marketplace %q is unknown; provide a marketplace source or add it in Claude Code first", entry.Source.Marketplace)
 		}
-		if err := e.runClaudePluginCommand(Command{Name: "claude", Args: []string{"plugin", "marketplace", "add", entry.Source.MarketplaceSource, "--scope", "user"}}, "add marketplace"); err != nil {
+		if strings.HasPrefix(source, "-") {
+			return fmt.Errorf("install marketplace: marketplace source starts with '-'")
+		}
+		if err := e.runClaudePluginCommand(Command{Name: "claude", Args: []string{"plugin", "marketplace", "add", source, "--scope", "user"}}, "add marketplace"); err != nil {
 			return err
 		}
 	}
 	scope := "user"
 	command := Command{Name: "claude"}
+	settingsDir := e.roots.ClaudeHome
 	if target.Kind == InstallTargetProject {
 		scope = "project"
 		command.Dir = absolutePath(target.RepoRoot)
+		settingsDir = filepath.Join(absolutePath(target.RepoRoot), ".claude")
 	}
-	command.Args = []string{"plugin", "install", entry.Source.PluginName + "@" + entry.Source.Marketplace, "--scope", scope}
-	return e.runClaudePluginCommand(command, "install marketplace plugin")
+	command.Args = []string{"plugin", "install", key, "--scope", scope}
+	if err := e.runClaudePluginCommand(command, "install marketplace plugin"); err != nil {
+		return err
+	}
+	return e.enablePluginInSettings(settingsDir, key)
 }
 
 func (e *Engine) runClaudePluginCommand(command Command, action string) error {
@@ -258,6 +291,56 @@ func (e *Engine) runClaudePluginCommand(command Command, action string) error {
 	output := result.Stdout + "\n" + result.Stderr
 	if !strings.Contains(output, "Successfully") {
 		return fmt.Errorf("install: %s: Claude CLI did not report successful completion: %s", action, strings.TrimSpace(output))
+	}
+	return nil
+}
+
+// enablePluginInSettings sets enabledPlugins[key] = true in the Claude Code
+// settings.json at settingsDir. It creates the file if absent and preserves
+// every other top-level key (mirroring removeEnabledPluginsEntry in
+// plugin_uninstall.go). This is the install-side counterpart of uninstall:
+// SPEC.md:306-310 requires marketplace installs to ensure the plugin is
+// enabled at the chosen scope.
+func (e *Engine) enablePluginInSettings(settingsDir, key string) error {
+	if err := os.MkdirAll(settingsDir, 0o755); err != nil {
+		return fmt.Errorf("enable plugin in settings.json: create directory: %w", err)
+	}
+	settingsPath := filepath.Join(settingsDir, "settings.json")
+	var root map[string]json.RawMessage
+	data, err := os.ReadFile(settingsPath)
+	switch {
+	case err == nil:
+		if err := json.Unmarshal(data, &root); err != nil {
+			return fmt.Errorf("enable plugin in settings.json: parse: %w", err)
+		}
+	case os.IsNotExist(err):
+		root = make(map[string]json.RawMessage)
+	default:
+		return fmt.Errorf("enable plugin in settings.json: read: %w", err)
+	}
+
+	enabledRaw, ok := root["enabledPlugins"]
+	if !ok {
+		enabledRaw = json.RawMessage("{}")
+	}
+	var enabled map[string]json.RawMessage
+	if err := json.Unmarshal(enabledRaw, &enabled); err != nil {
+		return fmt.Errorf("enable plugin in settings.json: parse enabledPlugins: %w", err)
+	}
+
+	enabled[key] = json.RawMessage("true")
+	newEnabledRaw, err := json.Marshal(enabled)
+	if err != nil {
+		return fmt.Errorf("enable plugin in settings.json: marshal enabledPlugins: %w", err)
+	}
+	root["enabledPlugins"] = newEnabledRaw
+
+	newData, err := json.MarshalIndent(root, "", "  ")
+	if err != nil {
+		return fmt.Errorf("enable plugin in settings.json: marshal: %w", err)
+	}
+	if err := writeFilePreservingMode(settingsPath, string(newData)+"\n"); err != nil {
+		return fmt.Errorf("enable plugin in settings.json: write: %w", err)
 	}
 	return nil
 }

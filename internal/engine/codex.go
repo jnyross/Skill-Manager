@@ -101,14 +101,16 @@ func scanCodexSkillRoot(root string, source Source, disabled codexDisabledConfig
 			activation = ActivationDisabled
 		}
 
+		declaredManualOnlyForClaude := fm.DisableModelInvocation != nil && *fm.DisableModelInvocation
 		skills = append(skills, Skill{
-			Name:        fm.Name,
-			Description: fm.Description,
-			Source:      source,
-			Tool:        ToolCodex,
-			Kind:        KindSkill,
-			Location:    absolutePath(folder),
-			Activation:  activation,
+			Name:                        fm.Name,
+			Description:                 fm.Description,
+			Source:                      source,
+			Tool:                        ToolCodex,
+			Kind:                        KindSkill,
+			Location:                    absolutePath(folder),
+			Activation:                  activation,
+			DeclaredManualOnlyForClaude: declaredManualOnlyForClaude,
 		})
 	}
 

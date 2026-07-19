@@ -13,11 +13,14 @@
 
 ## Approve and publish
 
-The workflow first creates a complete draft GitHub Release. The protected
-`npm-publish` environment is the human approval boundary. It publishes the four
-native packages, proves the local launcher against those immutable packages,
-publishes the GitHub Release, and publishes the launcher last. Stable versions
-advance `latest`; prereleases use `next`.
+The workflow first gates the packed native artifacts locally with
+`native-install-gate`, then creates a complete draft GitHub Release. The
+protected `npm-publish` environment is the human approval boundary for
+publishing: it publishes the four native packages; `production-native-gate`
+proves those packages against the registry; the GitHub Release is published;
+the launcher is published last; and `production-installed-command-gate`
+verifies the installed command. Stable versions advance `latest`; prereleases
+use `next`.
 
 The environment must allow only `v*` tags, require the maintainer, and disallow
 administrator bypass. Each npm package must trust only owner `jnyross`, repo

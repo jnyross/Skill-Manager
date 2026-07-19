@@ -109,6 +109,31 @@ func TestCodexDisabledConfigEntryWithNeitherPathNorNameIsIgnored(t *testing.T) {
 	}
 }
 
+// TestCodexSkillDeclaresManualOnlyForClaude covers the activation-semantics
+// finding: a Codex skill whose SKILL.md declares disable-model-invocation:
+// true is manual-only for Claude Code, but Codex runtime activation is
+// governed by agents/openai.yaml, so without an explicit disallow there the
+// skill remains Auto in Codex and the detail pane must surface the mismatch.
+func TestCodexSkillDeclaresManualOnlyForClaude(t *testing.T) {
+	f := newFixture(t)
+	manualOnlyClaude := writeSkill(t, filepath.Join(f.roots.CodexHome, "skills", "manual-claude"), "manual-claude", "Codex description", "disable-model-invocation: true\n")
+
+	inv := engine.New(f.roots).Inventory()
+	skill, ok := findSkill(inv, engine.SourceCodex, "manual-claude")
+	if !ok {
+		t.Fatalf("skill missing: %#v", inv.Skills)
+	}
+	if skill.Location != manualOnlyClaude {
+		t.Fatalf("skill location = %q, want %q", skill.Location, manualOnlyClaude)
+	}
+	if skill.Activation != engine.ActivationAuto {
+		t.Fatalf("skill activation = %q, want Auto (Codex ignores disable-model-invocation)", skill.Activation)
+	}
+	if !skill.DeclaredManualOnlyForClaude {
+		t.Fatalf("skill DeclaredManualOnlyForClaude = false, want true")
+	}
+}
+
 func TestCodexAgentsHomeShadowsCodexHomeOnNameCollision(t *testing.T) {
 	f := newFixture(t)
 	agentSkill := writeSkill(t, filepath.Join(f.roots.AgentsHome, "skills", "shared"), "shared", "Agent copy", "")

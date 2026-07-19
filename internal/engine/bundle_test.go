@@ -1,6 +1,8 @@
 package engine_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -144,5 +146,57 @@ func TestRemoveLibraryEntryRefusesBundleReference(t *testing.T) {
 	}
 	if len(entries) != 1 || entries[0].ID != entry.ID {
 		t.Fatalf("Library entry was removed despite reference: %#v", entries)
+	}
+}
+
+func TestBundleRejectsMalformedIDs(t *testing.T) {
+	f := newFixture(t)
+	e := engine.New(f.roots)
+
+	entry, err := e.AddLibraryEntry(engine.LibraryEntry{
+		Name:   "member",
+		Kind:   engine.KindSkill,
+		Tool:   engine.ToolClaudeCode,
+		Source: engine.LibrarySource{Kind: engine.LibrarySourceLocalPath, LocalPath: "/skills/member"},
+	})
+	if err != nil {
+		t.Fatalf("AddLibraryEntry: %v", err)
+	}
+	bundle, err := e.CreateBundle("Valid")
+	if err != nil {
+		t.Fatalf("CreateBundle: %v", err)
+	}
+
+	malformedBundleIDs := []string{"", " ", ".", "..", "../../foo", "foo/bar", `foo\bar`}
+	for _, id := range malformedBundleIDs {
+		t.Run("DeleteBundle/"+label(id), func(t *testing.T) {
+			if err := e.DeleteBundle(id); err == nil {
+				t.Fatalf("DeleteBundle(%q) succeeded, want error", id)
+			}
+		})
+		t.Run("SetBundleMemberActivation/"+label(id), func(t *testing.T) {
+			if err := e.SetBundleMemberActivation(id, entry.ID, engine.ActivationAuto); err == nil {
+				t.Fatalf("SetBundleMemberActivation(%q) succeeded, want error", id)
+			}
+		})
+		t.Run("RemoveBundleMember/"+label(id), func(t *testing.T) {
+			if err := e.RemoveBundleMember(id, entry.ID); err == nil {
+				t.Fatalf("RemoveBundleMember(%q) succeeded, want error", id)
+			}
+		})
+	}
+
+	malformedLibraryIDs := []string{".", "..", "../../foo", "foo/bar", `foo\bar`}
+	for _, libID := range malformedLibraryIDs {
+		t.Run("AddBundleMember/library/"+label(libID), func(t *testing.T) {
+			if err := e.AddBundleMember(bundle.ID, libID, engine.ActivationAuto); err == nil {
+				t.Fatalf("AddBundleMember(libID=%q) succeeded, want error", libID)
+			}
+		})
+	}
+
+	outside := filepath.Join(f.root, "foo.json")
+	if _, err := os.Stat(outside); !os.IsNotExist(err) {
+		t.Fatalf("malformed id created file outside data dir: %s", outside)
 	}
 }

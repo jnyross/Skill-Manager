@@ -61,6 +61,12 @@ func (e *Engine) SetManualOnly(skill Skill, manualOnly bool) error {
 
 func setPersonalManualOnly(skill Skill, manualOnly bool) error {
 	path := filepath.Join(skill.Location, "SKILL.md")
+	if err := guardSkillMDPath(skill.Location, path); err != nil {
+		if manualOnly {
+			return fmt.Errorf("set manual-only: %w", err)
+		}
+		return fmt.Errorf("unset manual-only: %w", err)
+	}
 	if manualOnly {
 		if err := setFrontmatterFields(path, []frontmatterField{{Key: "disable-model-invocation", Value: "true"}}); err != nil {
 			return fmt.Errorf("set manual-only: %w", err)

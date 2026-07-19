@@ -200,6 +200,23 @@ func snapshotTree(t *testing.T, root string) treeSnapshot {
 	return result
 }
 
+// label sanitizes a string so it can be used as a Go sub-test name.
+func label(s string) string {
+	switch s {
+	case "":
+		return "empty"
+	case " ":
+		return "space"
+	case ".":
+		return "dot"
+	case "..":
+		return "dotdot"
+	}
+	s = strings.ReplaceAll(s, "\\", "backslash")
+	s = strings.ReplaceAll(s, "/", "slash")
+	return s
+}
+
 func assertSnapshotsEqual(t *testing.T, before, after treeSnapshot) {
 	t.Helper()
 	if !reflect.DeepEqual(before, after) {

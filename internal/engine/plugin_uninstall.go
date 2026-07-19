@@ -17,19 +17,20 @@ package engine
 // deliberately uninstalled through Skillet itself should not leave that
 // residue behind).
 //
-// There is no live `claude` CLI shelled out to anywhere in this codebase
-// (see SPEC.md's testing-seam rationale); every other engine operation is
-// pure file manipulation over explicit Roots, and research turned up no
-// documented `claude plugin uninstall` CLI to shell out to even if that
-// convention were broken. This follows the same pattern: direct,
-// pre-planned edits to installed_plugins.json and settings.json, and a
-// directory removal for the cache — not a subprocess call.
+// Unlike install.go's marketplace plugin path, which shells out to the
+// `claude` CLI (`claude plugin marketplace add` and `claude plugin install`),
+// uninstall deliberately uses direct file edits: research turned up no
+// documented `claude plugin uninstall` CLI, and the manifest/settings/cache
+// files are plain JSON that Skillet can edit safely. This keeps uninstall
+// deterministic, offline-capable, and reversible only via reinstallation from
+// the marketplace rather than through Skillet's Archive.
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // UninstallPlugin removes an entire plugin: its installed_plugins.json
@@ -71,6 +72,9 @@ func (e *Engine) UninstallPlugin(plugin PluginInfo) error {
 	}
 
 	for _, installPath := range userInstallPaths {
+		if err := validatePluginCachePath(e.roots.ClaudeHome, installPath); err != nil {
+			return fmt.Errorf("uninstall plugin: %w", err)
+		}
 		if err := os.RemoveAll(installPath); err != nil {
 			return fmt.Errorf("uninstall plugin: remove cache directory %s: %w", installPath, err)
 		}
@@ -84,6 +88,32 @@ func (e *Engine) UninstallPlugin(plugin PluginInfo) error {
 		return fmt.Errorf("uninstall plugin: %w", err)
 	}
 
+	return nil
+}
+
+// validatePluginCachePath checks that installPath resolves to an absolute
+// directory strictly inside <claudeHome>/plugins/cache. It rejects the cache
+// root itself, any ancestor, and any path that escapes via ".." components.
+// This guard prevents a malformed or malicious installed_plugins.json entry
+// from causing UninstallPlugin to delete arbitrary directories.
+func validatePluginCachePath(claudeHome, installPath string) error {
+	cacheRoot := filepath.Join(claudeHome, "plugins", "cache")
+	absCacheRoot, err := filepath.Abs(cacheRoot)
+	if err != nil {
+		return fmt.Errorf("resolve plugin cache root: %w", err)
+	}
+	absPath, err := filepath.Abs(installPath)
+	if err != nil {
+		return fmt.Errorf("resolve plugin install path: %w", err)
+	}
+
+	rel, err := filepath.Rel(absCacheRoot, absPath)
+	if err != nil {
+		return fmt.Errorf("relativize plugin install path: %w", err)
+	}
+	if rel == "." || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("plugin install path %q is outside cache root %q", installPath, cacheRoot)
+	}
 	return nil
 }
 

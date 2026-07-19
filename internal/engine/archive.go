@@ -46,7 +46,10 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 	}
 
 	archiveRoot := filepath.Join(e.roots.DataDir, "archive")
-	id := e.newArchiveID(base)
+	id, err := e.newArchiveID(base)
+	if err != nil {
+		return ArchiveEntry{}, fmt.Errorf("generate archive id: %w", err)
+	}
 	archiveDir := filepath.Join(archiveRoot, id)
 	if err := os.MkdirAll(archiveDir, 0o700); err != nil {
 		return ArchiveEntry{}, fmt.Errorf("create archive directory: %w", err)
@@ -67,9 +70,11 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 	if info.Mode()&os.ModeSymlink != 0 {
 		target, err := os.Readlink(location)
 		if err != nil {
+			_ = os.RemoveAll(archiveDir)
 			return ArchiveEntry{}, fmt.Errorf("read symlink target: %w", err)
 		}
 		if err := moveSymlink(location, archivedPath, target); err != nil {
+			_ = os.RemoveAll(archiveDir)
 			return ArchiveEntry{}, fmt.Errorf("archive symlink: %w", err)
 		}
 		entry.IsSymlink = true
@@ -78,14 +83,16 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 		if !info.IsDir() {
 			return ArchiveEntry{}, fmt.Errorf("skill location is not a directory: %s", location)
 		}
-		if err := os.Rename(location, archivedPath); err != nil {
+		if err := moveDirectory(location, archivedPath); err != nil {
+			_ = os.RemoveAll(archiveDir)
 			return ArchiveEntry{}, fmt.Errorf("archive skill directory: %w", err)
 		}
 	} else {
 		if info.IsDir() {
 			return ArchiveEntry{}, fmt.Errorf("prompt location is not a file: %s", location)
 		}
-		if err := os.Rename(location, archivedPath); err != nil {
+		if err := moveFile(location, archivedPath, info.Mode().Perm()); err != nil {
+			_ = os.RemoveAll(archiveDir)
 			return ArchiveEntry{}, fmt.Errorf("archive prompt file: %w", err)
 		}
 	}
@@ -103,24 +110,30 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 	return entry, nil
 }
 
-func (e *Engine) ListArchive() ([]ArchiveEntry, error) {
+func (e *Engine) ListArchive() ([]ArchiveEntry, []Notice, error) {
 	archiveRoot := filepath.Join(e.roots.DataDir, "archive")
 	entries, err := os.ReadDir(archiveRoot)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return nil, fmt.Errorf("read archive: %w", err)
+		return nil, nil, fmt.Errorf("read archive: %w", err)
 	}
 
 	var archived []ArchiveEntry
+	var notices []Notice
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
 		archiveEntry, err := readArchiveEntry(filepath.Join(archiveRoot, entry.Name()))
 		if err != nil {
-			return nil, err
+			if os.IsNotExist(err) {
+				notices = append(notices, Notice{Message: fmt.Sprintf("Archive entry missing provenance.json, skipping: %s", entry.Name())})
+			} else {
+				notices = append(notices, Notice{Message: fmt.Sprintf("Archive entry malformed, skipping: %s: %v", entry.Name(), err)})
+			}
+			continue
 		}
 		archiveEntry.ID = entry.Name()
 		if !e.archiveEntryVisible(archiveEntry) {
@@ -132,7 +145,7 @@ func (e *Engine) ListArchive() ([]ArchiveEntry, error) {
 	sort.SliceStable(archived, func(i, j int) bool {
 		return archived[i].ArchivedAt.After(archived[j].ArchivedAt)
 	})
-	return archived, nil
+	return archived, notices, nil
 }
 
 func (e *Engine) archiveEntryVisible(entry ArchiveEntry) bool {
@@ -260,12 +273,16 @@ func immediateChildOf(root, location string) (string, bool) {
 	return rel, true
 }
 
-func (e *Engine) newArchiveID(folderName string) string {
+func (e *Engine) newArchiveID(folderName string) (string, error) {
 	safeName := sanitizeIDPart(folderName)
 	for {
 		id := fmt.Sprintf("%d-%s", time.Now().UnixNano(), safeName)
-		if _, err := os.Stat(filepath.Join(e.roots.DataDir, "archive", id)); os.IsNotExist(err) {
-			return id
+		_, err := os.Stat(filepath.Join(e.roots.DataDir, "archive", id))
+		if err != nil {
+			if os.IsNotExist(err) {
+				return id, nil
+			}
+			return "", fmt.Errorf("check archive id: %w", err)
 		}
 	}
 }
@@ -310,12 +327,38 @@ func moveSymlink(oldPath, newPath, target string) error {
 	return nil
 }
 
+func moveDirectory(oldPath, newPath string) error {
+	if err := os.Rename(oldPath, newPath); err == nil {
+		return nil
+	} else if !errors.Is(err, syscall.EXDEV) {
+		return err
+	}
+
+	if err := copyDir(oldPath, newPath); err != nil {
+		return err
+	}
+	return os.RemoveAll(oldPath)
+}
+
+func moveFile(oldPath, newPath string, perm os.FileMode) error {
+	if err := os.Rename(oldPath, newPath); err == nil {
+		return nil
+	} else if !errors.Is(err, syscall.EXDEV) {
+		return err
+	}
+
+	if err := copyFile(oldPath, newPath, perm); err != nil {
+		return err
+	}
+	return os.Remove(oldPath)
+}
+
 func writeArchiveEntry(archiveDir string, entry ArchiveEntry) error {
 	data, err := json.MarshalIndent(entry, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal provenance: %w", err)
 	}
-	if err := os.WriteFile(filepath.Join(archiveDir, "provenance.json"), append(data, '\n'), 0o600); err != nil {
+	if err := writeFileAtomic(filepath.Join(archiveDir, "provenance.json"), append(data, '\n'), 0o600); err != nil {
 		return fmt.Errorf("write provenance: %w", err)
 	}
 	return nil
@@ -331,6 +374,34 @@ func readArchiveEntry(archiveDir string) (ArchiveEntry, error) {
 		return ArchiveEntry{}, fmt.Errorf("parse provenance: %w", err)
 	}
 	return entry, nil
+}
+
+func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".tmp-*")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	tmpPath := tmp.Name()
+
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("write temp file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("close temp file: %w", err)
+	}
+	if err := os.Chmod(tmpPath, perm); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("chmod temp file: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("rename temp file: %w", err)
+	}
+	return nil
 }
 
 func validateArchiveID(id string) error {
