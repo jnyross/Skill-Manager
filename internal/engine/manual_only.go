@@ -46,6 +46,10 @@ const (
 // SetManualOnly turns skill's Auto-activation off (manualOnly = true), so it
 // only runs on explicit invocation, or back on (manualOnly = false).
 func (e *Engine) SetManualOnly(skill Skill, manualOnly bool) error {
+	return withEngineLock(e.roots.DataDir, func() error { return e.setManualOnlyLocked(skill, manualOnly) })
+}
+
+func (e *Engine) setManualOnlyLocked(skill Skill, manualOnly bool) error {
 	action := "set manual-only"
 	if !manualOnly {
 		action = "unset manual-only"

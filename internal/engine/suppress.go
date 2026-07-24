@@ -40,6 +40,10 @@ var suppressionFieldKeys = []string{"disable-model-invocation", "user-invocable"
 // unifies Personal and Codex behind one method. skill must come from a
 // recent Inventory() call.
 func (e *Engine) Suppress(skill Skill) error {
+	return withEngineLock(e.roots.DataDir, func() error { return e.suppressLocked(skill) })
+}
+
+func (e *Engine) suppressLocked(skill Skill) error {
 	switch {
 	case skill.Source == SourcePlugin && skill.Plugin != nil:
 		if err := revalidateSkillLocation(skill, "suppress skill"); err != nil {
@@ -82,8 +86,14 @@ func revalidateSkillLocation(skill Skill, action string) error {
 	return nil
 }
 
-// Unsuppress reverses Suppress; see Suppress for the dispatch rationale.
+// Unsuppress reverses Suppress; see Suppress for the dispatch rationale. Like
+// Suppress it runs under the engine's mutation lock (lock.go), so its
+// read-modify-write of config.toml cannot be lost to a concurrent one.
 func (e *Engine) Unsuppress(skill Skill) error {
+	return withEngineLock(e.roots.DataDir, func() error { return e.unsuppressLocked(skill) })
+}
+
+func (e *Engine) unsuppressLocked(skill Skill) error {
 	switch {
 	case skill.Source == SourcePlugin && skill.Plugin != nil:
 		return e.unsuppressPlugin(skill)

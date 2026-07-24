@@ -71,6 +71,10 @@ import (
 // gone are its cache directories deleted, so no failure can leave cache files
 // deleted while settings.json still lists the plugin enabled.
 func (e *Engine) UninstallPlugin(plugin PluginInfo) error {
+	return withEngineLock(e.roots.DataDir, func() error { return e.uninstallPluginLocked(plugin) })
+}
+
+func (e *Engine) uninstallPluginLocked(plugin PluginInfo) error {
 	if plugin.Plugin == "" || plugin.Marketplace == "" {
 		return fmt.Errorf("uninstall plugin: marketplace and plugin name are required")
 	}
@@ -116,6 +120,13 @@ func (e *Engine) UninstallPlugin(plugin PluginInfo) error {
 // root itself, any ancestor, and any path that escapes via ".." components.
 // This guard prevents a malformed or malicious installed_plugins.json entry
 // from causing UninstallPlugin to delete arbitrary directories.
+//
+// The check runs twice: once lexically, and once on both paths after symlink
+// resolution. The lexical pass alone is pure string containment, so an entry
+// whose intermediate component inside the cache is a symlink pointing out of it
+// would pass while the later os.RemoveAll followed the link and deleted the
+// external target — precisely the arbitrary deletion this function exists to
+// prevent.
 func validatePluginCachePath(claudeHome, installPath string) error {
 	cacheRoot := filepath.Join(claudeHome, "plugins", "cache")
 	absCacheRoot, err := filepath.Abs(cacheRoot)
@@ -126,15 +137,65 @@ func validatePluginCachePath(claudeHome, installPath string) error {
 	if err != nil {
 		return fmt.Errorf("resolve plugin install path: %w", err)
 	}
+	if err := requireStrictlyInside(absCacheRoot, absPath, installPath, cacheRoot); err != nil {
+		return err
+	}
 
-	rel, err := filepath.Rel(absCacheRoot, absPath)
+	realCacheRoot, err := resolveExistingPrefix(absCacheRoot)
+	if err != nil {
+		return fmt.Errorf("resolve plugin cache root %q: %w", cacheRoot, err)
+	}
+	realPath, err := resolveExistingPrefix(absPath)
+	if err != nil {
+		return fmt.Errorf("resolve plugin install path %q: %w", installPath, err)
+	}
+	if realPath != absPath || realCacheRoot != absCacheRoot {
+		if err := requireStrictlyInside(realCacheRoot, realPath, installPath, cacheRoot); err != nil {
+			return fmt.Errorf("%w (it resolves to %q)", err, realPath)
+		}
+	}
+	return nil
+}
+
+// requireStrictlyInside reports an error unless path sits strictly below root.
+// reportedPath and reportedRoot are the names used in the message, so a
+// resolved-path check still names the entry the user would recognise.
+func requireStrictlyInside(root, path, reportedPath, reportedRoot string) error {
+	rel, err := filepath.Rel(root, path)
 	if err != nil {
 		return fmt.Errorf("relativize plugin install path: %w", err)
 	}
 	if rel == "." || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("plugin install path %q is outside cache root %q", installPath, cacheRoot)
+		return fmt.Errorf("plugin install path %q is outside cache root %q", reportedPath, reportedRoot)
 	}
 	return nil
+}
+
+// resolveExistingPrefix resolves the symlinks in the longest existing prefix of
+// path and re-appends the components that do not exist yet. filepath.EvalSymlinks
+// fails outright on a path with a missing component, and a cache directory that
+// has already been deleted by hand is an ordinary, non-error case for uninstall
+// — but every component that *does* exist still has to be resolved, because any
+// one of them could be the symlink that escapes the cache root.
+func resolveExistingPrefix(path string) (string, error) {
+	remaining := ""
+	current := path
+	for {
+		resolved, err := filepath.EvalSymlinks(current)
+		if err == nil {
+			return filepath.Join(resolved, remaining), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			// Reached the filesystem root without finding anything that exists.
+			return path, nil
+		}
+		remaining = filepath.Join(filepath.Base(current), remaining)
+		current = parent
+	}
 }
 
 // pluginManifestPlan is the computed result of removing one key from

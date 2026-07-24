@@ -12,7 +12,22 @@ import (
 	"time"
 )
 
+// Uninstall archives the skill at location. The whole transaction — planning
+// the config.toml edit, writing provenance, moving the payload, rewriting
+// config.toml — runs under the engine's mutation lock (lock.go), so a second
+// Skillet process cannot compute its own config.toml from the same starting
+// bytes and overwrite this one's edit.
 func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
+	var entry ArchiveEntry
+	err := withEngineLock(e.roots.DataDir, func() error {
+		var err error
+		entry, err = e.uninstallLocked(location)
+		return err
+	})
+	return entry, err
+}
+
+func (e *Engine) uninstallLocked(location string) (ArchiveEntry, error) {
 	location = absolutePath(location)
 	source, kind, tool, originRepo, err := e.classifyLocation(location)
 	if err != nil {
@@ -99,22 +114,33 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 		return ArchiveEntry{}, err
 	}
 
+	var moveErr error
 	switch {
 	case isSymlink:
 		if err := moveSymlink(location, archivedPath, entry.SymlinkTarget); err != nil {
-			_ = os.RemoveAll(archiveDir)
-			return ArchiveEntry{}, fmt.Errorf("archive symlink: %w", err)
+			moveErr = fmt.Errorf("archive symlink: %w", err)
 		}
 	case kind == KindSkill:
 		if err := moveDirectory(location, archivedPath); err != nil {
-			_ = os.RemoveAll(archiveDir)
-			return ArchiveEntry{}, fmt.Errorf("archive skill directory: %w", err)
+			moveErr = fmt.Errorf("archive skill directory: %w", err)
 		}
 	default:
 		if err := moveFile(location, archivedPath, info.Mode().Perm()); err != nil {
-			_ = os.RemoveAll(archiveDir)
-			return ArchiveEntry{}, fmt.Errorf("archive prompt file: %w", err)
+			moveErr = fmt.Errorf("archive prompt file: %w", err)
 		}
+	}
+	if moveErr != nil {
+		// A cross-device move whose copy completed but whose source cleanup
+		// failed is the one case where the archive directory must survive: it
+		// holds the only complete copy, and the source at location is already
+		// partially deleted. Deleting it here would lose the skill from the tool
+		// and the archive at once.
+		var cleanupErr *sourceCleanupError
+		if errors.As(moveErr, &cleanupErr) {
+			return ArchiveEntry{}, fmt.Errorf("%w — the complete copy is preserved in the archive as %s and can be restored from the Archive view, but stale files remain at %s and must be removed by hand first", moveErr, id, cleanupErr.Src)
+		}
+		_ = os.RemoveAll(archiveDir)
+		return ArchiveEntry{}, moveErr
 	}
 
 	if configChanged {
@@ -124,7 +150,13 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 			// deliberately kept: the skill is then recoverable with Restore
 			// rather than lost, which is the invariant this ordering exists
 			// to protect.
-			if rollbackErr := rollbackArchiveMove(entry, archivedPath, info.Mode().Perm()); rollbackErr != nil {
+			// A rollback whose copy landed but whose cleanup of the archived
+			// payload failed counts as a successful rollback: the skill is back
+			// at its original location, so the leftovers are debris rather than
+			// the last copy, and clearing the archive directory is safe.
+			rollbackErr := rollbackArchiveMove(entry, archivedPath, info.Mode().Perm())
+			var cleanupErr *sourceCleanupError
+			if rollbackErr != nil && !errors.As(rollbackErr, &cleanupErr) {
 				return ArchiveEntry{}, fmt.Errorf("%w (rollback also failed: %v; the skill is preserved in the archive as %s — restore it from the Archive view)", err, rollbackErr, id)
 			}
 			_ = os.RemoveAll(archiveDir)
@@ -206,6 +238,10 @@ func containsPath(paths []string, target string) bool {
 }
 
 func (e *Engine) Restore(id string) error {
+	return withEngineLock(e.roots.DataDir, func() error { return e.restoreLocked(id) })
+}
+
+func (e *Engine) restoreLocked(id string) error {
 	if err := validateArchiveID(id); err != nil {
 		return err
 	}
@@ -276,10 +312,12 @@ func (e *Engine) Restore(id string) error {
 }
 
 func (e *Engine) Purge(id string) error {
-	if err := validateArchiveID(id); err != nil {
-		return err
-	}
-	return os.RemoveAll(filepath.Join(e.roots.DataDir, "archive", id))
+	return withEngineLock(e.roots.DataDir, func() error {
+		if err := validateArchiveID(id); err != nil {
+			return err
+		}
+		return os.RemoveAll(filepath.Join(e.roots.DataDir, "archive", id))
+	})
 }
 
 // classifyLocation determines the Source, Kind, Tool, and Project origin of an
@@ -395,11 +433,34 @@ func moveArchivedPayload(src, dest string) error {
 	return moveFile(src, dest, info.Mode().Perm())
 }
 
+// sourceCleanupError reports the one cross-device move failure that must not be
+// treated like every other move failure: the copy to newPath completed in full,
+// and only deleting the original at Src failed (a permission or I/O error on
+// one descendant), so the source is now partially deleted while a complete copy
+// exists at the destination.
+//
+// The distinction is load-bearing. The destination of an Uninstall move is the
+// archive, and the generic failure handler deletes the half-built archive
+// directory; doing that here would delete the only intact copy of a skill whose
+// source is already destroyed — the exact invariant the archive exists to
+// protect. Duplicate data is recoverable, deleted data is not, so callers keep
+// the copy and report Src as needing manual cleanup.
+type sourceCleanupError struct {
+	Src string
+	err error
+}
+
+func (e *sourceCleanupError) Error() string {
+	return fmt.Sprintf("the copy at the destination is complete, but the original at %s could not be removed: %v", e.Src, e.err)
+}
+
+func (e *sourceCleanupError) Unwrap() error { return e.err }
+
 func moveSymlink(oldPath, newPath, target string) error {
 	if err := injectedFault("move", newPath); err != nil {
 		return err
 	}
-	if err := os.Rename(oldPath, newPath); err == nil {
+	if err := renameChecked(oldPath, newPath); err == nil {
 		return nil
 	} else if !errors.Is(err, syscall.EXDEV) {
 		return err
@@ -408,9 +469,8 @@ func moveSymlink(oldPath, newPath, target string) error {
 	if err := os.Symlink(target, newPath); err != nil {
 		return err
 	}
-	if err := os.Remove(oldPath); err != nil {
-		_ = os.Remove(newPath)
-		return err
+	if err := removeAllChecked(oldPath); err != nil {
+		return &sourceCleanupError{Src: oldPath, err: err}
 	}
 	return nil
 }
@@ -419,32 +479,42 @@ func moveDirectory(oldPath, newPath string) error {
 	if err := injectedFault("move", newPath); err != nil {
 		return err
 	}
-	if err := os.Rename(oldPath, newPath); err == nil {
+	if err := renameChecked(oldPath, newPath); err == nil {
 		return nil
 	} else if !errors.Is(err, syscall.EXDEV) {
 		return err
 	}
 
 	if err := copyDir(oldPath, newPath); err != nil {
+		// The copy never completed: the source is untouched, so the partial
+		// destination is pure debris and is cleaned up here.
+		_ = os.RemoveAll(newPath)
 		return err
 	}
-	return os.RemoveAll(oldPath)
+	if err := removeAllChecked(oldPath); err != nil {
+		return &sourceCleanupError{Src: oldPath, err: err}
+	}
+	return nil
 }
 
 func moveFile(oldPath, newPath string, perm os.FileMode) error {
 	if err := injectedFault("move", newPath); err != nil {
 		return err
 	}
-	if err := os.Rename(oldPath, newPath); err == nil {
+	if err := renameChecked(oldPath, newPath); err == nil {
 		return nil
 	} else if !errors.Is(err, syscall.EXDEV) {
 		return err
 	}
 
 	if err := copyFile(oldPath, newPath, perm); err != nil {
+		_ = os.Remove(newPath)
 		return err
 	}
-	return os.Remove(oldPath)
+	if err := removeAllChecked(oldPath); err != nil {
+		return &sourceCleanupError{Src: oldPath, err: err}
+	}
+	return nil
 }
 
 func writeArchiveEntry(archiveDir string, entry ArchiveEntry) error {

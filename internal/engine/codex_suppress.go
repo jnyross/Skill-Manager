@@ -63,7 +63,7 @@ func (e *Engine) suppressCodex(skill Skill) error {
 
 	disabled, _ := readCodexDisabledConfig(codexHome)
 	if disabled.matches(skillMDPath, skill.Name) {
-		return nil
+		return e.repairCodexConfigRecord(skill, skillMDPath)
 	}
 
 	content, err := readCodexConfigOrEmpty(codexHome)
@@ -75,22 +75,83 @@ func (e *Engine) suppressCodex(skill Skill) error {
 		configExisted = false
 	}
 
-	block := "[[skills.config]]\npath = " + strconv.Quote(skillMDPath) + "\nenabled = false\n"
+	block := codexSuppressBlock(skillMDPath)
 	newContent := content
 	if newContent != "" && !strings.HasSuffix(newContent, "\n") {
 		newContent += "\n"
 	}
 	newContent += block
 
-	if err := writeCodexConfig(codexHome, newContent); err != nil {
-		return fmt.Errorf("suppress skill: %w", err)
-	}
+	// The ownership record is written *before* config.toml, and this ordering is
+	// the difference between a repairable failure and a permanent one. Writing
+	// the live disable block first left a window where the block existed with no
+	// record: a retry hit the "already disabled" early return above and no-op'd,
+	// so the record was never repaired, and a later Unsuppress took the
+	// no-record path — which is allowed to remove hand-written blocks too. In
+	// this order the last step is the only one with an externally visible
+	// effect, and every failure state a retry can reach is self-correcting.
 	record := codexConfigRecord{
 		SkillName:     skill.Name,
 		SkillMDPath:   skillMDPath,
 		Block:         block,
 		CreatedConfig: !configExisted,
 		SuppressedAt:  time.Now().UTC(),
+	}
+	if err := saveCodexConfigRecord(e.roots.DataDir, record); err != nil {
+		return fmt.Errorf("suppress skill: record config ownership: %w", err)
+	}
+	if err := writeCodexConfig(codexHome, newContent); err != nil {
+		// The record now claims a block config.toml does not contain. Dropping
+		// it keeps the two in step; if even that fails the leftover record is
+		// still harmless, because unsuppressCodex's owned path removes only a
+		// block matching it byte for byte and simply deletes the stale record
+		// when it finds none.
+		_ = deleteCodexConfigRecord(e.roots.DataDir, skill.Name, skillMDPath)
+		return fmt.Errorf("suppress skill: %w", err)
+	}
+	return nil
+}
+
+// codexSuppressBlock is the exact `[[skills.config]]` text Skillet writes to
+// disable one skill. It is a single function so the block Suppress appends and
+// the block repairCodexConfigRecord recognises can never drift apart.
+func codexSuppressBlock(skillMDPath string) string {
+	return "[[skills.config]]\npath = " + strconv.Quote(skillMDPath) + "\nenabled = false\n"
+}
+
+// repairCodexConfigRecord is the retry half of the ordering above. A skill can
+// legitimately already be disabled with no ownership record: config.toml was
+// written by a Skillet old enough to have written the block before the record,
+// or the record file was lost. When the live block is byte-identical to the one
+// Skillet writes — the same predicate that later authorizes its removal — the
+// missing record is written rather than left absent, so a retry of Suppress
+// repairs the state instead of no-op'ing forever.
+//
+// CreatedConfig is deliberately false: Skillet cannot know it created a
+// config.toml it is only now adopting a block in, and the conservative answer
+// (never delete the user's file) is the safe one. Anything that is not a
+// byte-identical Skillet block is left unclaimed, since it may carry hand-tuned
+// keys whose author alone should decide their fate.
+func (e *Engine) repairCodexConfigRecord(skill Skill, skillMDPath string) error {
+	_, found, err := loadCodexConfigRecord(e.roots.DataDir, skill.Name, skillMDPath)
+	if err != nil {
+		return fmt.Errorf("suppress skill: %w", err)
+	}
+	if found {
+		return nil
+	}
+	_, matched, _, err := planCodexConfigOwnedRemoval(e.roots.CodexHome, skillMDPath, skill.Name, codexSuppressBlock(skillMDPath))
+	if err != nil {
+		return fmt.Errorf("suppress skill: %w", err)
+	}
+	if !matched {
+		return nil
+	}
+	record := codexConfigRecord{
+		SkillName:    skill.Name,
+		SkillMDPath:  skillMDPath,
+		Block:        codexSuppressBlock(skillMDPath),
+		SuppressedAt: time.Now().UTC(),
 	}
 	if err := saveCodexConfigRecord(e.roots.DataDir, record); err != nil {
 		return fmt.Errorf("suppress skill: record config ownership: %w", err)

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -86,6 +87,51 @@ func (f faultFixture) writeCodexSkill(t *testing.T, name string) string {
 		t.Fatalf("write config.toml: %v", err)
 	}
 	return folder
+}
+
+// writeCodexSkillWithoutConfig creates a Codex skill folder and nothing else,
+// the starting point for the Suppress transaction (which has to create or
+// append to config.toml itself).
+func (f faultFixture) writeCodexSkillWithoutConfig(t *testing.T, name string) string {
+	t.Helper()
+	folder := filepath.Join(f.roots.CodexHome, "skills", name)
+	if err := os.MkdirAll(folder, 0o755); err != nil {
+		t.Fatalf("mkdir skill: %v", err)
+	}
+	content := fmt.Sprintf("---\nname: %q\ndescription: \"A skill\"\n---\nBody\n", name)
+	if err := os.WriteFile(filepath.Join(folder, "SKILL.md"), []byte(content), 0o644); err != nil {
+		t.Fatalf("write SKILL.md: %v", err)
+	}
+	return folder
+}
+
+// codexSkill returns the scanned Skill value the public mutators expect, freshly
+// re-read so each call reflects the current on-disk state.
+func (f faultFixture) codexSkill(t *testing.T, name string) Skill {
+	t.Helper()
+	for _, skill := range f.e.Inventory().Skills {
+		if skill.Source == SourceCodex && skill.Name == name {
+			return skill
+		}
+	}
+	t.Fatalf("codex skill %q not found in inventory", name)
+	return Skill{}
+}
+
+func (f faultFixture) codexConfigRecordFiles(t *testing.T) []string {
+	t.Helper()
+	entries, err := os.ReadDir(codexConfigRecordDir(f.roots.DataDir))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		t.Fatalf("read record dir: %v", err)
+	}
+	names := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	return names
 }
 
 func (f faultFixture) archiveIDs(t *testing.T) []string {
@@ -181,6 +227,202 @@ func TestUninstallNeverStrandsSkillOutsideToolAndArchive(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Archiving onto a different filesystem takes moveDirectory's copy-then-delete
+// path. When the copy completes and only the source cleanup fails, the archive
+// holds the *only* complete copy while the source is already partially deleted:
+// deleting the archive directory in that state (as the generic move-failure
+// handler does) loses the skill from the tool and the archive at once.
+func TestUninstallKeepsTheOnlyCopyWhenCrossDeviceCleanupFails(t *testing.T) {
+	f := newFaultFixture(t)
+	folder := f.writeCodexSkill(t, "codex-skill")
+	skillMD := filepath.Join(folder, "SKILL.md")
+	original, err := os.ReadFile(skillMD)
+	if err != nil {
+		t.Fatalf("read SKILL.md: %v", err)
+	}
+
+	useWriteFault(t, func(op, path string) error {
+		switch {
+		case op == "rename" && strings.Contains(path, filepath.Join("data", "archive")):
+			// The archive lives on another filesystem: rename cannot cross it.
+			return syscall.EXDEV
+		case op == "remove" && path == folder:
+			// The copy is complete by now. Delete part of the source, then fail,
+			// reproducing a RemoveAll that dies partway through.
+			if err := os.Remove(skillMD); err != nil {
+				return err
+			}
+			return fmt.Errorf("injected source cleanup fault")
+		}
+		return nil
+	})
+
+	if _, err := f.e.Uninstall(folder); err == nil {
+		t.Fatalf("Uninstall should have reported the failed source cleanup")
+	} else if !strings.Contains(err.Error(), folder) {
+		t.Fatalf("error %q does not name the source path %s that still holds stale files", err, folder)
+	}
+	writeFaultHook = nil
+
+	archived := f.archiveIDs(t)
+	if len(archived) != 1 {
+		t.Fatalf("archive entries = %v, want the one complete copy kept (the source is already partially deleted)", archived)
+	}
+	payload := filepath.Join(f.roots.DataDir, "archive", archived[0], "codex-skill", "SKILL.md")
+	got, err := os.ReadFile(payload)
+	if err != nil {
+		t.Fatalf("the archived payload must be complete: %v", err)
+	}
+	if string(got) != string(original) {
+		t.Fatalf("archived SKILL.md = %q, want the original %q", got, original)
+	}
+
+	// Once the user removes the stale files the error named, the entry restores.
+	if err := os.RemoveAll(folder); err != nil {
+		t.Fatalf("clear stale source: %v", err)
+	}
+	if err := f.e.Restore(archived[0]); err != nil {
+		t.Fatalf("the preserved entry must be restorable: %v", err)
+	}
+	restored, err := os.ReadFile(skillMD)
+	if err != nil {
+		t.Fatalf("read restored SKILL.md: %v", err)
+	}
+	if string(restored) != string(original) {
+		t.Fatalf("restored SKILL.md = %q, want the original %q", restored, original)
+	}
+}
+
+// Suppress writes the ownership record before the config.toml block, so a
+// failure can never leave a live disable block Skillet cannot prove it wrote —
+// the state that used to be unrepairable, because the retry no-op'd on "already
+// disabled" and a later Unsuppress then took the remove-anything path.
+func TestSuppressCodexNeverLeavesALiveBlockWithoutAnOwnershipRecord(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		hook func(string, string) error
+	}{
+		{
+			// The case the ordering exists for: the ownership record cannot be
+			// written (disk full, or ~/.skillet unwritable).
+			name: "the ownership record cannot be written",
+			hook: faultOn("write", filepath.Join("suppressed", "codex")),
+		},
+		{
+			name: "config.toml cannot be written",
+			hook: faultOn("write", "config.toml"),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFaultFixture(t)
+			folder := f.writeCodexSkillWithoutConfig(t, "codex-skill")
+			skillMD := absolutePath(filepath.Join(folder, "SKILL.md"))
+			configPath := filepath.Join(f.roots.CodexHome, "config.toml")
+
+			useWriteFault(t, tc.hook)
+			if err := f.e.Suppress(f.codexSkill(t, "codex-skill")); err == nil {
+				t.Fatalf("Suppress should have failed")
+			}
+			writeFaultHook = nil
+
+			config := ""
+			if exists(t, configPath) {
+				data, err := os.ReadFile(configPath)
+				if err != nil {
+					t.Fatalf("read config.toml: %v", err)
+				}
+				config = string(data)
+			}
+			_, hasRecord, err := loadCodexConfigRecord(f.roots.DataDir, "codex-skill", skillMD)
+			if err != nil {
+				t.Fatalf("load record: %v", err)
+			}
+			if strings.Contains(config, "enabled = false") && !hasRecord {
+				t.Fatalf("a live disable block was left with no ownership record; a retry would no-op and Unsuppress would take the remove-anything path:\n%s", config)
+			}
+
+			// Whatever the failure was, a retry reaches the complete state.
+			if err := f.e.Suppress(f.codexSkill(t, "codex-skill")); err != nil {
+				t.Fatalf("retry Suppress: %v", err)
+			}
+			if _, found, err := loadCodexConfigRecord(f.roots.DataDir, "codex-skill", skillMD); err != nil || !found {
+				t.Fatalf("retry must leave an ownership record (found=%v, err=%v)", found, err)
+			}
+			retried, err := os.ReadFile(configPath)
+			if err != nil {
+				t.Fatalf("read config.toml: %v", err)
+			}
+			if got := strings.Count(string(retried), "[[skills.config]]"); got != 1 {
+				t.Fatalf("config.toml has %d skills.config blocks, want exactly 1:\n%s", got, retried)
+			}
+		})
+	}
+}
+
+// The legacy state — a block Skillet wrote before ownership records existed, or
+// one whose record was lost — is repaired by a retry instead of no-op'ing
+// forever, so Unsuppress can take the precise owned path rather than the
+// remove-anything-that-matches fallback.
+func TestSuppressCodexRepairsAMissingOwnershipRecordOnRetry(t *testing.T) {
+	f := newFaultFixture(t)
+	folder := f.writeCodexSkillWithoutConfig(t, "codex-skill")
+	skillMD := absolutePath(filepath.Join(folder, "SKILL.md"))
+
+	if err := f.e.Suppress(f.codexSkill(t, "codex-skill")); err != nil {
+		t.Fatalf("Suppress: %v", err)
+	}
+	// Simulate the pre-ownership-records world: the block is live, the record
+	// is not there.
+	if err := deleteCodexConfigRecord(f.roots.DataDir, "codex-skill", skillMD); err != nil {
+		t.Fatalf("delete record: %v", err)
+	}
+	if _, found, _ := loadCodexConfigRecord(f.roots.DataDir, "codex-skill", skillMD); found {
+		t.Fatalf("test setup invalid: the record is still present")
+	}
+
+	if err := f.e.Suppress(f.codexSkill(t, "codex-skill")); err != nil {
+		t.Fatalf("retry Suppress: %v", err)
+	}
+
+	record, found, err := loadCodexConfigRecord(f.roots.DataDir, "codex-skill", skillMD)
+	if err != nil || !found {
+		t.Fatalf("retry must repair the missing record (found=%v, err=%v)", found, err)
+	}
+	if record.CreatedConfig {
+		t.Fatalf("an adopted record must not claim Skillet created config.toml")
+	}
+	if record.Block != codexSuppressBlock(skillMD) {
+		t.Fatalf("adopted block = %q, want the block Skillet writes", record.Block)
+	}
+}
+
+// A hand-written disable entry must not be adopted: its author may have tuned
+// keys inside it, and only an exactly-matching Skillet block is ours to claim.
+func TestSuppressCodexDoesNotAdoptAHandWrittenDisableEntry(t *testing.T) {
+	f := newFaultFixture(t)
+	folder := f.writeCodexSkillWithoutConfig(t, "codex-skill")
+	skillMD := absolutePath(filepath.Join(folder, "SKILL.md"))
+	handWritten := "[[skills.config]]\npath = \"" + skillMD + "\"\nenabled = false\nnotes = \"mine\"\n"
+	if err := os.WriteFile(filepath.Join(f.roots.CodexHome, "config.toml"), []byte(handWritten), 0o644); err != nil {
+		t.Fatalf("write config.toml: %v", err)
+	}
+
+	if err := f.e.Suppress(f.codexSkill(t, "codex-skill")); err != nil {
+		t.Fatalf("Suppress: %v", err)
+	}
+
+	if _, found, _ := loadCodexConfigRecord(f.roots.DataDir, "codex-skill", skillMD); found {
+		t.Fatalf("Skillet claimed ownership of a hand-written config entry")
+	}
+	got, err := os.ReadFile(filepath.Join(f.roots.CodexHome, "config.toml"))
+	if err != nil {
+		t.Fatalf("read config.toml: %v", err)
+	}
+	if string(got) != handWritten {
+		t.Fatalf("config.toml = %q, want the hand-written file untouched", got)
 	}
 }
 
