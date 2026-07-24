@@ -25,7 +25,10 @@ func TestPersonalInventoryValidSkills(t *testing.T) {
 	assertPersonalSkill(t, inv, "charlie", "Charlie description", charlie, engine.ActivationAuto)
 }
 
-func TestPersonalMissingRootReturnsNotice(t *testing.T) {
+// An absent personal skills directory is the normal state on a fresh machine,
+// so it is reported as no skills rather than as a Notice. An unreadable one is
+// a genuine anomaly and still raises a Notice.
+func TestPersonalMissingRootIsQuiet(t *testing.T) {
 	f := newFixture(t)
 	if err := os.RemoveAll(filepath.Join(f.roots.ClaudeHome, "skills")); err != nil {
 		t.Fatalf("remove personal skills root: %v", err)
@@ -35,11 +38,25 @@ func TestPersonalMissingRootReturnsNotice(t *testing.T) {
 	if len(sourceSkills(inv, engine.SourcePersonal)) != 0 {
 		t.Fatalf("expected no personal skills, got %#v", sourceSkills(inv, engine.SourcePersonal))
 	}
-	if len(inv.Notices) != 1 {
-		t.Fatalf("got %d notices, want 1: %#v", len(inv.Notices), inv.Notices)
+	if noticesContain(inv, "Personal skills directory not found") {
+		t.Fatalf("missing personal root should be quiet: %#v", inv.Notices)
 	}
-	if !noticesContain(inv, "Personal skills directory not found") {
-		t.Fatalf("missing personal root notice: %#v", inv.Notices)
+}
+
+func TestPersonalUnreadableRootReturnsNotice(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	f := newFixture(t)
+	root := filepath.Join(f.roots.ClaudeHome, "skills")
+	if err := os.Chmod(root, 0o000); err != nil {
+		t.Fatalf("chmod personal skills root: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(root, 0o755) })
+
+	inv := engine.New(f.roots).Inventory()
+	if !noticesContain(inv, "Personal skills directory unreadable") {
+		t.Fatalf("missing unreadable-root notice: %#v", inv.Notices)
 	}
 }
 

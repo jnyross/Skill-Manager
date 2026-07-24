@@ -68,7 +68,10 @@ func scanCodexSkillRoot(root string, source Source, disabled codexDisabledConfig
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, []Notice{{Message: "Codex skills directory not found: " + root}}
+			// A standard directory that simply does not exist is the normal
+			// state on a fresh machine, not something to report. The plugin
+			// and Codex prompt scanners already treat absence this way.
+			return nil, nil
 		}
 		return nil, []Notice{{Message: "Codex skills directory unreadable: " + root + ": " + err.Error()}}
 	}

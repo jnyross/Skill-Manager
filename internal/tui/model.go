@@ -3,7 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -1731,31 +1730,11 @@ func (m *Model) renderMain(b *strings.Builder) {
 	}
 }
 
-// missingStandardDirNotice matches the skill scanners' "the standard directory
-// simply is not there" notice. On a fresh machine that is the normal state, not
-// an anomaly: the plugin scanner and the Codex prompt scanner already stay
-// quiet about it, and these two do not.
-//
-// This filter lives in the TUI rather than in the scanners only because of the
-// file ownership split in this work package; the cleaner fix is for
-// engine/personal.go and engine/codex.go to not raise the notice at all.
-// Everything else — an unreadable directory, a dangling plugin path, a
-// malformed skill — still reaches the Notices section.
-var missingStandardDirNotice = regexp.MustCompile(`^(Personal skills|Project Claude skills|Codex skills) directory not found: `)
-
-func visibleNotices(notices []engine.Notice) []engine.Notice {
-	var visible []engine.Notice
-	for _, notice := range notices {
-		if missingStandardDirNotice.MatchString(notice.Message) {
-			continue
-		}
-		visible = append(visible, notice)
-	}
-	return visible
-}
-
+// visibleInventoryNotices is the inventory's notices as rendered. The scanners
+// stay quiet about a standard directory that simply does not exist, so
+// everything reaching here is a real anomaly worth showing.
 func (m *Model) visibleInventoryNotices() []engine.Notice {
-	return visibleNotices(m.inv.Notices)
+	return m.inv.Notices
 }
 
 func (m *Model) renderArchive(b *strings.Builder) {

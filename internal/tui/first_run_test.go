@@ -59,26 +59,24 @@ func TestFreshHomeShowsWelcomingEmptyStateWithNoNotices(t *testing.T) {
 	// no-op profile under `go test`, where there is no terminal.)
 }
 
-// Only the "the standard directory is simply absent" notice is filtered.
-// Anything that says something actually went wrong still reaches the user.
-func TestAnomalousNoticesSurviveTheFreshMachineFilter(t *testing.T) {
-	kept := []engine.Notice{
+// The scanners decide what is worth reporting — a merely absent standard
+// directory is quiet at the source. The TUI's job is to render whatever
+// survives that, unfiltered, so a real anomaly always reaches the user.
+func TestAnomalousNoticesReachTheUser(t *testing.T) {
+	anomalies := []engine.Notice{
 		{Message: "Personal skills directory unreadable: /home/x/.claude/skills: permission denied"},
 		{Message: "Codex skills directory unreadable: /home/x/.codex/skills: permission denied"},
 		{Message: "Skipped broken: SKILL.md: missing name"},
 		{Message: "Plugin install path missing: /home/x/.claude/plugins/cache/gone"},
 	}
-	dropped := []engine.Notice{
-		{Message: "Personal skills directory not found: /home/x/.claude/skills"},
-		{Message: "Project Claude skills directory not found: /repo/.claude/skills"},
-		{Message: "Codex skills directory not found: /home/x/.codex/skills"},
-	}
 
-	got := visibleNotices(append(append([]engine.Notice(nil), dropped...), kept...))
-	if len(got) != len(kept) {
-		t.Fatalf("visibleNotices kept %d notice(s), want %d: %#v", len(got), len(kept), got)
+	m := &Model{inv: engine.Inventory{Notices: anomalies}}
+
+	got := m.visibleInventoryNotices()
+	if len(got) != len(anomalies) {
+		t.Fatalf("rendered %d notice(s), want %d: %#v", len(got), len(anomalies), got)
 	}
-	for index, notice := range kept {
+	for index, notice := range anomalies {
 		if got[index] != notice {
 			t.Fatalf("notice %d = %#v, want %#v", index, got[index], notice)
 		}

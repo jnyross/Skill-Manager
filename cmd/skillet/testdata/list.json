@@ -86,7 +86,7 @@
   ],
   "notices": [
     {
-      "message": "Codex skills directory not found: $HOME/.codex/skills"
+      "message": "Skipped broken: missing frontmatter opening delimiter"
     }
   ],
   "archive": []

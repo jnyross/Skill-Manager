@@ -55,6 +55,10 @@ func newFixture(t *testing.T) fixture {
 	writeSkillFile(t, filepath.Join(project, ".claude", "skills", "review"), "review", "Review this repo's diff.", "")
 	writeSkillFile(t, filepath.Join(project, ".agents", "skills", "review"), "review", "Review this repo, Codex side.", "")
 
+	// A malformed Skill, so the fixture exercises a real Notice. An absent
+	// standard directory is deliberately quiet, so it cannot serve that role.
+	writeFile(t, filepath.Join(home, ".claude", "skills", "broken", "SKILL.md"), "no frontmatter here\n")
+
 	t.Setenv("HOME", home)
 	t.Chdir(project)
 	return fixture{home: home, project: project}
