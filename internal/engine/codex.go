@@ -31,10 +31,11 @@ type openAIPolicy struct {
 	AllowImplicitInvocation *bool `yaml:"allow_implicit_invocation"`
 }
 
-func scanCodex(codexHome, agentsHome string) ([]Skill, []Notice) {
+// scanCodex takes the already-decoded ~/.codex/config.toml disable list
+// rather than reading it itself: Inventory() reads that file once and threads
+// the result here and to scanProject (see inventory.go).
+func scanCodex(codexHome, agentsHome string, disabled codexDisabledConfig) ([]Skill, []Notice) {
 	var notices []Notice
-	disabled, configNotices := readCodexDisabledConfig(codexHome)
-	notices = append(notices, configNotices...)
 
 	byName := make(map[string]Skill)
 	agentsSkills, agentsNotices := scanCodexSkillRoot(filepath.Join(agentsHome, "skills"), SourceCodex, disabled)
@@ -146,12 +147,21 @@ type codexDisabledConfig struct {
 	names map[string]bool
 }
 
+// codexConfigReadHook is a test-only seam: when non-nil it is called with the
+// config path on every actual read/decode of ~/.codex/config.toml, so a test
+// can assert Inventory() performs exactly one. Tests that install it must not
+// run in parallel (same convention as the write-fault hook in atomic.go).
+var codexConfigReadHook func(path string)
+
 func readCodexDisabledConfig(codexHome string) (codexDisabledConfig, []Notice) {
 	result := codexDisabledConfig{
 		paths: make(map[string]bool),
 		names: make(map[string]bool),
 	}
 	configPath := filepath.Join(codexHome, "config.toml")
+	if codexConfigReadHook != nil {
+		codexConfigReadHook(configPath)
+	}
 	var cfg codexConfig
 	if _, err := toml.DecodeFile(configPath, &cfg); err != nil {
 		if os.IsNotExist(err) {

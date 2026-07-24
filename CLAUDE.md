@@ -14,6 +14,12 @@ The five canonical triage labels are used verbatim (`needs-triage`, `needs-info`
 
 Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+### Scriptable CLI
+
+Every action the TUI offers is also a subcommand, with `--json` output for
+inspection and `--yes` required for anything that changes disk. Agents should
+prefer these over driving the TUI. See `docs/agents/cli.md`.
+
 ### Default local install and verification
 
 A public `@next` release (`v0.1.0-rc.1`) of `@jnyross/skillet` is now available

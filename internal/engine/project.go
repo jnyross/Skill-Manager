@@ -6,12 +6,12 @@ import (
 	"path/filepath"
 )
 
-func scanProject(claudeRoots, agentsRoots []string, codexHome string) ([]Skill, []Notice) {
+// scanProject takes the already-decoded ~/.codex/config.toml disable list
+// rather than reading it itself; Inventory() owns the single read (see
+// inventory.go and scanCodex).
+func scanProject(claudeRoots, agentsRoots []string, disabled codexDisabledConfig) ([]Skill, []Notice) {
 	var skills []Skill
 	var notices []Notice
-
-	disabled, configNotices := readCodexDisabledConfig(codexHome)
-	notices = append(notices, configNotices...)
 
 	for _, root := range claudeRoots {
 		dir := filepath.Join(root, ".claude", "skills")

@@ -5,10 +5,17 @@ import (
 )
 
 func (e *Engine) Inventory() Inventory {
+	// ~/.codex/config.toml is read and decoded exactly once per Inventory()
+	// and threaded to both consumers (the Codex scan and the Codex half of
+	// the Project scan). Both used to read it independently, which meant two
+	// reads plus two TOML decodes per refresh — and, when the file was
+	// unreadable, the same notice reported twice.
+	codexDisabled, codexConfigNotices := readCodexDisabledConfig(e.roots.CodexHome)
+
 	personalSkills, personalNotices := scanPersonal(e.roots.ClaudeHome)
 	pluginSkills, pluginNotices := scanPlugins(e.roots.ClaudeHome, e.roots.DataDir)
-	codexSkills, codexNotices := scanCodex(e.roots.CodexHome, e.roots.AgentsHome)
-	projectSkills, projectNotices := scanProject(e.roots.ClaudeProjectRoots, e.roots.ProjectRoots, e.roots.CodexHome)
+	codexSkills, codexNotices := scanCodex(e.roots.CodexHome, e.roots.AgentsHome, codexDisabled)
+	projectSkills, projectNotices := scanProject(e.roots.ClaudeProjectRoots, e.roots.ProjectRoots, codexDisabled)
 
 	skills := append([]Skill{}, personalSkills...)
 	skills = append(skills, pluginSkills...)
@@ -25,6 +32,8 @@ func (e *Engine) Inventory() Inventory {
 
 	notices := append([]Notice{}, personalNotices...)
 	notices = append(notices, pluginNotices...)
+	// Config notices keep their old position: first in the Codex group.
+	notices = append(notices, codexConfigNotices...)
 	notices = append(notices, codexNotices...)
 	notices = append(notices, projectNotices...)
 

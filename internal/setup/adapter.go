@@ -42,6 +42,12 @@ type RenderRequest struct {
 	SourceDir          string
 	Activation         Activation
 	ActivationOverride bool
+
+	// boundaries, when set, supplies SourceDir's already-read contents from
+	// the current setup run instead of walking and slurping the directory
+	// again. Unexported on purpose: an externally constructed RenderRequest
+	// leaves it nil and reads through, which is always correct.
+	boundaries *boundaryCache
 }
 
 type RenderedView struct {
@@ -89,7 +95,7 @@ func (a directSkillAdapter) Render(request RenderRequest) (RenderedView, error) 
 	if err := validateRecipe(request.Member, a.tool); err != nil {
 		return RenderedView{}, err
 	}
-	files, modes, err := readBoundaryWithModes(request.SourceDir)
+	files, modes, err := request.boundaries.read(request.SourceDir)
 	if err != nil {
 		return RenderedView{}, fmt.Errorf("read %s source boundary: %w", request.Member.Name, err)
 	}
@@ -154,7 +160,16 @@ func readBoundary(root string) (map[string][]byte, error) {
 	return files, err
 }
 
+// boundaryReadHook is a test-only seam: when non-nil it is called with the
+// root of every boundary actually read from disk, so a test can assert how
+// many reads a setup run performs. Tests that install it must not run in
+// parallel.
+var boundaryReadHook func(root string)
+
 func readBoundaryWithModes(root string) (map[string][]byte, map[string]uint32, error) {
+	if boundaryReadHook != nil {
+		boundaryReadHook(root)
+	}
 	files := make(map[string][]byte)
 	modes := make(map[string]uint32)
 	err := filepath.WalkDir(root, func(filename string, entry os.DirEntry, walkErr error) error {

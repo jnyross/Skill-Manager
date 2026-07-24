@@ -191,6 +191,7 @@ func RunTerminal(ctx context.Context, input io.Reader, output io.Writer, options
 	request := Request{
 		TargetPath: target, CatalogVersion: c.Version, BundleIDs: bundleIDs, Members: resolved,
 		AcceptDrift: acceptDrift, ReplaceConflicts: options.ReplaceConflicts, Activation: activation,
+		boundaries: newBoundaryCache(),
 	}
 	plan, err := service.Plan(ctx, request)
 	if err != nil {

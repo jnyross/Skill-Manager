@@ -38,6 +38,12 @@ type Request struct {
 	Activation       map[string]Activation
 	AcceptDrift      map[string]bool
 	ReplaceConflicts bool
+
+	// boundaries is the run-scoped source-boundary cache (see
+	// boundary_cache.go). RunTerminal sets it so that re-planning after a
+	// conflict prompt does not re-read every member from disk; Plan falls
+	// back to a cache scoped to the single call when it is nil.
+	boundaries *boundaryCache
 }
 
 type ChangeState string
@@ -189,6 +195,10 @@ func (service *Service) Plan(_ context.Context, request Request) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
+	boundaries := request.boundaries
+	if boundaries == nil {
+		boundaries = newBoundaryCache()
+	}
 	desired := make(map[string][]byte)
 	desiredModes := make(map[string]os.FileMode)
 	warnings := make([]string, 0)
@@ -228,7 +238,7 @@ func (service *Service) Plan(_ context.Context, request Request) (Plan, error) {
 		if hasOverride {
 			activation = override
 		}
-		canonicalFiles, canonicalModes, err := readBoundaryWithModes(resolved.SourceDir)
+		canonicalFiles, canonicalModes, err := boundaries.read(resolved.SourceDir)
 		if err != nil {
 			return Plan{}, fmt.Errorf("read canonical core %s: %w", resolved.Member.Name, err)
 		}
@@ -245,7 +255,7 @@ func (service *Service) Plan(_ context.Context, request Request) (Plan, error) {
 			Dependencies:       resolved.Member.Dependencies, ExternalActions: resolved.Member.ExternalActions,
 		}
 		for _, adapter := range service.adapters {
-			view, err := adapter.Render(RenderRequest{Member: resolved.Member, SourceDir: resolved.SourceDir, Activation: activation, ActivationOverride: hasOverride})
+			view, err := adapter.Render(RenderRequest{Member: resolved.Member, SourceDir: resolved.SourceDir, Activation: activation, ActivationOverride: hasOverride, boundaries: boundaries})
 			if err != nil {
 				return Plan{}, err
 			}

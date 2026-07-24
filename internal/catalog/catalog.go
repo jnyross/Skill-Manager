@@ -243,24 +243,68 @@ func (c Catalog) BundleIDs() []string {
 	return ids
 }
 
+// recommendationSkipDirs are directory names never worth traversing to spot a
+// project-type marker file: dependency, virtualenv, and build-output trees.
+// They routinely hold tens of thousands of files and contain no signal about
+// what kind of project this is.
+var recommendationSkipDirs = map[string]bool{
+	".git": true, ".skillet": true,
+	"node_modules": true, "vendor": true, "venv": true, ".venv": true,
+	"target": true, "dist": true, "build": true, ".next": true,
+}
+
+const (
+	// recommendationMaxDepth bounds how deep below the project root a marker
+	// file is looked for. Solution and project files live at or very near the
+	// top of a repository; anything deeper is a fixture or a vendored copy.
+	recommendationMaxDepth = 5
+	// recommendationFileBudget caps total work so setup cannot stall silently
+	// on a large tree. Reaching it ends the scan with whatever was found.
+	recommendationFileBudget = 20000
+)
+
+// RecommendedBundleIDs looks for project-type marker files below projectRoot.
+// It exists solely to spot a .NET project, so the traversal is bounded three
+// ways — skip list, depth cap, file budget — and stops the moment it has an
+// answer. Before this it was an unbounded walk of the entire chosen directory,
+// node_modules and all, on the setup path with no progress output.
 func (c Catalog) RecommendedBundleIDs(projectRoot string) []string {
 	recommended := make(map[string]bool)
-	_ = filepath.WalkDir(projectRoot, func(path string, entry os.DirEntry, err error) error {
+	rootDepth := strings.Count(filepath.Clean(projectRoot), string(filepath.Separator))
+	budget := recommendationFileBudget
+	stop := errors.New("recommendation scan complete")
+
+	walkErr := filepath.WalkDir(projectRoot, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return filepath.SkipDir
 		}
 		if entry.IsDir() {
-			if path != projectRoot && (entry.Name() == ".git" || entry.Name() == ".skillet") {
+			if path == projectRoot {
+				return nil
+			}
+			if recommendationSkipDirs[strings.ToLower(entry.Name())] {
+				return filepath.SkipDir
+			}
+			if strings.Count(filepath.Clean(path), string(filepath.Separator))-rootDepth >= recommendationMaxDepth {
 				return filepath.SkipDir
 			}
 			return nil
 		}
+		budget--
+		if budget <= 0 {
+			return stop
+		}
 		name := strings.ToLower(entry.Name())
 		if name == "global.json" || strings.HasSuffix(name, ".csproj") || strings.HasSuffix(name, ".sln") || strings.HasSuffix(name, ".slnx") {
 			recommended["dotnet-starter"] = true
+			// Every marker feeds the same single recommendation, so there is
+			// nothing left to learn from the rest of the tree.
+			return stop
 		}
 		return nil
 	})
+	_ = walkErr
+
 	ids := make([]string, 0, len(recommended))
 	for id := range recommended {
 		ids = append(ids, id)

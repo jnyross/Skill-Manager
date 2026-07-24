@@ -32,6 +32,10 @@ func scanPlugins(claudeHome, dataDir string) ([]Skill, []Notice) {
 	var skills []Skill
 	var notices []Notice
 	var manifest installedPluginsManifest
+	// frontmatter carries each scanned skill's already-parsed SKILL.md
+	// frontmatter, keyed by the skill's absolute Location, into
+	// applySuppressions — which used to re-open and re-parse the same file.
+	frontmatter := make(map[string]skillFrontmatter)
 
 	switch {
 	case err != nil && os.IsNotExist(err):
@@ -64,12 +68,15 @@ func scanPlugins(claudeHome, dataDir string) ([]Skill, []Notice) {
 						continue
 					}
 
-					pluginSkills, pluginNotices := scanPluginInstall(pluginName, marketplace, install.InstallPath)
+					pluginSkills, pluginFrontmatter, pluginNotices := scanPluginInstall(pluginName, marketplace, install.InstallPath)
 					notices = append(notices, pluginNotices...)
 					for i := range pluginSkills {
 						pluginSkills[i].Plugin.SkillCount = len(pluginSkills)
 					}
 					skills = append(skills, pluginSkills...)
+					for location, fm := range pluginFrontmatter {
+						frontmatter[location] = fm
+					}
 				}
 			}
 		}
@@ -79,7 +86,7 @@ func scanPlugins(claudeHome, dataDir string) ([]Skill, []Notice) {
 	if recErr != nil {
 		notices = append(notices, Notice{Message: "Suppressed skills unreadable: " + recErr.Error()})
 	} else {
-		notices = append(notices, applySuppressions(skills, records)...)
+		notices = append(notices, applySuppressions(skills, records, frontmatter)...)
 	}
 
 	return skills, notices
@@ -93,53 +100,92 @@ func splitPluginKey(key string) (string, string, bool) {
 	return key[:index], key[index+1:], true
 }
 
-func scanPluginInstall(pluginName, marketplace, installPath string) ([]Skill, []Notice) {
+// pluginScanSkipDirs are directory names that never contain a plugin skill
+// but are expensive to walk when a plugin ships them (a vendored dependency
+// tree, or a plugin distributed as a git checkout).
+var pluginScanSkipDirs = map[string]bool{
+	".git":         true,
+	"node_modules": true,
+}
+
+// scanPluginInstall finds every skill under installPath/skills, returning the
+// skills, their parsed frontmatter keyed by absolute Location (so
+// applySuppressions need not re-read the same files), and any notices.
+//
+// The traversal is deliberately narrower than a full recursive walk of the
+// skills tree. A directory containing a SKILL.md *is* a skill, so its subtree
+// is that skill's own payload — references/, scripts/, assets/ — and is never
+// descended into. Everything else is descended, because real marketplace
+// plugins do nest: as of this writing mattpocock/mattpocock-skills groups its
+// skills one extra level deep (skills/<category>/<name>/SKILL.md) while every
+// other plugin in the same cache uses skills/<name>/SKILL.md, so narrowing to
+// a fixed skills/*/SKILL.md glob would silently drop 41 real skills.
+func scanPluginInstall(pluginName, marketplace, installPath string) ([]Skill, map[string]skillFrontmatter, []Notice) {
 	skillsRoot := filepath.Join(installPath, "skills")
 	if _, err := os.Stat(skillsRoot); err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return nil, nil, nil
 		}
-		return nil, []Notice{{Message: fmt.Sprintf("Plugin %s@%s: skills directory unreadable: %s: %v", pluginName, marketplace, skillsRoot, err)}}
+		return nil, nil, []Notice{{Message: fmt.Sprintf("Plugin %s@%s: skills directory unreadable: %s: %v", pluginName, marketplace, skillsRoot, err)}}
 	}
 
 	var skills []Skill
 	var notices []Notice
-	err := filepath.WalkDir(skillsRoot, func(path string, d os.DirEntry, err error) error {
+	frontmatter := make(map[string]skillFrontmatter)
+
+	var visit func(dir string, depth int)
+	visit = func(dir string, depth int) {
+		entries, err := os.ReadDir(dir)
 		if err != nil {
-			notices = append(notices, Notice{Message: fmt.Sprintf("Plugin %s@%s: skipped %s: %v", pluginName, marketplace, path, err)})
-			return nil
-		}
-		if d.IsDir() {
-			return nil
-		}
-		if d.Name() != "SKILL.md" {
-			return nil
+			notices = append(notices, Notice{Message: fmt.Sprintf("Plugin %s@%s: skipped %s: %v", pluginName, marketplace, dir, err)})
+			return
 		}
 
-		folder := filepath.Dir(path)
-		fm, err := parseSkillFrontmatter(path)
-		if err != nil {
-			notices = append(notices, Notice{Message: fmt.Sprintf("Skipped %s: %v", folder, err)})
-			return nil
+		for _, entry := range entries {
+			if entry.IsDir() || entry.Name() != "SKILL.md" {
+				continue
+			}
+			path := filepath.Join(dir, "SKILL.md")
+			fm, parseErr := parseSkillFrontmatter(path)
+			if parseErr != nil {
+				notices = append(notices, Notice{Message: fmt.Sprintf("Skipped %s: %v", dir, parseErr)})
+				// A directory whose SKILL.md is unparseable is still a skill
+				// directory, not a container of nested skills — except at the
+				// skills root, which always holds skill directories.
+				if depth == 0 {
+					break
+				}
+				return
+			}
+			location := absolutePath(dir)
+			skills = append(skills, Skill{
+				Name:        fm.Name,
+				Description: fm.Description,
+				Source:      SourcePlugin,
+				Tool:        ToolClaudeCode,
+				Kind:        KindSkill,
+				Location:    location,
+				Activation:  ActivationAuto,
+				Plugin: &PluginInfo{
+					Plugin:      pluginName,
+					Marketplace: marketplace,
+				},
+			})
+			frontmatter[location] = fm
+			if depth == 0 {
+				break
+			}
+			return
 		}
-		skills = append(skills, Skill{
-			Name:        fm.Name,
-			Description: fm.Description,
-			Source:      SourcePlugin,
-			Tool:        ToolClaudeCode,
-			Kind:        KindSkill,
-			Location:    absolutePath(folder),
-			Activation:  ActivationAuto,
-			Plugin: &PluginInfo{
-				Plugin:      pluginName,
-				Marketplace: marketplace,
-			},
-		})
-		return nil
-	})
-	if err != nil {
-		notices = append(notices, Notice{Message: fmt.Sprintf("Plugin %s@%s: walk failed: %v", pluginName, marketplace, err)})
+
+		for _, entry := range entries {
+			if !entry.IsDir() || pluginScanSkipDirs[entry.Name()] {
+				continue
+			}
+			visit(filepath.Join(dir, entry.Name()), depth+1)
+		}
 	}
+	visit(skillsRoot, 0)
 
-	return skills, notices
+	return skills, frontmatter, notices
 }

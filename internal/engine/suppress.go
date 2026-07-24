@@ -159,7 +159,16 @@ func (e *Engine) unsuppressPlugin(skill Skill) error {
 // the record itself is left in place so re-suppression resumes automatically
 // if the plugin reappears (e.g. reinstalled at the same marketplace/plugin
 // name).
-func applySuppressions(skills []Skill, records []SuppressionRecord) []Notice {
+// frontmatter maps a scanned skill's absolute Location to the frontmatter
+// scanPluginInstall already parsed for it during this same scan. This reader
+// pass used to re-open and re-parse the very same SKILL.md, and to run two
+// filepath.EvalSymlinks chains per suppressed skill to guard a path it was
+// only reading. The guard now lives where it belongs: on the write path, in
+// applySuppressionEdit -> setFrontmatterFields -> guardSkillMDPath, which is
+// unchanged, so a symlinked or escaping SKILL.md is still never written
+// through. A Location missing from the map (or a nil map) falls back to
+// re-parsing, so the function is still correct standalone.
+func applySuppressions(skills []Skill, records []SuppressionRecord, frontmatter map[string]skillFrontmatter) []Notice {
 	var notices []Notice
 	matched := make(map[string]bool, len(records))
 
@@ -176,14 +185,16 @@ func applySuppressions(skills []Skill, records []SuppressionRecord) []Notice {
 			matched[suppressionID(record.Marketplace, record.Plugin, record.SkillName)] = true
 
 			skillMDPath := filepath.Join(skill.Location, "SKILL.md")
-			if err := guardSkillMDPath(skill.Location, skillMDPath); err != nil {
-				notices = append(notices, Notice{Message: fmt.Sprintf("Suppressed skill %s (%s@%s): could not re-check frontmatter: %v", skill.Name, record.Plugin, record.Marketplace, err)})
-				break
-			}
-			fm, err := parseSkillFrontmatter(skillMDPath)
-			if err != nil {
-				notices = append(notices, Notice{Message: fmt.Sprintf("Suppressed skill %s (%s@%s): could not re-check frontmatter: %v", skill.Name, record.Plugin, record.Marketplace, err)})
-				break
+			fm, cached := frontmatter[skill.Location]
+			if !cached {
+				var err error
+				if err = guardSkillMDPath(skill.Location, skillMDPath); err == nil {
+					fm, err = parseSkillFrontmatter(skillMDPath)
+				}
+				if err != nil {
+					notices = append(notices, Notice{Message: fmt.Sprintf("Suppressed skill %s (%s@%s): could not re-check frontmatter: %v", skill.Name, record.Plugin, record.Marketplace, err)})
+					break
+				}
 			}
 			if !isSuppressionApplied(fm) {
 				if err := applySuppressionEdit(skillMDPath); err != nil {

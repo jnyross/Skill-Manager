@@ -216,13 +216,14 @@ func newEngineAt(dir string) (*engine.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
+	codexRoots, claudeRoots := engine.FindProjectRootsForTools(dir)
 	return engine.New(engine.Roots{
 		ClaudeHome:         filepath.Join(home, ".claude"),
 		CodexHome:          filepath.Join(home, ".codex"),
 		AgentsHome:         filepath.Join(home, ".agents"),
 		DataDir:            filepath.Join(home, ".skillet"),
-		ProjectRoots:       engine.FindProjectRoots(dir),
-		ClaudeProjectRoots: engine.FindClaudeProjectRoots(dir),
+		ProjectRoots:       codexRoots,
+		ClaudeProjectRoots: claudeRoots,
 	}), nil
 }
 

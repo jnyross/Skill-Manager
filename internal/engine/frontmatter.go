@@ -22,7 +22,16 @@ type promptFrontmatter struct {
 	Description string `yaml:"description"`
 }
 
+// frontmatterParseHook is a test-only seam: when non-nil it is called with
+// the path of every SKILL.md/prompt frontmatter actually opened and parsed,
+// so a test can assert a scan parses each file exactly once. Tests that
+// install it must not run in parallel.
+var frontmatterParseHook func(path string)
+
 func parseFrontmatter(path string, out any) error {
+	if frontmatterParseHook != nil {
+		frontmatterParseHook(path)
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("read frontmatter: %w", err)
