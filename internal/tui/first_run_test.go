@@ -29,10 +29,10 @@ func TestFreshHomeShowsWelcomingEmptyStateWithNoNotices(t *testing.T) {
 	m := NewModel(newFreshHomeFixture(t))
 	m.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
 
-	// The engine still raises the notices; the TUI is what recognizes them as
-	// the ordinary fresh-machine state.
-	if len(m.inv.Notices) == 0 {
-		t.Skip("engine no longer raises missing-directory notices; the render filter is now redundant")
+	// The scanners stay quiet about a standard directory that simply is not
+	// there, so a fresh machine reaches the TUI with nothing to report.
+	if got := m.inv.Notices; len(got) != 0 {
+		t.Fatalf("fresh machine produced %d notice(s): %#v", len(got), got)
 	}
 	if got := m.visibleInventoryNotices(); len(got) != 0 {
 		t.Fatalf("fresh machine shows %d notice(s): %#v", len(got), got)

@@ -140,8 +140,14 @@ func (p detailPane) render() string {
 		view = strings.Join(lines, "\n")
 	}
 
+	// lipgloss Width() counts padding but not the border, while the viewport
+	// wrapped to the full content width. Passing the viewport's width straight
+	// through would leave the inner area two columns narrower than the text it
+	// holds, re-wrapping the longest lines and growing the pane past the height
+	// it was given — which pushes the title and the cost header off the top of
+	// the screen. Add the padding back so the content area matches the wrap.
 	return detailPaneStyle.
-		Width(width).
+		Width(width + detailPaneStyle.GetHorizontalPadding()).
 		Height(height).
 		Render(view)
 }
