@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "skills": [
+    {
+      "name": "review",
+      "qualifiedName": "Personal:review",
+      "description": "Review a diff.",
+      "source": "Personal",
+      "tool": "Claude Code",
+      "kind": "skill",
+      "activation": "Manual-only",
+      "location": "$HOME/.claude/skills/review",
+      "declaredManualOnlyForClaude": false
+    },
+    {
+      "name": "writing",
+      "qualifiedName": "Personal:writing",
+      "description": "Write clear prose.",
+      "source": "Personal",
+      "tool": "Claude Code",
+      "kind": "skill",
+      "activation": "Auto",
+      "location": "$HOME/.claude/skills/writing",
+      "declaredManualOnlyForClaude": false
+    },
+    {
+      "name": "lint",
+      "qualifiedName": "Plugin:lint",
+      "description": "Lint the tree.",
+      "source": "Plugin",
+      "tool": "Claude Code",
+      "kind": "skill",
+      "activation": "Auto",
+      "location": "$HOME/.claude/plugins/cache/demo/skills/lint",
+      "declaredManualOnlyForClaude": false,
+      "plugin": {
+        "plugin": "demo",
+        "marketplace": "market",
+        "skillCount": 1
+      }
+    },
+    {
+      "name": "deploy",
+      "qualifiedName": "Codex:deploy",
+      "description": "Deploy the service.",
+      "source": "Codex",
+      "tool": "Codex",
+      "kind": "prompt",
+      "activation": "Manual-only",
+      "location": "$HOME/.codex/prompts/deploy.md",
+      "declaredManualOnlyForClaude": false
+    },
+    {
+      "name": "refactor",
+      "qualifiedName": "Codex:refactor",
+      "description": "Refactor safely.",
+      "source": "Codex",
+      "tool": "Codex",
+      "kind": "skill",
+      "activation": "Auto",
+      "location": "$HOME/.agents/skills/refactor",
+      "declaredManualOnlyForClaude": false
+    },
+    {
+      "name": "review",
+      "qualifiedName": "Project:review",
+      "description": "Review this repo's diff.",
+      "source": "Project",
+      "tool": "Claude Code",
+      "kind": "skill",
+      "activation": "Auto",
+      "location": "$PROJECT/.claude/skills/review",
+      "declaredManualOnlyForClaude": false
+    },
+    {
+      "name": "review",
+      "qualifiedName": "Project:review",
+      "description": "Review this repo, Codex side.",
+      "source": "Project",
+      "tool": "Codex",
+      "kind": "skill",
+      "activation": "Auto",
+      "location": "$PROJECT/.agents/skills/review",
+      "declaredManualOnlyForClaude": false
+    }
+  ],
+  "notices": [
+    {
+      "message": "Codex skills directory not found: $HOME/.codex/skills"
+    }
+  ],
+  "archive": []
+}

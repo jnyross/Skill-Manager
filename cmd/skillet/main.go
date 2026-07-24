@@ -7,13 +7,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/jnyross/Skill-Manager/internal/catalog"
-	"github.com/jnyross/Skill-Manager/internal/engine"
 	workspaceSetup "github.com/jnyross/Skill-Manager/internal/setup"
 	"github.com/jnyross/Skill-Manager/internal/tui"
 )
@@ -35,46 +33,61 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return runWithInput(args, os.Stdin, stdout, stderr)
 }
 
+// runWithInput dispatches the command tree. No arguments still launches the
+// TUI; every other entry point is scriptable (see cli.go and docs/agents/
+// cli.md).
 func runWithInput(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) > 0 {
-		if args[0] == "-h" || args[0] == "--help" {
-			fmt.Fprintln(stdout, "usage: skillet [--version|version|setup]")
+		command, rest := args[0], args[1:]
+		switch command {
+		case "-h", "--help", "help":
+			printTopLevelHelp(stdout)
 			return 0
-		}
-		if len(args) == 1 && (args[0] == "--version" || args[0] == "version") {
-			if version == "" || version == "dev" {
-				fmt.Fprintf(stdout, "skillet development (commit %s, built %s)\n", commit, buildDate)
-			} else {
-				fmt.Fprintf(stdout, "skillet %s (commit %s, built %s)\n", version, commit, buildDate)
+		case "--version", "version":
+			if len(rest) != 0 {
+				fmt.Fprintf(stderr, "version takes no arguments (got %q)\n", rest[0])
+				fmt.Fprintln(stderr, usageSummary)
+				return 2
 			}
+			printVersion(stdout)
 			return 0
+		case "setup":
+			return runSetup(rest, stdin, stdout, stderr)
+		case "list":
+			return runList(rest, stdout, stderr)
+		case "show":
+			return runShow(rest, stdout, stderr)
+		case "archive":
+			return runArchive(rest, stdout, stderr)
+		case "restore":
+			return runRestore(rest, stdout, stderr)
+		case "purge":
+			return runPurge(rest, stdout, stderr)
+		case "suppress":
+			return runSuppress(rest, stdout, stderr)
+		case "unsuppress":
+			return runUnsuppress(rest, stdout, stderr)
+		case "manual-only":
+			return runManualOnly(rest, stdout, stderr)
+		case "auto":
+			return runAuto(rest, stdout, stderr)
+		case "library":
+			return runLibrary(rest, stdout, stderr)
+		case "bundle":
+			return runBundle(rest, stdout, stderr)
+		case "install":
+			return runInstall(rest, stdout, stderr)
 		}
-		if args[0] == "setup" {
-			return runSetup(args[1:], stdin, stdout, stderr)
-		}
-		fmt.Fprintln(stderr, "usage: skillet [--version|version|setup]")
+		fmt.Fprintf(stderr, "unknown command %q\n", command)
+		fmt.Fprintln(stderr, usageSummary)
 		return 2
 	}
 
-	home, err := os.UserHomeDir()
+	e, err := newEngineForCWD()
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	cwd, err := os.Getwd()
-	if err != nil {
-		fmt.Fprintln(stderr, err)
-		return 1
-	}
-
-	e := engine.New(engine.Roots{
-		ClaudeHome:         filepath.Join(home, ".claude"),
-		CodexHome:          filepath.Join(home, ".codex"),
-		AgentsHome:         filepath.Join(home, ".agents"),
-		DataDir:            filepath.Join(home, ".skillet"),
-		ProjectRoots:       engine.FindProjectRoots(cwd),
-		ClaudeProjectRoots: engine.FindClaudeProjectRoots(cwd),
-	})
 	model := tui.NewModel(e)
 	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithOutput(stdout))
 	if _, err := p.Run(); err != nil {
@@ -97,6 +110,14 @@ func runWithInput(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 		}
 	}
 	return 0
+}
+
+func printVersion(stdout io.Writer) {
+	if version == "" || version == "dev" {
+		fmt.Fprintf(stdout, "skillet development (commit %s, built %s)\n", commit, buildDate)
+		return
+	}
+	fmt.Fprintf(stdout, "skillet %s (commit %s, built %s)\n", version, commit, buildDate)
 }
 
 func runSetup(args []string, stdin io.Reader, stdout, stderr io.Writer) int {

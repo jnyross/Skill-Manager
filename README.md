@@ -51,6 +51,35 @@ its own data (the Archive) under `~/.skillet`. Project skills are discovered
 from the current working directory up to the repository root (`ADR 0003`).
 There is nothing to configure.
 
+### Scriptable commands
+
+Everything the TUI can do is also available non-interactively, so an agent
+session or a CI job can manage Skills without a terminal UI:
+
+```
+skillet list [--json] [--source SOURCE] [--tool TOOL]
+skillet show <name> [--json]
+skillet archive <name> --yes
+skillet restore <id|name> --yes
+skillet purge <id|name> --yes
+skillet suppress|unsuppress <name> --yes
+skillet manual-only|auto <name> --yes
+skillet library list|add|remove [--json]
+skillet bundle list|install <bundle> --target <personal|PATH> [--json]
+skillet install <library-entry> --target <personal|PATH> --yes
+skillet setup [flags]
+```
+
+A bare Skill name works when it is unambiguous; otherwise Skillet exits 1 and
+lists the qualified `Source:Name` candidates, which are themselves valid input.
+Anything the TUI would confirm requires `--yes`, every mutation prints a
+one-line summary of what changed, and the exit codes are 0 for success, 1 for
+an operation error, and 2 for a usage error. `skillet --help` prints the full
+command tree.
+
+`docs/agents/cli.md` documents the command tree, the name-resolution rules, and
+the stable JSON schema (including how it stays additive).
+
 ### Main view
 
 The main view lists every Skill Skillet found, grouped by Source —
