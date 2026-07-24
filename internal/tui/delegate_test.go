@@ -15,7 +15,7 @@ func TestRenderSkillItemPreservesActivationOnNarrowTerminal(t *testing.T) {
 		Activation: engine.ActivationManualOnly,
 	}
 
-	rendered := renderSkillItem(skill, false, 40)
+	rendered := renderSkillItem(skill, false, false, 40)
 	if !strings.Contains(rendered, "Manual") {
 		t.Fatalf("rendered row %q missing Activation label", rendered)
 	}
@@ -29,7 +29,7 @@ func TestRenderSkillItemTruncatesLongNameWithEllipsis(t *testing.T) {
 		Activation: engine.ActivationAuto,
 	}
 
-	rendered := renderSkillItem(skill, false, 30)
+	rendered := renderSkillItem(skill, false, false, 30)
 	if !strings.Contains(rendered, "…") {
 		t.Fatalf("rendered row %q should truncate the name with an ellipsis", rendered)
 	}

@@ -61,6 +61,16 @@ var engineLockWait = 5 * time.Second
 // PID can only be a leftover, which is why engineLockStale treats it as stale.
 var engineLockInProcess sync.Mutex
 
+// engineLockAcquired, when set, is called once per successful lock
+// acquisition. It is nil in production and exists for the one property that is
+// otherwise invisible from outside the package: that a bulk mutation
+// (bulk.go's SetManualOnlyBulk) takes the lock once for the whole sweep rather
+// than once per Skill — the lock is not reentrant, so looping over the public
+// single-Skill method would deadlock or, worse, quietly serialise 44 separate
+// transactions. Tests setting it must not run in parallel, the same rule
+// writeFaultHook carries.
+var engineLockAcquired func()
+
 // withEngineLock runs fn holding the engine's mutation lock. The lock is
 // released on every path, including a panic, because both releases are
 // deferred.
@@ -103,6 +113,9 @@ func acquireEngineLock(dataDir string) (func(), error) {
 			if err := errors.Join(writeErr, closeErr); err != nil {
 				_ = os.Remove(lockPath)
 				return nil, fmt.Errorf("write lock %s: %w", lockPath, err)
+			}
+			if engineLockAcquired != nil {
+				engineLockAcquired()
 			}
 			return func() { _ = os.Remove(lockPath) }, nil
 		}

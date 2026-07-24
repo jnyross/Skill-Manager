@@ -25,8 +25,9 @@ skillet purge <id|name> --yes
 
 skillet suppress <name> --yes
 skillet unsuppress <name> --yes
-skillet manual-only <name> --yes
-skillet auto <name> --yes
+skillet manual-only <name>... --yes
+skillet manual-only --all [--except NAME[,NAME...]] --yes
+skillet auto <name>... --yes
 
 skillet library list [--json]
 skillet library add --name NAME <source flags> [--tool TOOL] [--kind KIND] --yes [--json]
@@ -75,12 +76,67 @@ The qualified forms are:
 `restore`, `purge`, `library remove`, `bundle install`, and `install` accept an
 id or, when unambiguous, a name; ambiguity lists the ids.
 
+`manual-only` and `auto` accept **any number** of names. Every name — and
+every `--except` name — is resolved before anything is written, so one
+ambiguous or unknown name aborts the whole command with exit 1 and the message
+`Nothing was changed.` rather than half-applying it. Naming the same Skill
+twice changes it once.
+
+## The Activation sweep
+
+Getting a machine down to the bare minimum set of Skills that Auto-activate is
+one command:
+
+```
+$ skillet manual-only --all --except code-review,handoff --yes
+```
+
+`--all` selects every Skill that currently Auto-activates **and** whose
+Activation Skillet can actually change, ordered most expensive first.
+`--except` keeps the named Skills Auto-activating; it applies only to `--all`.
+`--all` cannot be combined with Skill names.
+
+Without `--yes`, both commands print exactly what they would change and the
+estimated per-session effect, write nothing, and exit 2:
+
+```
+$ skillet manual-only --all --except handoff
+Would set 3 Skills to Manual-only:
+  SOURCE    TOOL         NAME         PER SESSION (EST.)
+  Personal  Claude Code  writing      ~31 tokens
+  Personal  Claude Code  review       ~24 tokens
+  Codex     Codex        refactor     ~18 tokens
+
+Estimated saving: ~73 tokens per session, across 3 Skills (estimate — Skillet sizes files rather than running a tokenizer).
+Nothing has been changed yet.
+manual-only changes files on disk and needs confirmation: re-run with --yes
+```
+
+With `--yes`, every bulk change prints one line per Skill and then a summary:
+how many changed, how many were already in that state, how many could not be
+changed, and the estimated per-session saving (or, for `auto`, the added cost).
+Reasons for the Skills that could not be changed go to stderr, one per Skill.
+
+Two Sources are never changeable this way, and say so rather than being
+silently skipped when named explicitly:
+
+- a **Plugin** Skill — its per-Skill control is `suppress`, which leaves the
+  plugin installed and intact;
+- a **Codex prompt** — it has no Auto-activation to turn off.
+
+`--all` leaves both out of the sweep entirely, so a sweep never manufactures
+failures out of Skills it was never able to change.
+
+A bulk change **applies every Skill it can** and then exits 1 if any Skill
+failed, so a non-zero exit means "partially applied, and here is what was
+not" — never "nothing happened". Every token figure is an estimate.
+
 ## Exit codes and confirmation
 
 | Code | Meaning |
 |---|---|
 | 0 | Success |
-| 1 | Operation error (no such Skill, ambiguous name, a write failed) |
+| 1 | Operation error (no such Skill, ambiguous name, a write failed, or a bulk change that applied some Skills but not all) |
 | 2 | Usage error (unknown command or flag, missing argument, missing `--yes`) |
 
 Anything the TUI would confirm requires `--yes` on the CLI, and every mutation

@@ -45,6 +45,9 @@ const (
 	pendingAddBundleMember
 	pendingRemoveBundleMember
 	pendingBundleMemberActivation
+	// pendingBulkManualOnly is the marked-set action (key `M`): one
+	// confirmation, one engine call, one report covering every marked Skill.
+	pendingBulkManualOnly
 )
 
 type pendingConfirm struct {
@@ -53,10 +56,13 @@ type pendingConfirm struct {
 	location    string
 	id          string
 	skill       engine.Skill
-	plugin      engine.PluginInfo
-	entry       engine.LibraryEntry
-	target      engine.InstallTarget
-	bundle      engine.Bundle
+	// skills is the marked set a bulk action applies to, captured at
+	// confirmation time so what runs is exactly what was described.
+	skills []engine.Skill
+	plugin engine.PluginInfo
+	entry  engine.LibraryEntry
+	target engine.InstallTarget
+	bundle engine.Bundle
 	// memberID is the Library entry ID of the Bundle member an add / remove /
 	// Activation confirmation applies to; memberName is its display name.
 	memberID   string
@@ -106,15 +112,21 @@ type Model struct {
 	bundleExpanded map[string]bool
 	setupRequested bool
 	pending        *pendingConfirm
-	installPicker  *installPicker
-	sourcePicker   *librarySourcePicker
-	form           *textForm
-	memberPicker   *memberPicker
-	status         string
-	statusLevel    statusLevel
-	installing     string
-	installWork    func() tea.Msg
-	spinner        spinner.Model
+	// marks is the main view's multi-selection. The list delegate holds this
+	// same pointer, so a marked row and the pending bulk action always agree.
+	marks *markSet
+	// moreMenu is the secondary entry point (key `o`) for Library, Bundles, and
+	// Setup. It renders as an overlay, so it costs the layout nothing.
+	moreMenu      *moreMenu
+	installPicker *installPicker
+	sourcePicker  *librarySourcePicker
+	form          *textForm
+	memberPicker  *memberPicker
+	status        string
+	statusLevel   statusLevel
+	installing    string
+	installWork   func() tea.Msg
+	spinner       spinner.Model
 	// installStep is the phase label rendered beside the spinner; see
 	// installStartedMsg.step for why it is TUI-derived.
 	installStep string
@@ -149,9 +161,11 @@ type Model struct {
 func NewModel(e *engine.Engine) *Model {
 	install := spinner.New()
 	install.Spinner = spinner.Dot
+	marks := newMarkSet()
 	m := &Model{
 		engine:         e,
-		list:           newSkillList(nil),
+		marks:          marks,
+		list:           newSkillList(nil, marks),
 		archiveList:    newArchiveList(nil),
 		libraryList:    newLibraryList(nil),
 		bundleList:     newBundleList(nil),
@@ -296,6 +310,14 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		return m.quitOrCancelInstall()
 	}
 
+	if m.moreMenu != nil {
+		m.updateMoreMenu(key.String())
+		m.resizeList()
+		if m.setupRequested {
+			return tea.Quit
+		}
+		return nil
+	}
 	if m.installPicker != nil {
 		cmd := m.updateInstallPicker(key.String())
 		m.resizeList()
@@ -340,6 +362,13 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		// esc first clears an applied filter; only once the list is unfiltered
 		// does it fall through to the per-view meaning (back to main view).
 		if m.clearActiveFilter() {
+			break
+		}
+		// Then it drops the marked set. Marks outlive filtering by design, so
+		// esc has to be able to let go of them too — otherwise the only way out
+		// of a selection is to act on it.
+		if m.view == mainView && m.marks.len() > 0 {
+			m.setStatus(fmt.Sprintf("Cleared %s.", pluralCount(m.marks.clear(), "mark", "marks")))
 			break
 		}
 		m.dispatchViewKey("esc")
@@ -584,20 +613,141 @@ func (m *Model) updateMain(key string) {
 		m.confirmLibraryToggle()
 	case "c":
 		m.toggleCostSort()
+	case " ":
+		m.toggleMark()
+	case "M":
+		m.confirmBulkManualOnly()
+	case "o":
+		m.moreMenu = &moreMenu{}
+		m.clearStatus()
 	}
+}
+
+// confirmBulkManualOnly stages the `M` action. It refuses loudly rather than
+// silently when there is nothing to do, and the confirmation states both how
+// many Skills change and what that is worth per session, because the saving is
+// the reason to press the key at all.
+func (m *Model) confirmBulkManualOnly() {
+	marked := m.markedSkills()
+	if len(marked) == 0 {
+		m.setError("Nothing marked. Press space to mark Skills, then M to set them all Manual-only.")
+		return
+	}
+	savings := engine.EstimateManualOnlySavings(marked)
+	if savings.Skills == 0 {
+		m.setStatus(fmt.Sprintf("Nothing to do: all %s already Manual-only.", pluralCount(len(marked), "marked Skill is", "marked Skills are")))
+		return
+	}
+
+	description := fmt.Sprintf("Set %s to Manual-only?", pluralCount(savings.Skills, "Skill", "Skills"))
+	if already := len(marked) - savings.Skills; already > 0 {
+		description += fmt.Sprintf(" (%d of the %d marked are already Manual-only.)", already, len(marked))
+	}
+	description += fmt.Sprintf(" Saves %s tokens per session (estimated). They will still run when explicitly invoked. y to confirm, any other key to cancel.",
+		engine.FormatTokenEstimate(savings.Tokens))
+
+	m.pending = &pendingConfirm{
+		description: description,
+		action:      pendingBulkManualOnly,
+		skills:      marked,
+	}
+}
+
+// applyBulkManualOnly runs the confirmed marked-set change and reports all
+// three outcomes it can produce. A partial failure is an error status, not a
+// success with a footnote: some of the Skills the user asked about are still
+// Auto-activating, and the per-session number on screen will not have dropped
+// as far as the confirmation promised.
+func (m *Model) applyBulkManualOnly(skills []engine.Skill) {
+	// The pre-change Activation decides how each result is reported, and it has
+	// to be read here rather than from the post-run inventory. Tokens are only
+	// credited for a Skill that was actually Auto — matching
+	// EstimateManualOnlySavings, so the confirmation's promise and the report's
+	// claim are computed the same way.
+	before := make(map[string]engine.ActivationState, len(skills))
+	for _, skill := range skills {
+		before[skillMarkKey(skill)] = skill.Activation
+	}
+
+	changed, already, saved := 0, 0, 0
+	var failures []engine.Skill
+	var reasons []string
+	for _, result := range m.engine.SetManualOnlyBulk(skills, true) {
+		if result.Err != nil {
+			failures = append(failures, result.Skill)
+			reasons = append(reasons, result.Skill.Name+" ("+result.Err.Error()+")")
+			continue
+		}
+		was := before[skillMarkKey(result.Skill)]
+		if was == engine.ActivationManualOnly {
+			already++
+			continue
+		}
+		changed++
+		if was == engine.ActivationAuto {
+			saved += result.Skill.DescriptionTokens
+		}
+	}
+
+	report := fmt.Sprintf("Set %s to Manual-only, saving %s tokens per session (estimated).",
+		pluralCount(changed, "Skill", "Skills"), engine.FormatTokenEstimate(saved))
+	if already > 0 {
+		report += fmt.Sprintf(" %s already Manual-only.", pluralCount(already, "was", "were"))
+	}
+
+	// The refresh is what re-reads Activation for every row; it also drops the
+	// marks, which is right for the Skills that changed.
+	m.refreshInventory()
+
+	if len(failures) > 0 {
+		report += fmt.Sprintf(" %s: %s.", pluralCount(len(failures), "failure", "failures"), strings.Join(truncateList(reasons, 3), "; "))
+		m.setError(report)
+		// Re-mark exactly what did not change, so retrying is one keypress and
+		// the failures stay visible in the list instead of disappearing into a
+		// status line the next action will overwrite.
+		for _, failed := range failures {
+			m.marks.add(failed)
+		}
+		return
+	}
+	m.setStatus(report)
+}
+
+// truncateList caps a list of reasons so one bad batch cannot push everything
+// else off the screen, while still saying how much it is not showing.
+func truncateList(items []string, limit int) []string {
+	if len(items) <= limit {
+		return items
+	}
+	return append(items[:limit:limit], fmt.Sprintf("and %d more", len(items)-limit))
+}
+
+// pluralCount renders "1 Skill" / "3 Skills" from a count and the two forms.
+func pluralCount(count int, singular, plural string) string {
+	if count == 1 {
+		return "1 " + singular
+	}
+	return fmt.Sprintf("%d %s", count, plural)
 }
 
 // toggleCostSort switches the inventory between its Source grouping and a flat
 // ranking by estimated per-session cost, most expensive first. It is a view
 // change only: nothing is written, and the same Skills are shown either way.
 func (m *Model) toggleCostSort() {
+	// The re-read behind the re-sort clears the marked set. Say so rather than
+	// letting a selection the user built up vanish without comment.
+	dropped := m.marks.len()
 	m.sortByCost = !m.sortByCost
 	m.refreshInventory()
+	note := ""
+	if dropped > 0 {
+		note = fmt.Sprintf(" %s cleared.", pluralCount(dropped, "mark", "marks"))
+	}
 	if m.sortByCost {
-		m.setStatus("Sorted by estimated cost per session, most expensive first. c groups by Source again.")
+		m.setStatus("Sorted by estimated cost per session, most expensive first. c groups by Source again." + note)
 		return
 	}
-	m.setStatus("Grouped by Source again.")
+	m.setStatus("Grouped by Source again." + note)
 }
 
 // switchView leaves the outgoing view unfiltered so a stale filter does not
@@ -1108,7 +1258,7 @@ func installBlocksKey(view viewState, key string) bool {
 	switch view {
 	case mainView:
 		switch key {
-		case "u", "s", "m", "x", "l":
+		case "u", "s", "m", "M", "x", "l":
 			return true
 		}
 	case archiveView:
@@ -1308,6 +1458,8 @@ func (m *Model) executePending() tea.Cmd {
 		}
 		m.setStatus("Restored Auto-activation for " + m.pending.skill.Name + ".")
 		m.refreshInventory()
+	case pendingBulkManualOnly:
+		m.applyBulkManualOnly(m.pending.skills)
 	case pendingUninstallPlugin:
 		plugin := m.pending.plugin
 		if err := m.engine.UninstallPlugin(plugin); err != nil {
@@ -1530,6 +1682,11 @@ func (m *Model) mainPageSize() int {
 }
 
 func (m *Model) refreshInventory() {
+	// A re-read is the one moment the marked set can no longer be trusted: the
+	// Skills it points at may have changed Activation, moved, or gone. Marks
+	// are cheap to make and expensive to get subtly wrong, so a refresh clears
+	// them rather than trying to reconcile them.
+	m.marks.clear()
 	m.inv = m.engine.Inventory()
 	if m.cursor >= len(m.inv.Skills) {
 		m.cursor = max(0, len(m.inv.Skills)-1)
@@ -1616,6 +1773,9 @@ func (m *Model) View() string {
 	view := m.renderView()
 	if m.pending != nil {
 		return renderConfirmOverlay(view, m.pending.description, m.width, m.height)
+	}
+	if m.moreMenu != nil {
+		return renderConfirmOverlay(view, renderMoreMenu(m.moreMenu.cursor), m.width, m.height)
 	}
 	if m.installPicker != nil {
 		name := m.installPicker.entry.Name
@@ -1728,8 +1888,15 @@ func (m *Model) zeroMatchLine() string {
 }
 
 func (m *Model) renderMain(b *strings.Builder) {
-	b.WriteString("Skillet\n")
+	b.WriteString(m.titleLine("Skillet"))
 	if line := m.costHeaderLine(); line != "" {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+	// The marked line sits directly under the cost header, not down by the
+	// status: it is a running total of what the current selection would take
+	// off the number above it.
+	if line := m.markedLine(); line != "" {
 		b.WriteString(line)
 		b.WriteString("\n")
 	}
@@ -1759,6 +1926,46 @@ func (m *Model) renderMain(b *strings.Builder) {
 			b.WriteString("\n")
 		}
 	}
+}
+
+// titleLine is the view's title with the two keys that are always true beside
+// it. Putting them here rather than in a help row is what lets the compact help
+// fit the main view's job into two lines: the title line was mostly empty
+// anyway, and a header line is worth more to the list than to whitespace.
+func (m *Model) titleLine(title string) string {
+	for _, hint := range []string{"   ? all keys · q quit", "  ? keys · q quit"} {
+		if m.width <= 0 || lipgloss.Width(title)+lipgloss.Width(hint) <= m.width {
+			return title + skillMetaStyle.Render(hint) + "\n"
+		}
+	}
+	return title + "\n"
+}
+
+// markedLine is the persistent marked-count line: how many Skills are marked,
+// what M would do to them, and what that is worth. It is only rendered while a
+// mark is set, and resizeList reserves a line for it on exactly the same
+// condition.
+func (m *Model) markedLine() string {
+	marked := m.markedSkills()
+	if len(marked) == 0 {
+		return ""
+	}
+	count := pluralCount(len(marked), "Skill marked", "Skills marked")
+	savings := engine.EstimateManualOnlySavings(marked)
+	if savings.Skills == 0 {
+		return markedStyle.Render(fitToWidth([]string{
+			count + " · already Manual-only · esc clears",
+			count + " · already Manual-only",
+			count,
+		}, m.width))
+	}
+	tokens := engine.FormatTokenEstimate(savings.Tokens)
+	return markedStyle.Render(fitToWidth([]string{
+		fmt.Sprintf("%s · M sets them Manual-only, saving %s tokens per session (est.) · esc clears", count, tokens),
+		fmt.Sprintf("%s · M → Manual-only, saves %s tokens/session · esc clears", count, tokens),
+		fmt.Sprintf("%s · M → Manual-only, saves %s", count, tokens),
+		count,
+	}, m.width))
 }
 
 // costHeaderLine is the number this whole feature exists for: what
@@ -1841,7 +2048,7 @@ func (m *Model) visibleInventoryNotices() []engine.Notice {
 }
 
 func (m *Model) renderArchive(b *strings.Builder) {
-	b.WriteString("Skillet Archive\n")
+	b.WriteString(m.titleLine("Skillet Archive"))
 	b.WriteString(m.helpView())
 	b.WriteString("\n\n")
 
@@ -1866,7 +2073,7 @@ func (m *Model) renderArchive(b *strings.Builder) {
 }
 
 func (m *Model) renderLibrary(b *strings.Builder) {
-	b.WriteString("Skillet Library\n")
+	b.WriteString(m.titleLine("Skillet Library"))
 	b.WriteString(m.helpView())
 	b.WriteString("\n\n")
 
@@ -1882,7 +2089,7 @@ func (m *Model) renderLibrary(b *strings.Builder) {
 }
 
 func (m *Model) renderBundles(b *strings.Builder) {
-	b.WriteString("Skillet Bundles\n")
+	b.WriteString(m.titleLine("Skillet Bundles"))
 	b.WriteString(m.helpView())
 	b.WriteString("\n\n")
 
@@ -1897,8 +2104,8 @@ func (m *Model) renderBundles(b *strings.Builder) {
 	}
 }
 
-func newSkillList(items []list.Item) list.Model {
-	model := list.New(items, skillDelegate{}, 0, 0)
+func newSkillList(items []list.Item, marks *markSet) list.Model {
+	model := list.New(items, skillDelegate{marks: marks}, 0, 0)
 	model.SetShowTitle(false)
 	// See newLibraryList: filtering on, the list's own filter bar off — the
 	// Model renders the filter prompt itself in renderFilterLine.
@@ -2006,6 +2213,9 @@ func (m *Model) resizeList() {
 	reserved := 3 + renderedLineCount(m.helpView()) // title, help, blank line, trailing newline after the list
 	if m.view == mainView && m.costHeaderLine() != "" {
 		reserved++ // the per-session cost line under the title
+	}
+	if m.view == mainView && m.markedLine() != "" {
+		reserved++ // the marked-count line under the cost header
 	}
 	if notices := m.visibleInventoryNotices(); m.view == mainView && len(notices) > 0 {
 		reserved += 2 + len(notices) // blank line, "Notices" line, one per notice

@@ -88,7 +88,7 @@ func renderArchiveItem(entry engine.ArchiveEntry, selected bool, width int) stri
 		entry.OriginalLocation,
 		entry.ArchivedAt.Format(time.RFC3339),
 	))
-	line := fmt.Sprintf("%s %s%s", cursor, selectedSkillName(label, selected), meta)
+	line := fmt.Sprintf("%s %s%s", cursor, skillNameText(label, selected, false), meta)
 
 	style := skillRowStyle
 	if selected {

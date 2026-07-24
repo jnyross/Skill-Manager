@@ -52,6 +52,14 @@ var (
 	activationDisabledStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.AdaptiveColor{Light: "#B91C1C", Dark: "#FCA5A5"})
 
+	// markedStyle is the multi-selection colour, deliberately the same amber as
+	// activationManualOnlyStyle: a mark is a proposal to make that Skill
+	// Manual-only, so the marked rows and the state they are headed for read as
+	// one thing.
+	markedStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.AdaptiveColor{Light: "#92400E", Dark: "#FBBF24"})
+
 	statusErrorStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.AdaptiveColor{Light: "#B91C1C", Dark: "#FCA5A5"})

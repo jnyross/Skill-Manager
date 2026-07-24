@@ -399,29 +399,8 @@ func runUnsuppress(args []string, stdout, stderr io.Writer) int {
 	}, args, stdout, stderr)
 }
 
-func runManualOnly(args []string, stdout, stderr io.Writer) int {
-	return runSkillMutation(skillMutation{
-		name:  "manual-only",
-		usage: "usage: skillet manual-only <name> --yes",
-		notes: "Turns Auto-activation off: the Skill then runs only when it is invoked\nexplicitly. Reverse it with \"skillet auto\".",
-		apply: func(e *engine.Engine, skill engine.Skill) error { return e.SetManualOnly(skill, true) },
-		summary: func(skill engine.Skill) string {
-			return fmt.Sprintf("Set %s %s %q to Manual-only at %s", skill.Source, skill.Kind, skill.Name, skill.Location)
-		},
-	}, args, stdout, stderr)
-}
-
-func runAuto(args []string, stdout, stderr io.Writer) int {
-	return runSkillMutation(skillMutation{
-		name:  "auto",
-		usage: "usage: skillet auto <name> --yes",
-		notes: "Turns Auto-activation back on, so the model may invoke the Skill on its own\njudgement.",
-		apply: func(e *engine.Engine, skill engine.Skill) error { return e.SetManualOnly(skill, false) },
-		summary: func(skill engine.Skill) string {
-			return fmt.Sprintf("Set %s %s %q to Auto-activation at %s", skill.Source, skill.Kind, skill.Name, skill.Location)
-		},
-	}, args, stdout, stderr)
-}
+// manual-only and auto live in cli_activation.go: they take many names and a
+// sweep flag, so they do not fit runSkillMutation's one-name shape.
 
 func pluginSuffix(skill engine.Skill) string {
 	if skill.Plugin == nil {

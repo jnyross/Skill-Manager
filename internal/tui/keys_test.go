@@ -302,9 +302,47 @@ func TestShortHelpRowsFit80Columns(t *testing.T) {
 	}
 }
 
-func TestMainShortHelpExposesEveryModeChangingKey(t *testing.T) {
+// The compact help is the main view's statement of what it is for: see every
+// Skill, see what it costs, and get the Auto-activating set down. Every key in
+// that loop is on screen without pressing `?`.
+func TestMainShortHelpExposesTheManageAndReduceKeys(t *testing.T) {
 	m := mainKeyMap(engine.Skill{Source: engine.SourcePlugin, Kind: engine.KindSkill}, true, false)
 
+	seen := compactHelpKeys(m)
+	for _, k := range []string{"/", "c", " ", "M", "m", "s", "u", "x", "a", "o"} {
+		if !seen[k] {
+			t.Errorf("main compact help does not expose %q", k)
+		}
+	}
+}
+
+// Library, Bundles, and Setup still work from their own keys, but they are
+// secondary: they reach the compact help through the single "More" entry
+// point rather than each claiming a slot in it.
+func TestMainShortHelpKeepsSecondaryDestinationsBehindMore(t *testing.T) {
+	m := mainKeyMap(engine.Skill{Source: engine.SourcePersonal, Kind: engine.KindSkill}, true, false)
+
+	seen := compactHelpKeys(m)
+	for _, k := range []string{"L", "B", "S", "l"} {
+		if seen[k] {
+			t.Errorf("main compact help still advertises the secondary key %q", k)
+		}
+	}
+	if !seen["o"] {
+		t.Error("main compact help does not offer the More entry point")
+	}
+}
+
+// Two rows, because the compact help is a header: every line it takes is a line
+// the inventory does not get.
+func TestMainShortHelpFitsTwoRows(t *testing.T) {
+	m := mainKeyMap(engine.Skill{Source: engine.SourcePersonal, Kind: engine.KindSkill}, true, false)
+	if rows := len(m.ShortHelpRows()); rows > 2 {
+		t.Errorf("main compact help is %d rows, want at most 2", rows)
+	}
+}
+
+func compactHelpKeys(m keyMap) map[string]bool {
 	seen := map[string]bool{}
 	for _, row := range m.ShortHelpRows() {
 		for _, b := range row {
@@ -313,13 +351,7 @@ func TestMainShortHelpExposesEveryModeChangingKey(t *testing.T) {
 			}
 		}
 	}
-
-	// Every key that changes mode or state used to be hidden until `?`.
-	for _, k := range []string{"s", "m", "x", "l", "L", "B", "/", "u", "a", "S", "?", "q"} {
-		if !seen[k] {
-			t.Errorf("main compact help does not expose %q", k)
-		}
-	}
+	return seen
 }
 
 func TestMainFullHelpContainsLessFrequentActions(t *testing.T) {
@@ -333,7 +365,9 @@ func TestMainFullHelpContainsLessFrequentActions(t *testing.T) {
 		}
 	}
 
-	for _, desc := range []string{"Suppress", "Manual-only", "Uninstall plugin", "Library view", "Bundle view"} {
+	// Nothing was removed from the product, so nothing may be missing from the
+	// full help — including everything the compact help now leaves to `o`.
+	for _, desc := range []string{"Suppress", "Manual-only", "Uninstall plugin", "Library view", "Bundle view", "Setup workspace", "Library membership", "mark", "Manual-only marked", "clear marks", "More"} {
 		present := false
 		for _, d := range found {
 			if d == desc {

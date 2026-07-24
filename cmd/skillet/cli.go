@@ -76,8 +76,9 @@ Archive
 Activation
   suppress <name> --yes                           Hide a Skill from the model and slash commands
   unsuppress <name> --yes                         Undo Suppress
-  manual-only <name> --yes                        Turn Auto-activation off
-  auto <name> --yes                               Turn Auto-activation back on
+  manual-only <name>... --yes                     Turn Auto-activation off
+  manual-only --all [--except NAMES] --yes        Sweep every Auto-activating Skill
+  auto <name>... --yes                            Turn Auto-activation back on
 
 Library and Bundles
   library list [--json]                           List Library entries
@@ -103,7 +104,10 @@ Targets
 
 Conventions
   Every command that changes anything on disk requires --yes, mirroring the
-  TUI's confirmation, and prints a one-line summary of exactly what changed.
+  TUI's confirmation, and prints a summary of exactly what changed. Without
+  --yes, manual-only and auto print what they would change and the estimated
+  per-session saving, and change nothing. A bulk change applies every Skill it
+  can and exits 1 if any Skill could not be changed, saying which.
   Exit codes: 0 success, 1 operation error, 2 usage error.
 
 Run "skillet <command> --help" for a command's flags.

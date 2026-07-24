@@ -64,7 +64,9 @@ skillet archive <name> --yes
 skillet restore <id|name> --yes
 skillet purge <id|name> --yes
 skillet suppress|unsuppress <name> --yes
-skillet manual-only|auto <name> --yes
+skillet manual-only <name>... --yes
+skillet manual-only --all [--except NAME[,NAME...]] --yes
+skillet auto <name>... --yes
 skillet library list|add|remove [--json]
 skillet bundle list|install <bundle> --target <personal|PATH> [--json]
 skillet install <library-entry> --target <personal|PATH> --yes
@@ -81,6 +83,21 @@ command tree.
 `skillet cost` estimates what your installed Skills cost in context: the
 standing per-session cost of Auto-activation broken down per Tool, and the ten
 Skills responsible for most of it. Every number it prints is an estimate.
+
+`skillet manual-only` and `skillet auto` take any number of Skill names, and
+`manual-only` also takes `--all` with an `--except` list — so one command gets
+a machine down to the bare minimum set of Skills that auto-activate:
+
+```
+$ skillet manual-only --all --except code-review,handoff --yes
+```
+
+Without `--yes` it prints exactly what it would change and the estimated
+per-session saving, and changes nothing. An ambiguous name aborts the whole
+command before any write rather than half-applying it. When some Skills cannot
+be changed — a Plugin Skill, whose control is Suppress, or a Codex prompt,
+which has no Auto-activation to turn off — the rest are still applied, each
+failure is explained, and the command exits 1.
 
 `docs/agents/cli.md` documents the command tree, the name-resolution rules, and
 the stable JSON schema (including how it stays additive).
@@ -109,17 +126,20 @@ Keys:
 | `ctrl+u` / `ctrl+d` (also `ctrl+pgup` / `ctrl+pgdown`) | Scroll the detail pane | main view |
 | `/` | Filter the list | every view |
 | `c` | Rank the list by estimated cost per session (press again to group by Source) | main view |
-| `esc` | Clear the filter, or return to the main view | every view |
+| `esc` | Clear the filter, then the marks, then return to the main view | every view |
+| `space` | Mark / unmark the selected Skill | main view |
+| `M` | Set every marked Skill to Manual-only | main view |
 | `u` | Archive the selected Skill | Personal, Codex (skills and prompts), Project |
 | `s` | Suppress / un-suppress the selected Skill | Plugin skills, Codex skills, Project Codex skills |
 | `m` | Toggle Manual-only / Auto-activation | Personal skills, Codex skills (not prompts), Project skills |
 | `x` | Uninstall the selected Skill's whole plugin | Plugin skills |
 | `a` | Switch to the Archive view | main view |
-| `l` | Add/remove the selected Skill or plugin from Library | supported installed entries |
+| `o` | Open More: Library, Bundles, and Setup | main view |
+| `l` | Add/remove the selected Skill or plugin from Library membership | supported installed entries |
 | `L` | Switch to the Library view | main view |
 | `B` | Switch to the Bundle view | main view |
 | `S` | Setup workspace | main view |
-| `?` | Show/hide full help | everywhere |
+| `?` | Show/hide all keys | everywhere |
 | `q` / `ctrl+c` | Quit | everywhere except an open confirmation |
 
 Pressing a key for an action that doesn't apply to the selected row (for
@@ -163,6 +183,33 @@ narrow the list. `enter` keeps the filter and returns to the list; `esc`
 clears it. If nothing matches, Skillet says so instead of showing an empty
 list. The Archive, Library, and Bundle views filter the same way, over their
 own fields (original location, Library source, Bundle member names).
+
+### Getting down to a minimum set
+
+Every Auto-activating Skill's description is injected into every session with
+its Tool, whether or not you use it. That standing cost is the number in the
+header, and cutting it is what Skillet is for.
+
+The fastest route is `c` to rank the list by estimated cost, then `space` to
+mark the Skills you don't want deciding for themselves, then `M`. Skillet
+confirms with the count and what it saves — `Set 31 Skills to Manual-only?
+Saves ~1,940 tokens per session` — before writing anything. Manual-only is
+not disabled: those Skills still run, they just wait to be asked. Marks
+survive filtering, so you can filter, mark, clear the filter, and mark more
+before acting. `esc` clears the marks.
+
+The same sweep from a script, which is the one-liner for a fresh machine:
+
+```sh
+skillet manual-only --all --except code-review,handoff --yes
+```
+
+Without `--yes` it prints exactly what it would change and what it would
+save, and changes nothing.
+
+Library, Bundles, and guided Setup all still exist; they live behind `o`
+(More) so the main view stays about seeing and reducing what you already
+have.
 
 ### Archive view
 

@@ -86,7 +86,7 @@ func renderLibraryItem(entry engine.LibraryEntry, selected bool, width int) stri
 		librarySourceLocation(entry.Source),
 		entry.AddedAt.Format(time.RFC3339),
 	))
-	line := fmt.Sprintf("%s %s%s", cursor, selectedSkillName(label, selected), meta)
+	line := fmt.Sprintf("%s %s%s", cursor, skillNameText(label, selected, false), meta)
 
 	style := skillRowStyle
 	if selected {

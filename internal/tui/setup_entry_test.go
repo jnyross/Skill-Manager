@@ -37,9 +37,26 @@ func TestMainViewRendersWithinNarrowTerminal(t *testing.T) {
 	}
 }
 
-// The full-help toggle must show the Setup binding and still respect a
-// narrow width rather than overflowing.
-func TestFullHelpShowsSetupAndFitsNarrowTerminal(t *testing.T) {
+// Setup is secondary in the compact help, so the full help is where it has to
+// be documented. Bubbles renders full help in columns and drops the columns a
+// narrow terminal cannot fit, so this asserts the content at a width that fits
+// them all — and the narrow case below asserts what actually matters there,
+// that nothing overflows.
+func TestFullHelpDocumentsSetupAndTheSecondaryDestinations(t *testing.T) {
+	e, roots, _, _ := newPhase3TUIFixture(t)
+	writeTUISkill(t, filepath.Join(roots.ClaudeHome, "skills", "alpha"), "alpha", "first")
+	m := NewModel(e)
+	m.Update(tea.WindowSizeMsg{Width: 140, Height: 30})
+	pressTUIKey(m, "?")
+	view := m.View()
+	for _, want := range []string{"Setup workspace", "Library view", "Bundle view", "More"} {
+		if !strings.Contains(view, want) {
+			t.Errorf("full help does not document %q: %q", want, view)
+		}
+	}
+}
+
+func TestFullHelpFitsNarrowTerminal(t *testing.T) {
 	const width = 30
 	e, roots, _, _ := newPhase3TUIFixture(t)
 	writeTUISkill(t, filepath.Join(roots.ClaudeHome, "skills", "alpha"), "alpha", "first")
@@ -47,9 +64,6 @@ func TestFullHelpShowsSetupAndFitsNarrowTerminal(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: width, Height: 8})
 	pressTUIKey(m, "?")
 	view := m.View()
-	if !strings.Contains(view, "Setup workspace") {
-		t.Fatalf("full help does not document the Setup binding: %q", view)
-	}
 	for _, line := range strings.Split(view, "\n") {
 		if got := lipgloss.Width(line); got > width {
 			t.Errorf("full-help line wider than terminal (%d): %q", got, line)

@@ -19,6 +19,10 @@ type keyMap struct {
 	archive         key.Binding
 	suppress        key.Binding
 	manualOnly      key.Binding
+	mark            key.Binding
+	bulkManualOnly  key.Binding
+	clearMarks      key.Binding
+	more            key.Binding
 	uninstallPlugin key.Binding
 	libraryToggle   key.Binding
 	sortCost        key.Binding
@@ -47,9 +51,21 @@ func mainKeyMap(selected engine.Skill, ok bool, showAll bool) keyMap {
 	m.archive = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "Archive"))
 	m.suppress = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "Suppress"))
 	m.manualOnly = key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "Manual-only"))
+	// space/M are the reduce-the-context loop: mark the Skills that do not need
+	// to Auto-activate, then set the whole marked set Manual-only in one write.
+	m.mark = key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "mark"))
+	// M stays enabled with nothing marked on purpose: it is how the user finds
+	// out the feature exists, and the handler explains what to press instead of
+	// doing nothing.
+	m.bulkManualOnly = key.NewBinding(key.WithKeys("M"), key.WithHelp("M", "Manual-only marked"))
+	m.clearMarks = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear marks"))
 	m.uninstallPlugin = key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "Uninstall plugin"))
-	m.libraryToggle = key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "Library"))
+	m.libraryToggle = key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "Library membership"))
 	m.switchView = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "Archive view"))
+	// Library, Bundles, and Setup all live behind `o`. They still answer to
+	// their own keys from the main view; they simply stop competing with the
+	// manage-and-reduce keys for the compact help.
+	m.more = key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "More"))
 	m.libraryView = key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "Library view"))
 	m.bundleView = key.NewBinding(key.WithKeys("B"), key.WithHelp("B", "Bundle view"))
 	m.setup = key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "Setup workspace"))
@@ -65,6 +81,9 @@ func mainKeyMap(selected engine.Skill, ok bool, showAll bool) keyMap {
 	m.archive.SetEnabled(ok && canArchiveSkill(selected))
 	m.suppress.SetEnabled(ok && canSuppressSkill(selected))
 	m.manualOnly.SetEnabled(ok && canToggleManualOnly(selected))
+	// Marking is offered exactly where Manual-only is: the bulk action refuses
+	// the same Skills the single-skill toggle refuses.
+	m.mark.SetEnabled(ok && canToggleManualOnly(selected))
 	m.uninstallPlugin.SetEnabled(ok && canUninstallPlugin(selected))
 	m.libraryToggle.SetEnabled(ok && canToggleLibraryMembership(selected))
 	return m
@@ -120,7 +139,7 @@ func bundleKeyMap(hasSelection bool, showAll bool) keyMap {
 }
 
 func baseKeyMap(showAll bool) keyMap {
-	showHelp := key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "more"))
+	showHelp := key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "all keys"))
 	if showAll {
 		showHelp.SetHelp("?", "less")
 	}
@@ -134,38 +153,48 @@ func baseKeyMap(showAll bool) keyMap {
 	}
 }
 
-// ShortHelpRows is the compact help, split across as many lines as it takes to
-// show every mode-changing key without truncating at 80 columns. Model.helpView
-// renders one line per row. `?` still opens the grouped full help.
+// ShortHelpRows is the compact help. It answers one question — what is the job
+// here — so the main view spends its two rows on seeing and reducing what
+// Auto-activates, and nothing else. Library, Bundles, and Setup are all still a
+// single keypress away, behind `o` (More), and `?` still lists every key.
+//
+// `?` and `q` are not here: Model.titleLine puts them beside the title, which
+// buys back a whole header line for the list. Both remain in FullHelp.
 //
 // Each row is kept under 80 columns including the " • " separators; adding a
 // binding to a row means re-checking that budget (TestShortHelpRowsFit80Columns
-// enforces it).
+// enforces it). A binding whose full-help wording does not fit is abbreviated
+// here with compactHelp, never dropped.
 func (m keyMap) ShortHelpRows() [][]key.Binding {
 	if m.main {
 		return [][]key.Binding{
-			{m.move, m.filter, m.sortCost, m.showFullHelp, m.quit},
-			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle},
-			{m.switchView, m.libraryView, m.bundleView, m.setup},
+			{m.move, m.filter, m.sortCost, m.mark, m.bulkManualOnly},
+			{m.manualOnly, m.suppress, m.archive, compactHelp(m.uninstallPlugin, "x", "Uninstall"), m.switchView, m.more},
 		}
 	}
 	if m.library {
 		return [][]key.Binding{
-			{m.move, m.filter, m.showFullHelp, m.quit},
-			{m.libraryInstall, m.create, m.libraryRemove, m.switchView},
+			{m.move, m.filter, m.libraryInstall, m.create, compactHelp(m.libraryRemove, "d", "remove"), m.switchView},
 		}
 	}
 	if m.bundle {
 		return [][]key.Binding{
-			{m.move, m.filter, m.showFullHelp, m.quit},
-			{m.expand, m.create, m.addMember, m.removeMember},
-			{m.manualOnly, m.libraryInstall, m.libraryRemove, m.switchView},
+			{m.move, m.filter, m.expand, m.create},
+			{m.addMember, m.removeMember, m.manualOnly},
+			{m.libraryInstall, m.libraryRemove, m.switchView},
 		}
 	}
 	return [][]key.Binding{
-		{m.move, m.filter, m.showFullHelp, m.quit},
-		{m.restore, m.purge, m.switchView},
+		{m.move, m.filter, m.restore, m.purge, m.switchView},
 	}
+}
+
+// compactHelp is the same binding with shorter help text, for a compact row
+// that cannot afford the full wording. It copies the binding, so the full help
+// still shows the unabbreviated description.
+func compactHelp(binding key.Binding, k, desc string) key.Binding {
+	binding.SetHelp(k, desc)
+	return binding
 }
 
 // ShortHelp satisfies help.KeyMap. Model.helpView renders ShortHelpRows line by
@@ -182,9 +211,9 @@ func (m keyMap) ShortHelp() []key.Binding {
 func (m keyMap) FullHelp() [][]key.Binding {
 	if m.main {
 		return [][]key.Binding{
-			{m.move, m.switchView, m.libraryView, m.bundleView, m.setup, m.showFullHelp, m.quit},
-			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle, m.detailScroll},
-			{m.page, m.jump, m.filter, m.clearFilter, m.sortCost},
+			{m.mark, m.bulkManualOnly, m.clearMarks, m.manualOnly, m.suppress, m.archive, m.uninstallPlugin},
+			{m.move, m.page, m.jump, m.filter, m.clearFilter, m.sortCost, m.detailScroll},
+			{m.more, m.switchView, m.libraryView, m.bundleView, m.setup, m.libraryToggle, m.showFullHelp, m.quit},
 		}
 	}
 	if m.library {

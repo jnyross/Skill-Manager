@@ -13,7 +13,12 @@ import (
 	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
-type skillDelegate struct{}
+// skillDelegate renders one inventory row. It holds the Model's markSet by
+// pointer rather than a copy of it: marks change without the item list being
+// rebuilt, so a snapshot would render a stale selection.
+type skillDelegate struct {
+	marks *markSet
+}
 
 func (d skillDelegate) Height() int {
 	return 1
@@ -32,7 +37,7 @@ func (d skillDelegate) Render(w io.Writer, m list.Model, index int, item list.It
 	case groupHeaderItem:
 		fmt.Fprint(w, renderGroupHeader(item.source, m.Width()))
 	case skillItem:
-		fmt.Fprint(w, renderSkillItem(item.skill, index == m.Index(), m.Width()))
+		fmt.Fprint(w, renderSkillItem(item.skill, index == m.Index(), d.marks.has(item.skill), m.Width()))
 	}
 }
 
@@ -44,10 +49,19 @@ func renderGroupHeader(source engine.Source, width int) string {
 	return sourceHeaderStyle(source).Width(width).Render(label)
 }
 
-func renderSkillItem(skill engine.Skill, selected bool, width int) string {
+// markGlyph is the marked-row marker. It sits in its own fixed column, which is
+// always present (a space when the row is unmarked) so marking never shifts the
+// rest of the row sideways and a column of marks reads as a block.
+const markGlyph = "✓"
+
+func renderSkillItem(skill engine.Skill, selected, marked bool, width int) string {
 	cursor := " "
 	if selected {
 		cursor = ">"
+	}
+	mark := " "
+	if marked {
+		mark = markedStyle.Render(markGlyph)
 	}
 
 	label := skill.Name
@@ -66,7 +80,7 @@ func renderSkillItem(skill engine.Skill, selected bool, width int) string {
 	activation := activationStyle(skill.Activation).Render(string(skill.Activation))
 	styledPluginText := skillMetaStyle.Render(pluginText)
 
-	cursorPrefix := cursor + " "
+	cursorPrefix := cursor + mark + " "
 	sep := " | "
 	fixed := lipgloss.Width(cursorPrefix) + lipgloss.Width(sep) +
 		lipgloss.Width(activation) + lipgloss.Width(styledPluginText)
@@ -86,7 +100,7 @@ func renderSkillItem(skill engine.Skill, selected bool, width int) string {
 
 	line := fmt.Sprintf("%s%s%s%s%s",
 		cursorPrefix,
-		selectedSkillName(label, selected),
+		skillNameText(label, selected, marked),
 		sep,
 		activation,
 		styledPluginText,
@@ -102,9 +116,17 @@ func renderSkillItem(skill engine.Skill, selected bool, width int) string {
 	return style.MaxWidth(width).Render(line)
 }
 
-func selectedSkillName(name string, selected bool) string {
-	if selected {
+// skillNameText colours the name for the two orthogonal states a row can be
+// in. Marked wins over selected: the cursor is already drawn by the ">" and
+// moves away, while a mark persists and is what the next bulk action will act
+// on, so it has to be the louder of the two.
+func skillNameText(name string, selected, marked bool) string {
+	switch {
+	case marked:
+		return markedStyle.Render(name)
+	case selected:
 		return selectedSkillRowStyle.Render(name)
+	default:
+		return name
 	}
-	return name
 }
