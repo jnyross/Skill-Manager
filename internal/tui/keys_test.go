@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/jnyross/Skill-Manager/internal/engine"
 )
 
@@ -265,32 +268,56 @@ func TestRejectReasonsMatchGates(t *testing.T) {
 	}
 }
 
-func TestMainShortHelpFits80Columns(t *testing.T) {
-	m := mainKeyMap(engine.Skill{Source: engine.SourcePersonal, Kind: engine.KindSkill}, true, false)
-	short := m.ShortHelp()
-	if len(short) > 6 {
-		t.Fatalf("main ShortHelp has %d bindings, want at most 6", len(short))
+// shortHelpRowWidth is what bubbles/help would render a row at: each binding
+// as "key desc", joined by the default three-column " • " separator.
+func shortHelpRowWidth(row []key.Binding) int {
+	width, shown := 0, 0
+	for _, b := range row {
+		h := b.Help()
+		if h.Key == "" {
+			continue // unset binding for this view
+		}
+		width += lipgloss.Width(h.Key) + 1 + lipgloss.Width(h.Desc)
+		shown++
 	}
+	if shown > 1 {
+		width += 3 * (shown - 1)
+	}
+	return width
+}
 
-	has := func(desc string) bool {
-		for _, b := range short {
-			if b.Help().Desc == desc {
-				return true
+func TestShortHelpRowsFit80Columns(t *testing.T) {
+	maps := map[string]keyMap{
+		"main":    mainKeyMap(engine.Skill{Source: engine.SourceCodex, Kind: engine.KindSkill}, true, false),
+		"archive": archiveKeyMap(true, false),
+		"library": libraryKeyMap(true, false),
+		"bundle":  bundleKeyMap(true, false),
+	}
+	for name, km := range maps {
+		for i, row := range km.ShortHelpRows() {
+			if width := shortHelpRowWidth(row); width > 80 {
+				t.Errorf("%s ShortHelpRows row %d is %d columns wide, want <= 80", name, i, width)
 			}
 		}
-		return false
 	}
-	if !has("quit") {
-		t.Fatalf("main ShortHelp missing quit binding")
-	}
-	if !has("setup workspace") {
-		t.Fatalf("main ShortHelp missing setup workspace binding")
+}
+
+func TestMainShortHelpExposesEveryModeChangingKey(t *testing.T) {
+	m := mainKeyMap(engine.Skill{Source: engine.SourcePlugin, Kind: engine.KindSkill}, true, false)
+
+	seen := map[string]bool{}
+	for _, row := range m.ShortHelpRows() {
+		for _, b := range row {
+			for _, k := range b.Keys() {
+				seen[k] = true
+			}
+		}
 	}
 
-	// Less-frequent actions should be full-help only.
-	for _, desc := range []string{"suppress/un-suppress", "manual-only/auto-activate", "uninstall plugin"} {
-		if has(desc) {
-			t.Fatalf("main ShortHelp should not contain %q", desc)
+	// Every key that changes mode or state used to be hidden until `?`.
+	for _, k := range []string{"s", "m", "x", "l", "L", "B", "/", "u", "a", "S", "?", "q"} {
+		if !seen[k] {
+			t.Errorf("main compact help does not expose %q", k)
 		}
 	}
 }
@@ -306,7 +333,7 @@ func TestMainFullHelpContainsLessFrequentActions(t *testing.T) {
 		}
 	}
 
-	for _, desc := range []string{"suppress/un-suppress", "manual-only/auto-activate", "uninstall plugin", "library view", "bundle view"} {
+	for _, desc := range []string{"Suppress", "Manual-only", "Uninstall plugin", "Library view", "Bundle view"} {
 		present := false
 		for _, d := range found {
 			if d == desc {

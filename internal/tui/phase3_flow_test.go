@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -176,30 +177,82 @@ func writeTUISkill(t *testing.T, dir, name, description string) string {
 	return dir
 }
 
-func pressTUIKey(m *Model, key string) {
-	var msg tea.KeyMsg
+func tuiKeyMsg(key string) tea.KeyMsg {
 	switch key {
 	case "enter":
-		msg = tea.KeyMsg{Type: tea.KeyEnter}
+		return tea.KeyMsg{Type: tea.KeyEnter}
 	case "down":
-		msg = tea.KeyMsg{Type: tea.KeyDown}
+		return tea.KeyMsg{Type: tea.KeyDown}
 	case "up":
-		msg = tea.KeyMsg{Type: tea.KeyUp}
+		return tea.KeyMsg{Type: tea.KeyUp}
+	case "esc":
+		return tea.KeyMsg{Type: tea.KeyEsc}
+	case "backspace":
+		return tea.KeyMsg{Type: tea.KeyBackspace}
+	case "shift+tab":
+		return tea.KeyMsg{Type: tea.KeyShiftTab}
+	case "ctrl+c":
+		return tea.KeyMsg{Type: tea.KeyCtrlC}
 	default:
-		msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)}
+		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)}
 	}
-	_, cmd := m.Update(msg)
-	for cmd != nil {
-		next := cmd()
-		if next == nil {
-			break
-		}
-		_, cmd = m.Update(next)
-	}
+}
+
+func pressTUIKey(m *Model, key string) {
+	_, cmd := m.Update(tuiKeyMsg(key))
+	drainTUICmd(m, cmd)
 }
 
 func typeTUIText(m *Model, value string) {
 	for _, r := range value {
-		m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		drainTUICmd(m, cmd)
+	}
+}
+
+// drainTUICmd runs a command tree to completion against the model, the way the
+// Bubble Tea runtime would. Filtering depends on this: the Bubbles list
+// computes matches in a tea.Cmd and delivers them as a list.FilterMatchesMsg,
+// and those commands arrive batched.
+func drainTUICmd(m *Model, cmd tea.Cmd) {
+	for depth := 0; cmd != nil && depth < 64; depth++ {
+		msg := runTUICmd(cmd)
+		if msg == nil {
+			return
+		}
+		batch, ok := msg.(tea.BatchMsg)
+		if !ok {
+			_, cmd = m.Update(msg)
+			continue
+		}
+		var next []tea.Cmd
+		for _, sub := range batch {
+			if sub == nil {
+				continue
+			}
+			subMsg := runTUICmd(sub)
+			if subMsg == nil {
+				continue
+			}
+			if _, out := m.Update(subMsg); out != nil {
+				next = append(next, out)
+			}
+		}
+		cmd = tea.Batch(next...)
+	}
+}
+
+// runTUICmd runs one command, giving up on anything that blocks. The text
+// input's cursor-blink command sleeps for about half a second by design; the
+// real runtime handles that concurrently, and a test has nothing to learn by
+// waiting for it.
+func runTUICmd(cmd tea.Cmd) tea.Msg {
+	result := make(chan tea.Msg, 1)
+	go func() { result <- cmd() }()
+	select {
+	case msg := <-result:
+		return msg
+	case <-time.After(100 * time.Millisecond):
+		return nil
 	}
 }

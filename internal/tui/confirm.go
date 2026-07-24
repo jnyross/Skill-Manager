@@ -9,9 +9,9 @@ import (
 
 const maxConfirmContentWidth = 72
 
-// renderConfirmOverlay relies on renderConfirmBox never rendering wider than
-// the width it's given — the splice below assumes boxWidth <= width and
-// doesn't re-clamp.
+// renderConfirmOverlay always returns exactly `height` lines of at most
+// `width` columns: the box is centered when it fits and clamped to the canvas
+// when it does not, so the overlay can never overflow the alt screen.
 func renderConfirmOverlay(background, description string, width, height int) string {
 	width, height = confirmCanvasSize(background, width, height)
 	lines := dimBackgroundLines(background, width, height)
@@ -21,10 +21,18 @@ func renderConfirmOverlay(background, description string, width, height int) str
 	boxHeight := len(boxLines)
 
 	if boxHeight > height {
-		// Too short a terminal to center the box within the canvas without
-		// clipping its bottom border off — degrade to the bare box, same as
-		// renderConfirmBox's width < 3 fallback does for narrow terminals.
-		return box
+		// Too short a terminal to show the whole box. Clamp it to the canvas
+		// rather than returning the bare box: an over-tall return value
+		// overflows the alt screen and scrolls the UI away, which is worse
+		// than a clipped bottom border.
+		boxLines = boxLines[:height]
+		boxHeight = height
+	}
+	if boxWidth > width {
+		for i, line := range boxLines {
+			boxLines[i] = ansi.Truncate(line, width, "")
+		}
+		boxWidth = maxLineWidth(boxLines)
 	}
 
 	left := (width - boxWidth) / 2

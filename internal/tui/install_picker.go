@@ -39,15 +39,47 @@ func buildInstallTargetOptions(e *engine.Engine) []installTargetOption {
 	return opts
 }
 
+// pickerVisibleRows caps how many rows any modal chooser prints at once. The
+// overlay has no scrollback of its own, so an uncapped list (a machine with
+// many resolved project roots, or a 40-entry Library) would render taller than
+// the terminal and get clamped away by renderConfirmOverlay.
+const pickerVisibleRows = 10
+
+// pickerWindow returns the [start, end) slice of `count` rows to display so
+// that `cursor` stays visible, scrolling by whole rows.
+func pickerWindow(count, cursor, visible int) (int, int) {
+	if visible < 1 {
+		visible = 1
+	}
+	if count <= visible {
+		return 0, count
+	}
+	start := cursor - visible/2
+	if start < 0 {
+		start = 0
+	}
+	if start > count-visible {
+		start = count - visible
+	}
+	return start, start + visible
+}
+
 func renderInstallPickerDescription(entryName string, options []installTargetOption, cursor int) string {
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("Install %q — choose target:\n", entryName))
-	for i, opt := range options {
+	fmt.Fprintf(&b, "Install %q — choose target:\n", entryName)
+	start, end := pickerWindow(len(options), cursor, pickerVisibleRows)
+	if start > 0 {
+		fmt.Fprintf(&b, "\n  … %d more above", start)
+	}
+	for i := start; i < end; i++ {
 		mark := " "
 		if i == cursor {
 			mark = ">"
 		}
-		b.WriteString(fmt.Sprintf("\n%s %s", mark, opt.label))
+		fmt.Fprintf(&b, "\n%s %s", mark, options[i].label)
+	}
+	if end < len(options) {
+		fmt.Fprintf(&b, "\n  … %d more below", len(options)-end)
 	}
 	b.WriteString("\n\nenter to select · esc to cancel")
 	return b.String()

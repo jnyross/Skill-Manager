@@ -13,7 +13,8 @@ type keyMap struct {
 	move            key.Binding
 	page            key.Binding
 	jump            key.Binding
-	search          key.Binding
+	filter          key.Binding
+	clearFilter     key.Binding
 	detailScroll    key.Binding
 	archive         key.Binding
 	suppress        key.Binding
@@ -39,24 +40,22 @@ type keyMap struct {
 func mainKeyMap(selected engine.Skill, ok bool, showAll bool) keyMap {
 	m := baseKeyMap(showAll)
 	m.main = true
-	m.page = key.NewBinding(key.WithKeys("pgup", "pgdown"), key.WithHelp("pgup/pgdn", "page"))
-	m.jump = key.NewBinding(key.WithKeys("home", "end"), key.WithHelp("home/end", "jump"))
-	m.search = key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search"))
-	m.detailScroll = key.NewBinding(key.WithKeys("ctrl+pgup", "ctrl+pgdown", "ctrl+u", "ctrl+d"), key.WithHelp("ctrl+pgup/dn", "scroll detail"))
-	m.archive = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "archive"))
-	m.suppress = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "suppress/un-suppress"))
-	m.manualOnly = key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "manual-only/auto-activate"))
-	m.uninstallPlugin = key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "uninstall plugin"))
-	m.libraryToggle = key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "add/remove library"))
-	m.switchView = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "archive view"))
-	m.libraryView = key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "library view"))
-	m.bundleView = key.NewBinding(key.WithKeys("B"), key.WithHelp("B", "bundle view"))
-	m.setup = key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "setup workspace"))
+	m.page = key.NewBinding(key.WithKeys("pgup", "pgdown"), key.WithHelp("pgup/pgdn", "page the list"))
+	m.jump = key.NewBinding(key.WithKeys("home", "end"), key.WithHelp("home/end", "first/last"))
+	m.detailScroll = key.NewBinding(key.WithKeys("ctrl+pgup", "ctrl+pgdown", "ctrl+u", "ctrl+d"), key.WithHelp("ctrl+u/ctrl+d", "scroll detail"))
+	m.archive = key.NewBinding(key.WithKeys("u"), key.WithHelp("u", "Archive"))
+	m.suppress = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "Suppress"))
+	m.manualOnly = key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "Manual-only"))
+	m.uninstallPlugin = key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "Uninstall plugin"))
+	m.libraryToggle = key.NewBinding(key.WithKeys("l"), key.WithHelp("l", "Library"))
+	m.switchView = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "Archive view"))
+	m.libraryView = key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "Library view"))
+	m.bundleView = key.NewBinding(key.WithKeys("B"), key.WithHelp("B", "Bundle view"))
+	m.setup = key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "Setup workspace"))
 
 	m.move.SetEnabled(ok)
 	m.page.SetEnabled(ok)
 	m.jump.SetEnabled(ok)
-	m.search.SetEnabled(ok)
 	m.detailScroll.SetEnabled(ok)
 	m.archive.SetEnabled(ok && canArchiveSkill(selected))
 	m.suppress.SetEnabled(ok && canSuppressSkill(selected))
@@ -68,8 +67,8 @@ func mainKeyMap(selected engine.Skill, ok bool, showAll bool) keyMap {
 
 func archiveKeyMap(hasSelection bool, showAll bool) keyMap {
 	m := baseKeyMap(showAll)
-	m.restore = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restore"))
-	m.purge = key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "purge"))
+	m.restore = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "Restore"))
+	m.purge = key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "Purge"))
 	m.switchView = key.NewBinding(key.WithKeys("a", "esc"), key.WithHelp("a/esc", "main view"))
 
 	m.move.SetEnabled(hasSelection)
@@ -81,9 +80,9 @@ func archiveKeyMap(hasSelection bool, showAll bool) keyMap {
 func libraryKeyMap(hasSelection bool, showAll bool) keyMap {
 	m := baseKeyMap(showAll)
 	m.library = true
-	m.libraryInstall = key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install"))
+	m.libraryInstall = key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "Install"))
 	m.create = key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new entry"))
-	m.libraryRemove = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "remove from library"))
+	m.libraryRemove = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "remove entry"))
 	m.switchView = key.NewBinding(key.WithKeys("L", "esc"), key.WithHelp("L/esc", "main view"))
 
 	m.move.SetEnabled(hasSelection)
@@ -95,13 +94,15 @@ func libraryKeyMap(hasSelection bool, showAll bool) keyMap {
 func bundleKeyMap(hasSelection bool, showAll bool) keyMap {
 	m := baseKeyMap(showAll)
 	m.bundle = true
-	m.create = key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new bundle"))
+	m.create = key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new Bundle"))
 	m.addMember = key.NewBinding(key.WithKeys("a"), key.WithHelp("a", "add member"))
 	m.removeMember = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "remove member"))
 	m.expand = key.NewBinding(key.WithKeys("enter", " "), key.WithHelp("enter/space", "expand/collapse"))
-	m.manualOnly = key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "cycle activation"))
-	m.libraryInstall = key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "install bundle"))
-	m.libraryRemove = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete bundle"))
+	// `m` is a binary Auto <-> Manual-only toggle, not a cycle through more
+	// than two states — the help text says exactly what the handler does.
+	m.manualOnly = key.NewBinding(key.WithKeys("m"), key.WithHelp("m", "toggle Activation"))
+	m.libraryInstall = key.NewBinding(key.WithKeys("i"), key.WithHelp("i", "Install Bundle"))
+	m.libraryRemove = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete Bundle"))
 	m.switchView = key.NewBinding(key.WithKeys("B", "esc"), key.WithHelp("B/esc", "main view"))
 	m.move.SetEnabled(hasSelection)
 	m.addMember.SetEnabled(hasSelection)
@@ -120,48 +121,57 @@ func baseKeyMap(showAll bool) keyMap {
 	}
 
 	return keyMap{
-		move:         key.NewBinding(key.WithKeys("up", "down", "k", "j"), key.WithHelp("up/k down/j", "move")),
+		move:         key.NewBinding(key.WithKeys("up", "down", "k", "j"), key.WithHelp("↑↓/kj", "move")),
+		filter:       key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
+		clearFilter:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear filter")),
 		showFullHelp: showHelp,
 		quit:         key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q/ctrl+c", "quit")),
 	}
 }
 
-func (m keyMap) ShortHelp() []key.Binding {
+// ShortHelpRows is the compact help, split across as many lines as it takes to
+// show every mode-changing key without truncating at 80 columns. Model.helpView
+// renders one line per row. `?` still opens the grouped full help.
+//
+// Each row is kept under 80 columns including the " • " separators; adding a
+// binding to a row means re-checking that budget (TestShortHelpRowsFit80Columns
+// enforces it).
+func (m keyMap) ShortHelpRows() [][]key.Binding {
 	if m.main {
-		// Keep the short help to 5–6 bindings so it does not truncate on an
-		// 80-column terminal. Full help (press ?) contains the rest.
-		return []key.Binding{
-			m.move,
-			m.archive,
-			m.switchView,
-			m.setup,
-			m.showFullHelp,
-			m.quit,
+		return [][]key.Binding{
+			{m.move, m.filter, m.showFullHelp, m.quit},
+			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle},
+			{m.switchView, m.libraryView, m.bundleView, m.setup},
 		}
 	}
 	if m.library {
-		return []key.Binding{
-			m.move,
-			m.libraryInstall,
-			m.create,
-			m.libraryRemove,
-			m.switchView,
-			m.showFullHelp,
-			m.quit,
+		return [][]key.Binding{
+			{m.move, m.filter, m.showFullHelp, m.quit},
+			{m.libraryInstall, m.create, m.libraryRemove, m.switchView},
 		}
 	}
 	if m.bundle {
-		return []key.Binding{m.move, m.expand, m.create, m.addMember, m.removeMember, m.manualOnly, m.libraryInstall, m.libraryRemove, m.switchView, m.showFullHelp, m.quit}
+		return [][]key.Binding{
+			{m.move, m.filter, m.showFullHelp, m.quit},
+			{m.expand, m.create, m.addMember, m.removeMember},
+			{m.manualOnly, m.libraryInstall, m.libraryRemove, m.switchView},
+		}
 	}
+	return [][]key.Binding{
+		{m.move, m.filter, m.showFullHelp, m.quit},
+		{m.restore, m.purge, m.switchView},
+	}
+}
 
-	return []key.Binding{
-		m.move,
-		m.restore,
-		m.purge,
-		m.switchView,
-		m.showFullHelp,
-		m.quit,
+// ShortHelp satisfies help.KeyMap. Model.helpView renders ShortHelpRows line by
+// line instead; this flattened form exists for the interface and for callers
+// that want the whole compact set.
+func (m keyMap) ShortHelp() []key.Binding {
+	var flat []key.Binding
+	for _, row := range m.ShortHelpRows() {
+		flat = append(flat, row...)
 	}
+	return flat
 }
 
 func (m keyMap) FullHelp() [][]key.Binding {
@@ -169,25 +179,28 @@ func (m keyMap) FullHelp() [][]key.Binding {
 		return [][]key.Binding{
 			{m.move, m.switchView, m.libraryView, m.bundleView, m.setup, m.showFullHelp, m.quit},
 			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle, m.detailScroll},
-			{m.page, m.jump, m.search},
+			{m.page, m.jump, m.filter, m.clearFilter},
 		}
 	}
 	if m.library {
 		return [][]key.Binding{
 			{m.move, m.switchView, m.showFullHelp, m.quit},
 			{m.libraryInstall, m.libraryRemove, m.create},
+			{m.filter, m.clearFilter},
 		}
 	}
 	if m.bundle {
 		return [][]key.Binding{
 			{m.move, m.switchView, m.showFullHelp, m.quit},
 			{m.create, m.expand, m.addMember, m.removeMember, m.manualOnly, m.libraryInstall, m.libraryRemove},
+			{m.filter, m.clearFilter},
 		}
 	}
 
 	return [][]key.Binding{
 		{m.move, m.switchView, m.showFullHelp, m.quit},
 		{m.restore, m.purge},
+		{m.filter, m.clearFilter},
 	}
 }
 

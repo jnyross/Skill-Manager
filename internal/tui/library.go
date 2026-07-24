@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -15,8 +16,15 @@ type libraryItem struct {
 	entry engine.LibraryEntry
 }
 
+// FilterValue covers name, Tool, source kind, and resolved location so "/"
+// finds a Library entry by where it comes from as well as by name.
 func (i libraryItem) FilterValue() string {
-	return i.entry.Name
+	return strings.Join([]string{
+		i.entry.Name,
+		string(i.entry.Tool),
+		string(i.entry.Source.Kind),
+		librarySourceLocation(i.entry.Source),
+	}, " ")
 }
 
 func buildLibraryItems(entries []engine.LibraryEntry) []list.Item {
@@ -33,8 +41,11 @@ func buildLibraryItems(entries []engine.LibraryEntry) []list.Item {
 func newLibraryList(items []list.Item) list.Model {
 	model := list.New(items, libraryDelegate{}, 0, 0)
 	model.SetShowTitle(false)
+	// Filtering is enabled but the list's own filter bar stays hidden: help
+	// renders as line 2 (a header, not a footer), so the Model draws the
+	// filter prompt itself in renderFilterLine to keep the layout stable.
 	model.SetShowFilter(false)
-	model.SetFilteringEnabled(false)
+	model.SetFilteringEnabled(true)
 	model.SetShowStatusBar(false)
 	model.SetShowPagination(false)
 	model.SetShowHelp(false)

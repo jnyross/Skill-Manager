@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,7 +17,15 @@ type bundleItem struct {
 	name   string
 }
 
-func (i bundleItem) FilterValue() string { return i.bundle.Name + " " + i.name }
+// FilterValue covers the Bundle name and, for a member row, the Library entry
+// name and its remembered Activation.
+func (i bundleItem) FilterValue() string {
+	parts := []string{i.bundle.Name, i.name}
+	if i.member != nil {
+		parts = append(parts, string(i.member.Activation))
+	}
+	return strings.Join(parts, " ")
+}
 
 func buildBundleItems(bundles []engine.Bundle, library []engine.LibraryEntry, expansion ...map[string]bool) []list.Item {
 	names := make(map[string]string, len(library))
@@ -44,8 +53,9 @@ func buildBundleItems(bundles []engine.Bundle, library []engine.LibraryEntry, ex
 func newBundleList(items []list.Item) list.Model {
 	m := list.New(items, bundleDelegate{}, 0, 0)
 	m.SetShowTitle(false)
+	// See newLibraryList: filtering on, the list's own filter bar off.
 	m.SetShowFilter(false)
-	m.SetFilteringEnabled(false)
+	m.SetFilteringEnabled(true)
 	m.SetShowStatusBar(false)
 	m.SetShowPagination(false)
 	m.SetShowHelp(false)
@@ -63,8 +73,12 @@ func (bundleDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	if !ok {
 		return
 	}
+	fmt.Fprint(w, renderBundleItem(row, index == m.Index(), m.Width()))
+}
+
+func renderBundleItem(row bundleItem, selected bool, width int) string {
 	cursor := " "
-	if index == m.Index() {
+	if selected {
 		cursor = ">"
 	}
 	text := row.bundle.Name
@@ -73,5 +87,13 @@ func (bundleDelegate) Render(w io.Writer, m list.Model, index int, item list.Ite
 	} else {
 		text = fmt.Sprintf("  %s [%s]", row.name, row.member.Activation)
 	}
-	fmt.Fprintf(w, "%s %s", cursor, text)
+
+	style := skillRowStyle
+	if selected {
+		style = selectedSkillRowStyle
+	}
+	// MaxWidth (not Width) for the same reason as renderSkillItem: Width pads
+	// and wraps, which turns an over-length row into 2+ terminal lines and
+	// desyncs the delegate's fixed Height()==1 from what is actually drawn.
+	return style.MaxWidth(width).Render(fmt.Sprintf("%s %s", cursor, text))
 }

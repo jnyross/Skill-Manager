@@ -117,27 +117,50 @@ func TestStartInstallRejectsConcurrentInstall(t *testing.T) {
 	}
 }
 
-func TestIsStatusError(t *testing.T) {
-	cases := []struct {
-		status string
-		want   bool
-	}{
-		{"Install failed: something broke", true},
-		{"No skill selected.", true},
-		{"Select a Bundle first.", true},
-		{"Uninstall plugin is only available for Plugin skills.", true},
-		{"Installed \"foo\" → Personal.", false},
-		{"Canceled.", false},
-		{"Opening Setup…", false},
-		{"Library is empty.", false},
+func TestStatusLevelComesFromTheCallSiteNotTheText(t *testing.T) {
+	m := NewModel(engine.New(engine.Roots{}))
+
+	// A message beginning "No " used to be sniffed as an error by its text.
+	// The level is now declared where the message is produced.
+	m.setStatus("No changes were needed.")
+	if m.statusLevel != statusInfo {
+		t.Fatalf("setStatus level = %v, want statusInfo", m.statusLevel)
+	}
+	if !strings.Contains(m.renderView(), "No changes were needed.") {
+		t.Fatal("informational status missing from the rendered view")
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.status, func(t *testing.T) {
-			if got := isStatusError(tc.status); got != tc.want {
-				t.Fatalf("isStatusError(%q) = %t, want %t", tc.status, got, tc.want)
-			}
-		})
+	m.setError("Archive failed: boom")
+	if m.statusLevel != statusError {
+		t.Fatalf("setError level = %v, want statusError", m.statusLevel)
+	}
+
+	m.clearStatus()
+	if m.status != "" || m.statusLevel != statusNone {
+		t.Fatalf("clearStatus left %q at level %v", m.status, m.statusLevel)
+	}
+}
+
+func TestErrorStatusSurvivesCursorMovementAndInfoDoesNot(t *testing.T) {
+	m := NewModel(engine.New(engine.Roots{}))
+	m.inv = engine.Inventory{Skills: []engine.Skill{
+		{Name: "alpha", Source: engine.SourcePersonal, Location: "/a"},
+		{Name: "beta", Source: engine.SourcePersonal, Location: "/b"},
+	}}
+	_ = m.list.SetItems(buildListItems(m.inv))
+	m.selectMainCursor()
+
+	m.setStatus("Archived alpha.")
+	m.moveCursor(1)
+	if m.status != "" {
+		t.Fatalf("informational status survived a cursor move: %q", m.status)
+	}
+
+	m.setError("Archive failed: boom")
+	m.moveCursor(1)
+	m.moveCursor(-1)
+	if m.status != "Archive failed: boom" {
+		t.Fatalf("error status = %q, want it to persist until the next action", m.status)
 	}
 }
 
@@ -205,37 +228,5 @@ func TestMainListNavigationPagesAndJumps(t *testing.T) {
 	}
 	if m.cursor != want {
 		t.Fatalf("after pgup from end cursor = %d, want %d", m.cursor, want)
-	}
-}
-
-func TestMainSearchJumpsToMatchingSkill(t *testing.T) {
-	m := NewModel(engine.New(engine.Roots{}))
-	m.inv = engine.Inventory{Skills: []engine.Skill{
-		{Name: "alpha", Source: engine.SourcePersonal},
-		{Name: "beta", Source: engine.SourcePersonal},
-		{Name: "gamma", Source: engine.SourcePersonal},
-	}}
-	_ = m.list.SetItems(buildListItems(m.inv))
-	m.selectMainCursor()
-	m.refreshDetail()
-
-	pressTUIKey(m, "/")
-	if !m.searching {
-		t.Fatal("expected search mode")
-	}
-
-	typeTUIText(m, "e")
-	if m.cursor != 1 {
-		t.Fatalf("after 'e' cursor = %d, want 1 (beta)", m.cursor)
-	}
-
-	typeTUIText(m, "T")
-	if m.cursor != 1 {
-		t.Fatalf("after 'eT' cursor = %d, want 1 (beta)", m.cursor)
-	}
-
-	m.Update(tea.KeyMsg{Type: tea.KeyEsc})
-	if m.searching {
-		t.Fatal("expected search canceled")
 	}
 }

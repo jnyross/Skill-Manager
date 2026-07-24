@@ -70,23 +70,41 @@ Keys:
 | Key | Action | Applies to |
 |---|---|---|
 | `up` / `k`, `down` / `j` | Move the cursor | everywhere |
-| `enter` / `space` | Select or expand the current item | main view |
-| `pgup` / `pgdown` | Scroll the detail pane | main view |
+| `pgup` / `pgdown` | Page the list | main view |
+| `home` / `end` | Jump to the first / last Skill | main view |
+| `ctrl+u` / `ctrl+d` (also `ctrl+pgup` / `ctrl+pgdown`) | Scroll the detail pane | main view |
+| `/` | Filter the list | every view |
+| `esc` | Clear the filter, or return to the main view | every view |
 | `u` | Archive the selected Skill | Personal, Codex (skills and prompts), Project |
 | `s` | Suppress / un-suppress the selected Skill | Plugin skills, Codex skills, Project Codex skills |
 | `m` | Toggle Manual-only / Auto-activation | Personal skills, Codex skills (not prompts), Project skills |
 | `x` | Uninstall the selected Skill's whole plugin | Plugin skills |
-| `a` | Switch to the Archive view | — |
-| `l` | Add/remove the selected skill or plugin from Library | supported installed entries |
-| `L` | Switch to the Library view | — |
-| `B` | Switch to the Bundle view | — |
+| `a` | Switch to the Archive view | main view |
+| `l` | Add/remove the selected Skill or plugin from Library | supported installed entries |
+| `L` | Switch to the Library view | main view |
+| `B` | Switch to the Bundle view | main view |
 | `S` | Setup workspace | main view |
 | `?` | Show/hide full help | everywhere |
-| `q` / `ctrl+c` | Quit | — |
+| `q` / `ctrl+c` | Quit | everywhere except an open confirmation |
 
 Pressing a key for an action that doesn't apply to the selected row (for
 example `x` on a Personal skill) shows a status message explaining why,
 instead of doing anything.
+
+`ctrl+c` quits from anywhere except an open confirmation or picker prompt,
+where it cancels the prompt instead of quitting. `esc` cancels whatever
+overlay is open, and in the Library entry form it asks before discarding
+anything you have already typed; `shift+tab` steps back to the previous field.
+
+### Filtering
+
+Press `/` in any view to filter the list, then type. Matching is fuzzy and
+runs against the Skill's name, its description, its Source, its Tool, and the
+plugin it came from — so `codex`, `review`, or part of a plugin name all
+narrow the list. `enter` keeps the filter and returns to the list; `esc`
+clears it. If nothing matches, Skillet says so instead of showing an empty
+list. The Archive, Library, and Bundle views filter the same way, over their
+own fields (original location, Library source, Bundle member names).
 
 ### Archive view
 
@@ -96,6 +114,7 @@ original Source, original location, and when it was archived.
 | Key | Action |
 |---|---|
 | `up` / `k`, `down` / `j` | Move the cursor |
+| `/` | Filter the Archive |
 | `r` | Restore the selected entry |
 | `p` | Purge the selected entry |
 | `a` / `esc` | Back to the main view |
@@ -106,9 +125,12 @@ original Source, original location, and when it was archived.
 Every action that changes something on disk asks for confirmation first:
 Skillet shows a one-line description of exactly what it's about to do and
 waits for a keypress. Press `y` to proceed; any other key cancels and
-changes nothing. Browsing the list, moving the cursor, and switching between
-the main and Archive views never changes anything by themselves — only a
-confirmed `y` does.
+changes nothing. That covers Archive, Restore, Purge, Suppress, Manual-only,
+Uninstall plugin, Install, adding and removing Library entries (including the
+`l` toggle in the main view), creating and deleting Bundles, and adding,
+removing, or re-activating a Bundle member. Browsing the list, moving the
+cursor, filtering, and switching views never change anything by themselves —
+only a confirmed `y` does.
 
 ### Library and Bundles
 
@@ -117,12 +139,33 @@ it, `n` to add a local-path, git, skills.sh, or marketplace entry, `i` to
 install the selected entry to Personal or a resolved Project, and `d` to remove
 only the catalog record. Install resolves the current source each time.
 
+| Key | Action |
+|---|---|
+| `up` / `k`, `down` / `j` | Move the cursor |
+| `/` | Filter the Library |
+| `i` | Install the selected entry |
+| `n` | Add a new entry |
+| `d` | Remove the selected entry from the Library |
+| `L` / `esc` | Back to the main view |
+| `q` / `ctrl+c` | Quit |
+
 Press `B` for Bundles: named groups of Library entries with a remembered Auto
-or Manual-only preference per member. Create a Bundle with `n`, add members
-with `a`, remove a member with `r`, delete a Bundle with `d`, cycle member
-Activation with `m`, expand or collapse a Bundle with `enter`/`space`, and
-install the whole Bundle with `i`. Existing destinations are listed for
+or Manual-only preference per member. Existing destinations are listed for
 confirmation before replacement.
+
+| Key | Action |
+|---|---|
+| `up` / `k`, `down` / `j` | Move the cursor |
+| `/` | Filter the Bundles |
+| `enter` / `space` | Expand or collapse the selected Bundle |
+| `n` | Create a Bundle |
+| `a` | Add a Library entry as a member |
+| `r` | Remove the selected member |
+| `m` | Toggle the selected member between Auto and Manual-only |
+| `i` | Install the selected Bundle |
+| `d` | Delete the selected Bundle |
+| `B` / `esc` | Back to the main view |
+| `q` / `ctrl+c` | Quit |
 
 ### Guided Project setup
 

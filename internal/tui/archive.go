@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -15,8 +16,15 @@ type archiveItem struct {
 	entry engine.ArchiveEntry
 }
 
+// FilterValue covers name, original Source, Tool, and original location so
+// "/" finds an archived entry by where it used to live.
 func (i archiveItem) FilterValue() string {
-	return i.entry.Name
+	return strings.Join([]string{
+		i.entry.Name,
+		string(i.entry.Source),
+		string(i.entry.Tool),
+		i.entry.OriginalLocation,
+	}, " ")
 }
 
 // buildArchiveItems preserves engine.ListArchive order (ArchivedAt descending).
@@ -34,8 +42,9 @@ func buildArchiveItems(entries []engine.ArchiveEntry) []list.Item {
 func newArchiveList(items []list.Item) list.Model {
 	model := list.New(items, archiveDelegate{}, 0, 0)
 	model.SetShowTitle(false)
+	// See newLibraryList: filtering on, the list's own filter bar off.
 	model.SetShowFilter(false)
-	model.SetFilteringEnabled(false)
+	model.SetFilteringEnabled(true)
 	model.SetShowStatusBar(false)
 	model.SetShowPagination(false)
 	model.SetShowHelp(false)

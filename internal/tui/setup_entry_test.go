@@ -47,7 +47,7 @@ func TestFullHelpShowsSetupAndFitsNarrowTerminal(t *testing.T) {
 	m.Update(tea.WindowSizeMsg{Width: width, Height: 8})
 	pressTUIKey(m, "?")
 	view := m.View()
-	if !strings.Contains(view, "setup workspace") {
+	if !strings.Contains(view, "Setup workspace") {
 		t.Fatalf("full help does not document the Setup binding: %q", view)
 	}
 	for _, line := range strings.Split(view, "\n") {
