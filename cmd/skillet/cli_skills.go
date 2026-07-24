@@ -55,7 +55,11 @@ func runList(args []string, stdout, stderr io.Writer) int {
 		skills = append(skills, skill)
 	}
 
-	notices := inventory.Notices
+	// list reports every Skill, so it measures every Skill's footprint. That
+	// walk is why Inventory() does not do it (engine.MeasureSkillFiles): a
+	// one-shot command can afford it, a TUI refresh cannot.
+	notices := append([]engine.Notice{}, inventory.Notices...)
+	notices = append(notices, engine.MeasureAllSkillFiles(skills)...)
 	archived, archiveNotices, archiveErr := e.ListArchive()
 	if archiveErr != nil {
 		notices = append(notices, engine.Notice{Message: "Archive unreadable: " + archiveErr.Error()})
@@ -154,6 +158,7 @@ func runShow(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(stderr, err)
 	}
+	engine.MeasureSkillFiles(&skill)
 
 	if *asJSON {
 		if err := writeJSON(stdout, showJSON{SchemaVersion: jsonSchemaVersion, Skill: newSkillJSON(skill)}); err != nil {
@@ -177,8 +182,33 @@ func runShow(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(table, "Declared Manual-only for Claude Code:\ttrue (no effect under Codex)\n")
 	}
 	fmt.Fprintf(table, "Description:\t%s\n", oneLine(skill.Description))
+	// Cost, in the same order the TUI detail pane uses: the standing cost
+	// first, then what invoking it costs, then what it occupies. Every figure
+	// is an estimate and says so.
+	fmt.Fprintf(table, "Cost per session (est.):\t%s\n", perSessionCostLine(skill))
+	fmt.Fprintf(table, "Cost when invoked (est.):\t%s tokens (%s)\n",
+		engine.FormatTokenEstimate(skill.BodyTokens), engine.FormatByteSize(skill.BodyBytes))
+	fmt.Fprintf(table, "On disk:\t%s, %s\n", countedFiles(skill.FileCount), engine.FormatByteSize(skill.TotalBytes))
 	_ = table.Flush()
 	return 0
+}
+
+func countedFiles(count int) string {
+	if count == 1 {
+		return "1 file"
+	}
+	return fmt.Sprintf("%d files", count)
+}
+
+// perSessionCostLine states the standing cost of a Skill, and — when it has
+// none — why, so a zero never reads as a measurement error.
+func perSessionCostLine(skill engine.Skill) string {
+	if skill.Activation == engine.ActivationAuto {
+		return fmt.Sprintf("%s tokens (its description, injected into every %s session)",
+			engine.FormatTokenEstimate(skill.DescriptionTokens), skill.Tool)
+	}
+	return fmt.Sprintf("~0 tokens (%s; %s tokens if set back to Auto-activation)",
+		skill.Activation, engine.FormatTokenEstimate(skill.DescriptionTokens))
 }
 
 func runArchive(args []string, stdout, stderr io.Writer) int {

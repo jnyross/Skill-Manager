@@ -133,6 +133,9 @@ type Model struct {
 	width            int
 	height           int
 	detail           detailPane
+	// sortByCost flips the main list between its Source grouping and a flat
+	// ranking by estimated per-session cost. See toggleCostSort.
+	sortByCost bool
 	// filtering is true while keystrokes are being routed into the active
 	// list's filter input. Once the filter is accepted the flag clears but the
 	// list stays in list.FilterApplied until esc.
@@ -579,7 +582,22 @@ func (m *Model) updateMain(key string) {
 		m.refreshBundles()
 	case "l":
 		m.confirmLibraryToggle()
+	case "c":
+		m.toggleCostSort()
 	}
+}
+
+// toggleCostSort switches the inventory between its Source grouping and a flat
+// ranking by estimated per-session cost, most expensive first. It is a view
+// change only: nothing is written, and the same Skills are shown either way.
+func (m *Model) toggleCostSort() {
+	m.sortByCost = !m.sortByCost
+	m.refreshInventory()
+	if m.sortByCost {
+		m.setStatus("Sorted by estimated cost per session, most expensive first. c groups by Source again.")
+		return
+	}
+	m.setStatus("Grouped by Source again.")
 }
 
 // switchView leaves the outgoing view unfiltered so a stale filter does not
@@ -1516,9 +1534,18 @@ func (m *Model) refreshInventory() {
 	if m.cursor >= len(m.inv.Skills) {
 		m.cursor = max(0, len(m.inv.Skills)-1)
 	}
+	// The item order must match m.inv.Skills (syncMainCursor counts rows), so
+	// the cost ranking is applied to the inventory itself, not just to the list.
+	items := buildListItems(m.inv)
+	if m.sortByCost {
+		m.inv.Skills = engine.SortByDescriptionCost(m.inv.Skills)
+		items = buildCostSortedListItems(m.inv)
+	}
+	// A re-read is exactly when a Skill's files may have changed on disk.
+	m.detail.forgetMeasurements()
 	// SetItems returns a re-filter command when a filter is applied; it has to
 	// reach the runtime or the filtered view would show stale matches.
-	m.queue(m.list.SetItems(buildListItems(m.inv)))
+	m.queue(m.list.SetItems(items))
 	m.selectMainCursor()
 	m.refreshDetail()
 	m.resizeList()
@@ -1702,6 +1729,10 @@ func (m *Model) zeroMatchLine() string {
 
 func (m *Model) renderMain(b *strings.Builder) {
 	b.WriteString("Skillet\n")
+	if line := m.costHeaderLine(); line != "" {
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
 	b.WriteString(m.helpView())
 	b.WriteString("\n\n")
 
@@ -1728,6 +1759,78 @@ func (m *Model) renderMain(b *strings.Builder) {
 			b.WriteString("\n")
 		}
 	}
+}
+
+// costHeaderLine is the number this whole feature exists for: what
+// Auto-activation is costing the user in every single session, per Tool.
+//
+// It is deliberately one line, and it deliberately states its own exclusions.
+// Only Auto-activating Skills are counted, because only their descriptions are
+// offered to the model unprompted; a bare total with silently dropped Skills
+// would be worse than showing nothing, since the user would read it as "all my
+// Skills cost this much" and conclude their Manual-only ones are free.
+//
+// It returns "" for an empty inventory, where the friendly empty state says
+// everything there is to say.
+func (m *Model) costHeaderLine() string {
+	if len(m.inv.Skills) == 0 {
+		return ""
+	}
+	summary := engine.SummarizeContextCost(m.inv.Skills)
+
+	return skillMetaStyle.Render(fitToWidth(costHeaderVariants(summary), m.width))
+}
+
+// costHeaderVariants is the same statement at three lengths, longest first. Even
+// the shortest keeps the two things that stop the number being misread: that it
+// is an estimate, and that it counts Auto-activation only.
+func costHeaderVariants(summary engine.ContextCost) []string {
+	if len(summary.ByTool) == 0 {
+		return []string{
+			fmt.Sprintf("Every session (est.): nothing Auto-activates — all %d Skills excluded", summary.Excluded),
+			"Every session (est.): nothing Auto-activates",
+			"Auto: none",
+		}
+	}
+
+	parts := make([]string, 0, len(summary.ByTool))
+	for _, tool := range summary.ByTool {
+		parts = append(parts, fmt.Sprintf("%s %s", tool.Tool, engine.FormatTokenEstimate(tool.DescriptionTokens)))
+	}
+	byTool := strings.Join(parts, " · ")
+	total := engine.FormatTokenEstimate(summary.DescriptionTokens)
+
+	excluded := ""
+	if summary.Excluded > 0 {
+		excluded = fmt.Sprintf(", %d excluded", summary.Excluded)
+	}
+	return []string{
+		fmt.Sprintf("Every session (est.): %s tokens — Auto descriptions only%s", byTool, excluded),
+		fmt.Sprintf("Every session (est.): %s tokens, Auto only%s", total, excluded),
+		fmt.Sprintf("Auto/session: %s", total),
+	}
+}
+
+// fitToWidth picks the first variant that fits, and truncates the last one if
+// even that is too wide. width <= 0 means the terminal size is not known yet, in
+// which case the fullest form is right.
+func fitToWidth(variants []string, width int) string {
+	if len(variants) == 0 {
+		return ""
+	}
+	if width <= 0 {
+		return variants[0]
+	}
+	for _, variant := range variants {
+		if lipgloss.Width(variant) <= width {
+			return variant
+		}
+	}
+	runes := []rune(variants[len(variants)-1])
+	for len(runes) > 0 && lipgloss.Width(string(runes)) > width {
+		runes = runes[:len(runes)-1]
+	}
+	return string(runes)
 }
 
 // visibleInventoryNotices is the inventory's notices as rendered. The scanners
@@ -1901,6 +2004,9 @@ func (m *Model) resizeList() {
 	m.help.Width = width
 
 	reserved := 3 + renderedLineCount(m.helpView()) // title, help, blank line, trailing newline after the list
+	if m.view == mainView && m.costHeaderLine() != "" {
+		reserved++ // the per-session cost line under the title
+	}
 	if notices := m.visibleInventoryNotices(); m.view == mainView && len(notices) > 0 {
 		reserved += 2 + len(notices) // blank line, "Notices" line, one per notice
 	}

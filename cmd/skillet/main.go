@@ -57,6 +57,8 @@ func runWithInput(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 			return runList(rest, stdout, stderr)
 		case "show":
 			return runShow(rest, stdout, stderr)
+		case "cost":
+			return runCost(rest, stdout, stderr)
 		case "archive":
 			return runArchive(rest, stdout, stderr)
 		case "restore":

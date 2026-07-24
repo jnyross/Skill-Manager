@@ -16,10 +16,28 @@ type skillFrontmatter struct {
 	// UserInvocable is only read/written by Suppress (internal/engine/suppress.go);
 	// Personal/Codex scans don't use it (see docs/research/skill-mechanisms.md).
 	UserInvocable *bool `yaml:"user-invocable"`
+	// bodyBytes is the size of the whole file this frontmatter came from — the
+	// Skill's invoked cost (internal/engine/cost.go). It is unexported and has
+	// no yaml tag on purpose: it is measured, not declared, and a SKILL.md
+	// cannot claim its own size.
+	bodyBytes int64
 }
+
+func (f *skillFrontmatter) setBodyBytes(size int64) { f.bodyBytes = size }
 
 type promptFrontmatter struct {
 	Description string `yaml:"description"`
+	bodyBytes   int64
+}
+
+func (f *promptFrontmatter) setBodyBytes(size int64) { f.bodyBytes = size }
+
+// bodySizer is implemented by the frontmatter types that want the size of the
+// file they were parsed from. parseFrontmatter fills it from the handle it has
+// already opened, so knowing a Skill's size costs one fstat and never a second
+// open — this is what keeps cost accounting inside the existing scan pass.
+type bodySizer interface {
+	setBodyBytes(size int64)
 }
 
 // frontmatterParseHook is a test-only seam: when non-nil it is called with
@@ -37,6 +55,12 @@ func parseFrontmatter(path string, out any) error {
 		return fmt.Errorf("read frontmatter: %w", err)
 	}
 	defer file.Close()
+
+	if sizer, ok := out.(bodySizer); ok {
+		if info, statErr := file.Stat(); statErr == nil {
+			sizer.setBodyBytes(info.Size())
+		}
+	}
 
 	scanner := bufio.NewScanner(file)
 	if !scanner.Scan() {

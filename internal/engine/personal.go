@@ -52,7 +52,7 @@ func scanClaudeSkillFolder(root string, source Source, tool Tool) ([]Skill, []No
 		if fm.DisableModelInvocation != nil && *fm.DisableModelInvocation {
 			activation = ActivationManualOnly
 		}
-		skills = append(skills, Skill{
+		skill := Skill{
 			Name:        fm.Name,
 			Description: fm.Description,
 			Source:      source,
@@ -60,7 +60,11 @@ func scanClaudeSkillFolder(root string, source Source, tool Tool) ([]Skill, []No
 			Kind:        KindSkill,
 			Location:    absolutePath(folder),
 			Activation:  activation,
-		})
+		}
+		// Cost accounting rides along on the frontmatter read this scan has
+		// already done (internal/engine/cost.go).
+		notices = append(notices, applyBodyCost(&skill, fm.bodyBytes)...)
+		skills = append(skills, skill)
 	}
 
 	return skills, notices

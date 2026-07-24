@@ -21,6 +21,7 @@ type keyMap struct {
 	manualOnly      key.Binding
 	uninstallPlugin key.Binding
 	libraryToggle   key.Binding
+	sortCost        key.Binding
 	switchView      key.Binding
 	libraryView     key.Binding
 	bundleView      key.Binding
@@ -52,6 +53,10 @@ func mainKeyMap(selected engine.Skill, ok bool, showAll bool) keyMap {
 	m.libraryView = key.NewBinding(key.WithKeys("L"), key.WithHelp("L", "Library view"))
 	m.bundleView = key.NewBinding(key.WithKeys("B"), key.WithHelp("B", "Bundle view"))
 	m.setup = key.NewBinding(key.WithKeys("S"), key.WithHelp("S", "Setup workspace"))
+	// `c` toggles between the Source grouping and a flat ranking by estimated
+	// per-session cost. It reads nothing and writes nothing, so unlike the
+	// action keys it stays enabled even with no selection.
+	m.sortCost = key.NewBinding(key.WithKeys("c"), key.WithHelp("c", "sort by cost"))
 
 	m.move.SetEnabled(ok)
 	m.page.SetEnabled(ok)
@@ -139,7 +144,7 @@ func baseKeyMap(showAll bool) keyMap {
 func (m keyMap) ShortHelpRows() [][]key.Binding {
 	if m.main {
 		return [][]key.Binding{
-			{m.move, m.filter, m.showFullHelp, m.quit},
+			{m.move, m.filter, m.sortCost, m.showFullHelp, m.quit},
 			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle},
 			{m.switchView, m.libraryView, m.bundleView, m.setup},
 		}
@@ -179,7 +184,7 @@ func (m keyMap) FullHelp() [][]key.Binding {
 		return [][]key.Binding{
 			{m.move, m.switchView, m.libraryView, m.bundleView, m.setup, m.showFullHelp, m.quit},
 			{m.archive, m.suppress, m.manualOnly, m.uninstallPlugin, m.libraryToggle, m.detailScroll},
-			{m.page, m.jump, m.filter, m.clearFilter},
+			{m.page, m.jump, m.filter, m.clearFilter, m.sortCost},
 		}
 	}
 	if m.library {

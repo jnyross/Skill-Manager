@@ -106,7 +106,7 @@ func scanCodexSkillRoot(root string, source Source, disabled codexDisabledConfig
 		}
 
 		declaredManualOnlyForClaude := fm.DisableModelInvocation != nil && *fm.DisableModelInvocation
-		skills = append(skills, Skill{
+		skill := Skill{
 			Name:                        fm.Name,
 			Description:                 fm.Description,
 			Source:                      source,
@@ -115,7 +115,9 @@ func scanCodexSkillRoot(root string, source Source, disabled codexDisabledConfig
 			Location:                    absolutePath(folder),
 			Activation:                  activation,
 			DeclaredManualOnlyForClaude: declaredManualOnlyForClaude,
-		})
+		}
+		notices = append(notices, applyBodyCost(&skill, fm.bodyBytes)...)
+		skills = append(skills, skill)
 	}
 
 	return skills, notices
@@ -225,7 +227,7 @@ func scanCodexPrompts(root string) ([]Skill, []Notice) {
 			continue
 		}
 
-		skills = append(skills, Skill{
+		skill := Skill{
 			Name:        strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name())),
 			Description: fm.Description,
 			Source:      SourceCodex,
@@ -233,7 +235,9 @@ func scanCodexPrompts(root string) ([]Skill, []Notice) {
 			Kind:        KindPrompt,
 			Location:    absolutePath(path),
 			Activation:  ActivationManualOnly,
-		})
+		}
+		notices = append(notices, applyBodyCost(&skill, fm.bodyBytes)...)
+		skills = append(skills, skill)
 	}
 	return skills, notices
 }

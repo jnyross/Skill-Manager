@@ -41,6 +41,24 @@ type skillJSON struct {
 	// inert in Codex (see engine.Skill).
 	DeclaredManualOnlyForClaude bool        `json:"declaredManualOnlyForClaude"`
 	Plugin                      *pluginJSON `json:"plugin,omitempty"`
+	Cost                        costJSON    `json:"cost"`
+}
+
+// costJSON is one Skill's context cost. Every number in it is an ESTIMATE
+// (engine.EstimateTokens, roughly four bytes per token) — a consumer that needs
+// exact counts must tokenize the files itself.
+//
+// descriptionTokens is what Auto-activation injects into every session with the
+// Skill's Tool; it is reported for every Skill regardless of Activation, so a
+// caller can answer "what would turning this back on cost". bodyTokens is what
+// invoking the Skill costs. fileCount and totalBytes cover the Skill's whole
+// directory.
+type costJSON struct {
+	DescriptionTokens int   `json:"descriptionTokens"`
+	BodyBytes         int64 `json:"bodyBytes"`
+	BodyTokens        int   `json:"bodyTokens"`
+	FileCount         int   `json:"fileCount"`
+	TotalBytes        int64 `json:"totalBytes"`
 }
 
 type noticeJSON struct {
@@ -108,6 +126,13 @@ func newSkillJSON(skill engine.Skill) skillJSON {
 		Activation:                  string(skill.Activation),
 		Location:                    skill.Location,
 		DeclaredManualOnlyForClaude: skill.DeclaredManualOnlyForClaude,
+		Cost: costJSON{
+			DescriptionTokens: skill.DescriptionTokens,
+			BodyBytes:         skill.BodyBytes,
+			BodyTokens:        skill.BodyTokens,
+			FileCount:         skill.FileCount,
+			TotalBytes:        skill.TotalBytes,
+		},
 	}
 	if skill.Plugin != nil {
 		view.Plugin = &pluginJSON{

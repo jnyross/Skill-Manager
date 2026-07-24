@@ -67,6 +67,32 @@ type Skill struct {
 	// agents/openai.yaml, so the declared intent has no effect in Codex.
 	// The detail pane uses this flag to surface the mismatch.
 	DeclaredManualOnlyForClaude bool
+
+	// The cost fields below are ESTIMATES (internal/engine/cost.go), never
+	// exact token counts, and every surface that shows them must say so.
+	//
+	// DescriptionTokens is the headline number: what Auto-activation injects
+	// into every session with this Skill's Tool, used or not. It is populated
+	// for every Skill regardless of Activation, so the TUI can answer "what
+	// would this cost if I turned it back on".
+	DescriptionTokens int
+	// BodyBytes and BodyTokens are the whole SKILL.md (or, for a Codex prompt,
+	// the prompt file): what invoking the Skill costs, on top of the standing
+	// description cost.
+	BodyBytes  int64
+	BodyTokens int
+	// FileCount and TotalBytes cover the Skill's own directory — references,
+	// scripts, and assets included. They are what the Skill occupies, not what
+	// it injects; a Skill that reads its own reference files pays for them only
+	// when it does.
+	//
+	// Unlike the fields above, these two are NOT filled in by Inventory(): they
+	// are the only cost numbers that need a directory walk, and doing that for
+	// every Skill on every refresh costs more than the whole rest of the scan.
+	// Call MeasureSkillFiles (internal/engine/cost.go) for the Skills you are
+	// about to show; until then they are zero, meaning "not measured".
+	FileCount  int
+	TotalBytes int64
 }
 
 type Notice struct {

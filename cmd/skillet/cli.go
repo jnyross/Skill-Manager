@@ -66,6 +66,7 @@ Run skillet with no command to launch the TUI.
 Inventory
   list [--json] [--source SOURCE] [--tool TOOL]   List every Skill, plus notices
   show <name> [--json]                            Show one Skill in detail
+  cost [--json]                                   Estimate what Skills cost in context
 
 Archive
   archive <name> --yes                            Archive a Skill (reversible)

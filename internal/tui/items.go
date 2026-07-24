@@ -61,6 +61,26 @@ func buildListItems(inventory engine.Inventory) []list.Item {
 	return items
 }
 
+// buildCostSortedListItems is the same list ranked by per-session cost instead
+// of grouped by Source. It carries no Source headers on purpose: the whole
+// point of the ranking is to put the most expensive Skills at the top wherever
+// they came from, and headers would break that order into groups again. Each
+// row still shows its own Source (see skillDelegate), so nothing is lost.
+//
+// It assumes inventory.Skills is already ordered by cost — Model.refreshInventory
+// applies engine.SortByDescriptionCost — so the item order and the inventory
+// order stay identical, which is what syncMainCursor relies on.
+func buildCostSortedListItems(inventory engine.Inventory) []list.Item {
+	if len(inventory.Skills) == 0 {
+		return nil
+	}
+	items := make([]list.Item, 0, len(inventory.Skills))
+	for _, skill := range inventory.Skills {
+		items = append(items, skillItem{skill: skill})
+	}
+	return items
+}
+
 func hasGroupHeader(source engine.Source) bool {
 	switch source {
 	case engine.SourcePersonal, engine.SourcePlugin, engine.SourceCodex, engine.SourceProject:

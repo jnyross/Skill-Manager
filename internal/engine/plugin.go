@@ -158,7 +158,7 @@ func scanPluginInstall(pluginName, marketplace, installPath string) ([]Skill, ma
 				return
 			}
 			location := absolutePath(dir)
-			skills = append(skills, Skill{
+			skill := Skill{
 				Name:        fm.Name,
 				Description: fm.Description,
 				Source:      SourcePlugin,
@@ -170,7 +170,9 @@ func scanPluginInstall(pluginName, marketplace, installPath string) ([]Skill, ma
 					Plugin:      pluginName,
 					Marketplace: marketplace,
 				},
-			})
+			}
+			notices = append(notices, applyBodyCost(&skill, fm.bodyBytes)...)
+			skills = append(skills, skill)
 			frontmatter[location] = fm
 			if depth == 0 {
 				break

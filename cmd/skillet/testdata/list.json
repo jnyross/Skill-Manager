@@ -10,7 +10,14 @@
       "kind": "skill",
       "activation": "Manual-only",
       "location": "$HOME/.claude/skills/review",
-      "declaredManualOnlyForClaude": false
+      "declaredManualOnlyForClaude": false,
+      "cost": {
+        "descriptionTokens": 4,
+        "bodyBytes": 87,
+        "bodyTokens": 22,
+        "fileCount": 1,
+        "totalBytes": 87
+      }
     },
     {
       "name": "writing",
@@ -21,7 +28,14 @@
       "kind": "skill",
       "activation": "Auto",
       "location": "$HOME/.claude/skills/writing",
-      "declaredManualOnlyForClaude": false
+      "declaredManualOnlyForClaude": false,
+      "cost": {
+        "descriptionTokens": 5,
+        "bodyBytes": 61,
+        "bodyTokens": 16,
+        "fileCount": 1,
+        "totalBytes": 61
+      }
     },
     {
       "name": "lint",
@@ -37,6 +51,13 @@
         "plugin": "demo",
         "marketplace": "market",
         "skillCount": 1
+      },
+      "cost": {
+        "descriptionTokens": 4,
+        "bodyBytes": 54,
+        "bodyTokens": 14,
+        "fileCount": 1,
+        "totalBytes": 54
       }
     },
     {
@@ -48,7 +69,14 @@
       "kind": "prompt",
       "activation": "Manual-only",
       "location": "$HOME/.codex/prompts/deploy.md",
-      "declaredManualOnlyForClaude": false
+      "declaredManualOnlyForClaude": false,
+      "cost": {
+        "descriptionTokens": 5,
+        "bodyBytes": 50,
+        "bodyTokens": 13,
+        "fileCount": 1,
+        "totalBytes": 50
+      }
     },
     {
       "name": "refactor",
@@ -59,7 +87,14 @@
       "kind": "skill",
       "activation": "Auto",
       "location": "$HOME/.agents/skills/refactor",
-      "declaredManualOnlyForClaude": false
+      "declaredManualOnlyForClaude": false,
+      "cost": {
+        "descriptionTokens": 4,
+        "bodyBytes": 60,
+        "bodyTokens": 15,
+        "fileCount": 1,
+        "totalBytes": 60
+      }
     },
     {
       "name": "review",
@@ -70,7 +105,14 @@
       "kind": "skill",
       "activation": "Auto",
       "location": "$PROJECT/.claude/skills/review",
-      "declaredManualOnlyForClaude": false
+      "declaredManualOnlyForClaude": false,
+      "cost": {
+        "descriptionTokens": 6,
+        "bodyBytes": 66,
+        "bodyTokens": 17,
+        "fileCount": 1,
+        "totalBytes": 66
+      }
     },
     {
       "name": "review",
@@ -81,7 +123,14 @@
       "kind": "skill",
       "activation": "Auto",
       "location": "$PROJECT/.agents/skills/review",
-      "declaredManualOnlyForClaude": false
+      "declaredManualOnlyForClaude": false,
+      "cost": {
+        "descriptionTokens": 8,
+        "bodyBytes": 71,
+        "bodyTokens": 18,
+        "fileCount": 1,
+        "totalBytes": 71
+      }
     }
   ],
   "notices": [

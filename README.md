@@ -59,6 +59,7 @@ session or a CI job can manage Skills without a terminal UI:
 ```
 skillet list [--json] [--source SOURCE] [--tool TOOL]
 skillet show <name> [--json]
+skillet cost [--json]
 skillet archive <name> --yes
 skillet restore <id|name> --yes
 skillet purge <id|name> --yes
@@ -76,6 +77,10 @@ Anything the TUI would confirm requires `--yes`, every mutation prints a
 one-line summary of what changed, and the exit codes are 0 for success, 1 for
 an operation error, and 2 for a usage error. `skillet --help` prints the full
 command tree.
+
+`skillet cost` estimates what your installed Skills cost in context: the
+standing per-session cost of Auto-activation broken down per Tool, and the ten
+Skills responsible for most of it. Every number it prints is an estimate.
 
 `docs/agents/cli.md` documents the command tree, the name-resolution rules, and
 the stable JSON schema (including how it stays additive).
@@ -103,6 +108,7 @@ Keys:
 | `home` / `end` | Jump to the first / last Skill | main view |
 | `ctrl+u` / `ctrl+d` (also `ctrl+pgup` / `ctrl+pgdown`) | Scroll the detail pane | main view |
 | `/` | Filter the list | every view |
+| `c` | Rank the list by estimated cost per session (press again to group by Source) | main view |
 | `esc` | Clear the filter, or return to the main view | every view |
 | `u` | Archive the selected Skill | Personal, Codex (skills and prompts), Project |
 | `s` | Suppress / un-suppress the selected Skill | Plugin skills, Codex skills, Project Codex skills |
@@ -124,6 +130,29 @@ instead of doing anything.
 where it cancels the prompt instead of quitting. `esc` cancels whatever
 overlay is open, and in the Library entry form it asks before discarding
 anything you have already typed; `shift+tab` steps back to the previous field.
+
+### What Skills cost you
+
+Context is finite, and an Auto-activating Skill's description is injected into
+**every** session with its Tool whether the Skill is ever used or not. Skillet
+puts a number on that.
+
+The line under the title is the total: what Auto-activation costs per session,
+per Tool. Only Auto Skills count towards it — a Manual-only, Disabled, or
+Suppressed Skill is not offered to the model unprompted, so it costs nothing
+until you invoke it, and the line says how many Skills were excluded on that
+basis.
+
+The detail pane breaks the selected Skill's cost into the standing per-session
+cost of its description, what invoking it costs (its whole `SKILL.md`), and
+what it occupies on disk including references and scripts. Press `c` to rank
+the whole list by per-session cost, most expensive first, across every Source;
+press it again to go back to the Source grouping.
+
+Every one of these numbers is an **estimate**. Skillet sizes files at roughly
+four bytes per token rather than running a tokenizer, so treat them as a
+reliable ranking rather than a measurement — they are for finding what to turn
+off, not for budgeting to the token.
 
 ### Filtering
 

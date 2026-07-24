@@ -17,6 +17,7 @@ skillet version | --version                          release identity
 
 skillet list [--json] [--source SOURCE] [--tool TOOL]
 skillet show <name> [--json]
+skillet cost [--json]
 
 skillet archive <name> --yes
 skillet restore <id|name> --yes
@@ -116,7 +117,14 @@ must ignore fields they do not know.
       "activation": "Auto",
       "location": "/Users/me/.claude/plugins/cache/demo/skills/lint",
       "declaredManualOnlyForClaude": false,
-      "plugin": { "plugin": "demo", "marketplace": "market", "skillCount": 1 }
+      "plugin": { "plugin": "demo", "marketplace": "market", "skillCount": 1 },
+      "cost": {
+        "descriptionTokens": 6,
+        "bodyBytes": 4820,
+        "bodyTokens": 1205,
+        "fileCount": 7,
+        "totalBytes": 41230
+      }
     }
   ],
   "notices": [
@@ -150,6 +158,22 @@ Skill fields:
 | `location` | Absolute path to the Skill directory (or prompt file) |
 | `declaredManualOnlyForClaude` | A Codex Skill declaring Claude Code's `disable-model-invocation`, which Codex ignores |
 | `plugin` | Present only for Plugin Skills: `plugin`, `marketplace`, `skillCount` |
+| `cost` | Context cost, **all values estimated** — see below |
+
+`cost` fields:
+
+| Field | Meaning |
+|---|---|
+| `descriptionTokens` | Estimated tokens the description injects into **every** session while the Skill Auto-activates. Reported for every Skill whatever its `activation`, so a caller can price turning one back on |
+| `bodyBytes` / `bodyTokens` | The whole `SKILL.md` (or prompt file): what invoking the Skill costs |
+| `fileCount` / `totalBytes` | The Skill's whole directory — references, scripts, assets |
+
+Every number under `cost` is an **estimate**, not a token count. Skillet sizes
+files at roughly four bytes per token rather than running a tokenizer, so the
+values are reliable for ranking Skills against each other and should not be
+quoted as measurements. A Codex prompt is a single file, so its `fileCount` is
+`1` and its `totalBytes` equals `bodyBytes`.
+
 
 `notices` carries every scan notice, and `archive` every visible Archive entry
 — that is where `purge` and `restore` ids come from.
@@ -162,6 +186,37 @@ filtered.
 ```json
 { "schemaVersion": 1, "skill": { "...": "the same Skill object as list" } }
 ```
+
+### `skillet cost --json`
+
+```json
+{
+  "schemaVersion": 1,
+  "estimate": { "method": "bytes/4", "bytesPerToken": 4, "exact": false },
+  "perSession": {
+    "descriptionTokens": 1640,
+    "skills": 15,
+    "excludedSkills": 7,
+    "byTool": [
+      { "tool": "Claude Code", "skills": 12, "descriptionTokens": 1430 },
+      { "tool": "Codex", "skills": 3, "descriptionTokens": 210 }
+    ]
+  },
+  "topByDescriptionCost": [ { "...": "the same Skill object as list" } ],
+  "notices": []
+}
+```
+
+`perSession` is the headline: what Auto-activation costs in **every** session,
+per Tool. Only Skills with `activation: "Auto"` are counted — Manual-only,
+Disabled, and Suppressed Skills are not offered to the model unprompted, so
+they cost nothing per session, and `excludedSkills` says how many were left
+out. `byTool` always sums to `descriptionTokens`.
+
+`topByDescriptionCost` is the ten most expensive Skills by `descriptionTokens`,
+most expensive first, drawn from the whole inventory (including excluded
+Skills, since "this Manual-only Skill would be expensive" is worth knowing).
+Only those Skills carry a measured `fileCount`/`totalBytes`.
 
 ### `skillet library list --json` / `library add --json`
 
@@ -224,6 +279,13 @@ skillet list --json --source Personal |
   jq -r '.skills[].qualifiedName' |
   xargs -n1 -I{} skillet manual-only {} --yes
 
+# What Auto-activation costs in every session, per Tool (estimated).
+skillet cost --json | jq -r '.perSession.byTool[] | "\(.tool)\t~\(.descriptionTokens) tokens"'
+
+# The five Auto Skills with the most expensive descriptions.
+skillet list --json |
+  jq -r '[.skills[] | select(.activation == "Auto")] | sort_by(-.cost.descriptionTokens) | .[:5][] | "\(.cost.descriptionTokens)\t\(.qualifiedName)"'
+
 # Fail a CI job when scanning raised any notice.
 test "$(skillet list --json | jq '.notices | length')" -eq 0
 
@@ -240,6 +302,9 @@ skillet restore "$(skillet list --json | jq -r '.archive[0].id')" --yes
   `.agents/skills` depending on the entry's Tool); `--target personal` installs
   at the user level. An existing Skill of the same name at the target is
   replaced.
+- Every `cost` number is an estimate from file size, never a tokenizer result.
+  `list --json` and `cost --json` measure each reported Skill's directory;
+  `show --json` measures only the Skill it prints.
 - `suppress` applies to Plugin and Codex Skills; `manual-only`/`auto` apply to
   Personal, Project, and Codex Skills. Asking for one where the Source has no
   such mechanism is an operation error (exit 1) with an explicit message.
