@@ -219,8 +219,15 @@ func TestUnsuppressCodexSkillMatchesByNameKeyedEntry(t *testing.T) {
 		t.Fatalf("Unsuppress: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(f.roots.CodexHome, "config.toml")); !os.IsNotExist(err) {
-		t.Fatalf("config.toml should be removed once its only entry is gone, got err=%v", err)
+	// Ownership rule (see ownership.go): the entry was hand-written, not
+	// Skillet's, so removing it empties config.toml but does not delete it —
+	// Skillet only deletes a config.toml it created itself.
+	got, err := os.ReadFile(filepath.Join(f.roots.CodexHome, "config.toml"))
+	if err != nil {
+		t.Fatalf("config.toml should be left in place when Skillet did not create it: %v", err)
+	}
+	if strings.TrimSpace(string(got)) != "" {
+		t.Fatalf("config.toml after unsuppress = %q, want empty", got)
 	}
 
 	reverted, ok := findSkill(e.Inventory(), engine.SourceCodex, "codex-skill")

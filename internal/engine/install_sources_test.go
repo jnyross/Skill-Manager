@@ -1,6 +1,7 @@
 package engine_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -18,7 +19,7 @@ type recordingRunner struct {
 	result   *engine.CommandResult
 }
 
-func (r *recordingRunner) Run(command engine.Command) (engine.CommandResult, error) {
+func (r *recordingRunner) Run(_ context.Context, command engine.Command) (engine.CommandResult, error) {
 	r.commands = append(r.commands, command)
 	if r.errAt > 0 && len(r.commands) == r.errAt {
 		return engine.CommandResult{Stderr: "boom"}, fmt.Errorf("exit 1")

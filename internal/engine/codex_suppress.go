@@ -41,9 +41,11 @@ package engine
 // break that round trip.
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // suppressCodex writes a minimal `[[skills.config]]` block disabling skill
@@ -51,7 +53,12 @@ import (
 // no-op if a matching entry (by path or name, per readCodexDisabledConfig)
 // is already present and already disabled — calling Suppress twice does not
 // write a second, duplicate block.
-func suppressCodex(codexHome string, skill Skill) error {
+//
+// Every block it writes is recorded as Skillet-authored (ownership.go), along
+// with whether config.toml had to be created, so unsuppressCodex can remove
+// exactly what Skillet added and nothing else.
+func (e *Engine) suppressCodex(skill Skill) error {
+	codexHome := e.roots.CodexHome
 	skillMDPath := absolutePath(filepath.Join(skill.Location, "SKILL.md"))
 
 	disabled, _ := readCodexDisabledConfig(codexHome)
@@ -62,6 +69,10 @@ func suppressCodex(codexHome string, skill Skill) error {
 	content, err := readCodexConfigOrEmpty(codexHome)
 	if err != nil {
 		return fmt.Errorf("suppress skill: %w", err)
+	}
+	configExisted := true
+	if _, statErr := os.Stat(filepath.Join(codexHome, "config.toml")); statErr != nil && os.IsNotExist(statErr) {
+		configExisted = false
 	}
 
 	block := "[[skills.config]]\npath = " + strconv.Quote(skillMDPath) + "\nenabled = false\n"
@@ -74,45 +85,99 @@ func suppressCodex(codexHome string, skill Skill) error {
 	if err := writeCodexConfig(codexHome, newContent); err != nil {
 		return fmt.Errorf("suppress skill: %w", err)
 	}
+	record := codexConfigRecord{
+		SkillName:     skill.Name,
+		SkillMDPath:   skillMDPath,
+		Block:         block,
+		CreatedConfig: !configExisted,
+		SuppressedAt:  time.Now().UTC(),
+	}
+	if err := saveCodexConfigRecord(e.roots.DataDir, record); err != nil {
+		return fmt.Errorf("suppress skill: record config ownership: %w", err)
+	}
 	return nil
 }
 
-// unsuppressCodex removes every `[[skills.config]]` block matching skill (by
-// path or name) from <codexHome>/config.toml, reusing
-// codex_config.go's planCodexConfigRemoval — the same span-finding Archive's
-// stale-entry cleanup already uses — rather than hand-rolling new text
-// surgery. A no-op if config.toml doesn't exist or has no matching entry. If
-// removing the entry leaves the file with nothing else in it, the file is
-// deleted outright rather than left as an empty file — unconditionally, the
-// same delete-on-empty rule manual_only.go's Codex agents/openai.yaml editing
-// already uses (it doesn't track whether Skillet itself created the file
-// either). This code has no way to tell "config.toml existed before Suppress
-// but happened to contain only this one entry" apart from "Suppress created
-// it from nothing" — both end up empty after removal, so both are deleted.
-// The consequence worth calling out: it's the created-from-nothing case that
-// makes Suppress-then-Unsuppress round-trip exact (a tree snapshot would see
-// a leftover empty file as a change, not "no change"); a config.toml a human
-// authored with only one entry, once unsuppressed, is also removed rather
-// than left empty — a deliberate simplification, not a bug.
-func unsuppressCodex(codexHome string, skill Skill) error {
+// unsuppressCodex removes the `[[skills.config]]` block(s) disabling skill
+// from <codexHome>/config.toml, reusing codex_config.go's span-finding — the
+// same machinery Archive's stale-entry cleanup uses — rather than hand-rolling
+// new text surgery. A no-op if config.toml doesn't exist or has no matching
+// entry.
+//
+// Ownership (ownership.go) decides both what is removed and whether the file
+// survives:
+//
+//   - With a Skillet record for this skill, only the exact block Skillet wrote
+//     is removed. Any other entry naming the same skill was authored by a
+//     human, by Codex, or by a plugin — possibly with hand-tuned extra keys —
+//     and is left untouched; the returned error says so, because the skill is
+//     then still disabled in Codex and only its author can decide what to do
+//     with it.
+//   - With no record (an entry predating ownership tracking, or one written
+//     outside Skillet), matching entries are still removed: an explicit
+//     un-suppress has to be able to re-enable the skill, and nothing else in
+//     Skillet can.
+//   - config.toml is deleted only when the record says Skillet created it and
+//     removing Skillet's block leaves nothing behind. That keeps a
+//     Suppress-then-Unsuppress round trip tree-identical when Suppress created
+//     the file from nothing, while a config.toml the user already had is left
+//     in place — empty, if that is all that remains — because Skillet does not
+//     delete files it did not create.
+func (e *Engine) unsuppressCodex(skill Skill) error {
+	codexHome := e.roots.CodexHome
 	skillMDPath := absolutePath(filepath.Join(skill.Location, "SKILL.md"))
 
-	newContent, _, changed, err := planCodexConfigRemoval(codexHome, skillMDPath, skill.Name)
+	record, owned, err := loadCodexConfigRecord(e.roots.DataDir, skill.Name, skillMDPath)
+	if err != nil {
+		return fmt.Errorf("unsuppress skill: %w", err)
+	}
+
+	var newContent string
+	var changed bool
+	remaining := 0
+	if owned {
+		// Precise path: remove exactly the block Skillet appended, leaving any
+		// other entry for this skill (which a human or Codex wrote, possibly
+		// with extra hand-tuned keys) in place.
+		newContent, changed, remaining, err = planCodexConfigOwnedRemoval(codexHome, skillMDPath, skill.Name, record.Block)
+	} else {
+		// No record: either the entry predates Skillet's ownership tracking or
+		// it was written outside Skillet. Removing it is the only way to honour
+		// an explicit un-suppress, so it is still removed — but config.toml is
+		// never deleted below, because Skillet did not create it.
+		newContent, _, changed, err = planCodexConfigRemoval(codexHome, skillMDPath, skill.Name)
+	}
 	if err != nil {
 		return fmt.Errorf("unsuppress skill: %w", err)
 	}
 	if !changed {
-		return nil
-	}
-
-	if strings.TrimSpace(newContent) == "" {
-		if err := removeCodexConfigFile(codexHome); err != nil {
-			return fmt.Errorf("unsuppress skill: %w", err)
+		// Nothing matching this skill is left in config.toml; drop any stale
+		// ownership record so it can't authorize a future deletion.
+		if owned {
+			return deleteCodexConfigRecord(e.roots.DataDir, skill.Name, skillMDPath)
 		}
 		return nil
 	}
+
+	// config.toml is deleted only when Skillet created it. A file the user
+	// already had is left in place even if removing Skillet's block empties
+	// it: Skillet does not delete files it did not create.
+	if strings.TrimSpace(newContent) == "" && owned && record.CreatedConfig {
+		if err := removeCodexConfigFile(codexHome); err != nil {
+			return fmt.Errorf("unsuppress skill: %w", err)
+		}
+		return deleteCodexConfigRecord(e.roots.DataDir, skill.Name, skillMDPath)
+	}
 	if err := writeCodexConfig(codexHome, newContent); err != nil {
 		return fmt.Errorf("unsuppress skill: %w", err)
+	}
+	if owned {
+		if err := deleteCodexConfigRecord(e.roots.DataDir, skill.Name, skillMDPath); err != nil {
+			return fmt.Errorf("unsuppress skill: %w", err)
+		}
+	}
+	if remaining > 0 {
+		return fmt.Errorf("unsuppress skill: removed Skillet's disable entry, but %s still has %d hand-written [[skills.config]] entr(y/ies) for %q — edit that file to re-enable the skill in Codex", filepath.Join(codexHome, "config.toml"), remaining, skill.Name)
 	}
 	return nil
 }

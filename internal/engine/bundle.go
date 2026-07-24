@@ -217,7 +217,7 @@ func writeBundle(dataDir string, bundle Bundle) error {
 	if err != nil {
 		return fmt.Errorf("marshal bundle: %w", err)
 	}
-	if err := os.WriteFile(bundlePath(dataDir, bundle.ID), append(data, '\n'), 0o600); err != nil {
+	if err := writeFileAtomic(bundlePath(dataDir, bundle.ID), append(data, '\n'), 0o600); err != nil {
 		return fmt.Errorf("write bundle: %w", err)
 	}
 	return nil

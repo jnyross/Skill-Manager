@@ -3,6 +3,7 @@ package engine
 // Install — resolve a Library entry's install-source descriptor and place a
 // disconnected copy at a chosen target (CONTEXT.md Install; ADR 0004).
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,9 +17,20 @@ import (
 // InstallLibraryEntry places entry at target, applying activation afterward
 // when Manual-only. The engine is non-interactive: callers (TUI) must already
 // have confirmed overwrite when the destination name collides.
+//
+// It is the uncancellable convenience form of InstallLibraryEntryContext; any
+// subprocess it starts is still bounded by the engine's install timeout.
 func (e *Engine) InstallLibraryEntry(entry LibraryEntry, target InstallTarget, activation ActivationState) error {
+	return e.InstallLibraryEntryContext(context.Background(), entry, target, activation)
+}
+
+// InstallLibraryEntryContext is InstallLibraryEntry with a caller-supplied
+// context: cancelling ctx terminates any subprocess the install is waiting on
+// (git clone, npx, claude plugin install), which is what lets a UI offer a
+// cancel key on a long install.
+func (e *Engine) InstallLibraryEntryContext(ctx context.Context, entry LibraryEntry, target InstallTarget, activation ActivationState) error {
 	if entry.Source.Kind == LibrarySourceMarketplace {
-		return e.installMarketplace(entry, target, activation)
+		return e.installMarketplace(ctx, entry, target, activation)
 	}
 
 	dest, _, err := e.InstallDestination(entry, target)
@@ -32,11 +44,11 @@ func (e *Engine) InstallLibraryEntry(entry LibraryEntry, target InstallTarget, a
 			return err
 		}
 	case LibrarySourceGit:
-		if err := e.installGit(entry.Source, dest); err != nil {
+		if err := e.installGit(ctx, entry.Source, dest); err != nil {
 			return err
 		}
 	case LibrarySourceSkillsSh:
-		if err := e.installSkillsSh(entry, target); err != nil {
+		if err := e.installSkillsSh(ctx, entry, target); err != nil {
 			return err
 		}
 	default:
@@ -119,7 +131,7 @@ func (e *Engine) validateInstallTarget(target InstallTarget) error {
 	}
 }
 
-func (e *Engine) installGit(source LibrarySource, dest string) error {
+func (e *Engine) installGit(ctx context.Context, source LibrarySource, dest string) error {
 	gitURL := strings.TrimSpace(source.GitURL)
 	if strings.HasPrefix(gitURL, "-") {
 		return fmt.Errorf("install git: URL starts with '-'")
@@ -140,7 +152,7 @@ func (e *Engine) installGit(source LibrarySource, dest string) error {
 		args = append(args, "--branch", ref)
 	}
 	args = append(args, "--", gitURL, cloneDir)
-	if err := e.runCommand(Command{Name: "git", Args: args}, "clone git source"); err != nil {
+	if err := e.runCommand(ctx, Command{Name: "git", Args: args}, "clone git source"); err != nil {
 		return err
 	}
 
@@ -158,7 +170,7 @@ func (e *Engine) installGit(source LibrarySource, dest string) error {
 	return nil
 }
 
-func (e *Engine) installSkillsSh(entry LibraryEntry, target InstallTarget) error {
+func (e *Engine) installSkillsSh(ctx context.Context, entry LibraryEntry, target InstallTarget) error {
 	if err := e.validateInstallTarget(target); err != nil {
 		return err
 	}
@@ -190,7 +202,7 @@ func (e *Engine) installSkillsSh(entry LibraryEntry, target InstallTarget) error
 	} else {
 		command.Dir = absolutePath(target.RepoRoot)
 	}
-	return e.runCommand(command, "install skills.sh source")
+	return e.runCommand(ctx, command, "install skills.sh source")
 }
 
 func (e *Engine) setSkillsShSourceManualOnly(entry LibraryEntry, target InstallTarget) error {
@@ -241,7 +253,7 @@ func (e *Engine) setSkillsShSourceManualOnly(entry LibraryEntry, target InstallT
 	return nil
 }
 
-func (e *Engine) installMarketplace(entry LibraryEntry, target InstallTarget, activation ActivationState) error {
+func (e *Engine) installMarketplace(ctx context.Context, entry LibraryEntry, target InstallTarget, activation ActivationState) error {
 	if activation == ActivationManualOnly {
 		return fmt.Errorf("install marketplace: Manual-only activation is not supported for marketplace plugins")
 	}
@@ -262,7 +274,7 @@ func (e *Engine) installMarketplace(entry LibraryEntry, target InstallTarget, ac
 		if strings.HasPrefix(source, "-") {
 			return fmt.Errorf("install marketplace: marketplace source starts with '-'")
 		}
-		if err := e.runClaudePluginCommand(Command{Name: "claude", Args: []string{"plugin", "marketplace", "add", source, "--scope", "user"}}, "add marketplace"); err != nil {
+		if err := e.runClaudePluginCommand(ctx, Command{Name: "claude", Args: []string{"plugin", "marketplace", "add", source, "--scope", "user"}}, "add marketplace"); err != nil {
 			return err
 		}
 	}
@@ -275,14 +287,14 @@ func (e *Engine) installMarketplace(entry LibraryEntry, target InstallTarget, ac
 		settingsDir = filepath.Join(absolutePath(target.RepoRoot), ".claude")
 	}
 	command.Args = []string{"plugin", "install", key, "--scope", scope}
-	if err := e.runClaudePluginCommand(command, "install marketplace plugin"); err != nil {
+	if err := e.runClaudePluginCommand(ctx, command, "install marketplace plugin"); err != nil {
 		return err
 	}
 	return e.enablePluginInSettings(settingsDir, key)
 }
 
-func (e *Engine) runClaudePluginCommand(command Command, action string) error {
-	result, err := e.runner.Run(command)
+func (e *Engine) runClaudePluginCommand(ctx context.Context, command Command, action string) error {
+	result, err := e.runInstallCommand(ctx, command)
 	if err != nil {
 		return commandError(action, result, err)
 	}
@@ -354,12 +366,28 @@ func (e *Engine) marketplaceKnown(name string) bool {
 	return json.Unmarshal(data, &known) == nil && known[name] != nil
 }
 
-func (e *Engine) runCommand(command Command, action string) error {
-	result, err := e.runner.Run(command)
+func (e *Engine) runCommand(ctx context.Context, command Command, action string) error {
+	result, err := e.runInstallCommand(ctx, command)
 	if err == nil {
 		return nil
 	}
 	return commandError(action, result, err)
+}
+
+// runInstallCommand is the single place every install-class subprocess passes
+// through: it bounds the call with the engine's install timeout on top of the
+// caller's context, so no install can block forever, and rewrites a
+// deadline/cancellation failure into a message naming the program and the
+// limit.
+func (e *Engine) runInstallCommand(ctx context.Context, command Command) (CommandResult, error) {
+	limit := e.timeout(e.installTimeout)
+	ctx, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
+	result, err := e.runner.Run(ctx, command)
+	if err != nil {
+		return result, timeoutAwareError(ctx, command, limit, err)
+	}
+	return result, nil
 }
 
 func commandError(action string, result CommandResult, err error) error {

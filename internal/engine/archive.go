@@ -66,31 +66,51 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 		OriginalLocation: location,
 		ArchivedAt:       time.Now().UTC(),
 	}
-
-	if info.Mode()&os.ModeSymlink != 0 {
+	isSymlink := info.Mode()&os.ModeSymlink != 0
+	if isSymlink {
 		target, err := os.Readlink(location)
 		if err != nil {
 			_ = os.RemoveAll(archiveDir)
 			return ArchiveEntry{}, fmt.Errorf("read symlink target: %w", err)
 		}
-		if err := moveSymlink(location, archivedPath, target); err != nil {
+		entry.IsSymlink = true
+		entry.SymlinkTarget = target
+	} else if kind == KindSkill && !info.IsDir() {
+		_ = os.RemoveAll(archiveDir)
+		return ArchiveEntry{}, fmt.Errorf("skill location is not a directory: %s", location)
+	} else if kind == KindPrompt && info.IsDir() {
+		_ = os.RemoveAll(archiveDir)
+		return ArchiveEntry{}, fmt.Errorf("prompt location is not a file: %s", location)
+	}
+	if configChanged {
+		entry.RemovedConfigEntries = removedConfig
+	}
+
+	// Provenance is written *before* the skill leaves its source directory.
+	// ListArchive skips entries with no provenance.json, so writing it after
+	// the move would leave a window where a failure (or a crash) makes the
+	// skill absent from the tool *and* invisible in the archive — recoverable
+	// only by hand. The reverse window this ordering creates is benign and
+	// self-describing: an archive entry whose payload has not arrived yet
+	// means the skill is still installed exactly where it was, and Restore
+	// reports that state explicitly instead of wedging.
+	if err := writeArchiveEntry(archiveDir, entry); err != nil {
+		_ = os.RemoveAll(archiveDir)
+		return ArchiveEntry{}, err
+	}
+
+	switch {
+	case isSymlink:
+		if err := moveSymlink(location, archivedPath, entry.SymlinkTarget); err != nil {
 			_ = os.RemoveAll(archiveDir)
 			return ArchiveEntry{}, fmt.Errorf("archive symlink: %w", err)
 		}
-		entry.IsSymlink = true
-		entry.SymlinkTarget = target
-	} else if kind == KindSkill {
-		if !info.IsDir() {
-			return ArchiveEntry{}, fmt.Errorf("skill location is not a directory: %s", location)
-		}
+	case kind == KindSkill:
 		if err := moveDirectory(location, archivedPath); err != nil {
 			_ = os.RemoveAll(archiveDir)
 			return ArchiveEntry{}, fmt.Errorf("archive skill directory: %w", err)
 		}
-	} else {
-		if info.IsDir() {
-			return ArchiveEntry{}, fmt.Errorf("prompt location is not a file: %s", location)
-		}
+	default:
 		if err := moveFile(location, archivedPath, info.Mode().Perm()); err != nil {
 			_ = os.RemoveAll(archiveDir)
 			return ArchiveEntry{}, fmt.Errorf("archive prompt file: %w", err)
@@ -99,15 +119,32 @@ func (e *Engine) Uninstall(location string) (ArchiveEntry, error) {
 
 	if configChanged {
 		if err := writeCodexConfig(e.roots.CodexHome, newConfig); err != nil {
+			// Undo the move so the skill is back where the user left it. If
+			// even that fails, the archive entry (payload plus provenance) is
+			// deliberately kept: the skill is then recoverable with Restore
+			// rather than lost, which is the invariant this ordering exists
+			// to protect.
+			if rollbackErr := rollbackArchiveMove(entry, archivedPath, info.Mode().Perm()); rollbackErr != nil {
+				return ArchiveEntry{}, fmt.Errorf("%w (rollback also failed: %v; the skill is preserved in the archive as %s — restore it from the Archive view)", err, rollbackErr, id)
+			}
+			_ = os.RemoveAll(archiveDir)
 			return ArchiveEntry{}, err
 		}
-		entry.RemovedConfigEntries = removedConfig
-	}
-
-	if err := writeArchiveEntry(archiveDir, entry); err != nil {
-		return ArchiveEntry{}, err
 	}
 	return entry, nil
+}
+
+// rollbackArchiveMove moves an already-archived payload back to the location
+// it came from, undoing the move step of Uninstall when a later step fails.
+func rollbackArchiveMove(entry ArchiveEntry, archivedPath string, perm os.FileMode) error {
+	switch {
+	case entry.IsSymlink:
+		return moveSymlink(archivedPath, entry.OriginalLocation, entry.SymlinkTarget)
+	case entry.Kind == KindSkill:
+		return moveDirectory(archivedPath, entry.OriginalLocation)
+	default:
+		return moveFile(archivedPath, entry.OriginalLocation, perm)
+	}
 }
 
 func (e *Engine) ListArchive() ([]ArchiveEntry, []Notice, error) {
@@ -181,32 +218,53 @@ func (e *Engine) Restore(id string) error {
 	}
 	entry.ID = id
 
-	if _, err := os.Lstat(entry.OriginalLocation); err == nil {
-		return fmt.Errorf("restore destination already exists: %s", entry.OriginalLocation)
-	} else if !os.IsNotExist(err) {
+	archivedPath := filepath.Join(archiveDir, filepath.Base(entry.OriginalLocation))
+	payloadPresent, err := pathExists(archivedPath)
+	if err != nil {
+		return fmt.Errorf("inspect archived copy: %w", err)
+	}
+	destPresent, err := pathExists(entry.OriginalLocation)
+	if err != nil {
 		return fmt.Errorf("inspect restore destination: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(entry.OriginalLocation), 0o700); err != nil {
-		return fmt.Errorf("create restore parent: %w", err)
-	}
 
-	archivedPath := filepath.Join(archiveDir, filepath.Base(entry.OriginalLocation))
-	if entry.IsSymlink {
-		if err := os.Symlink(entry.SymlinkTarget, entry.OriginalLocation); err != nil {
-			return fmt.Errorf("restore symlink: %w", err)
+	// Restore is resumable. A previous attempt that moved the payload back but
+	// then failed (most commonly in reinstateCodexConfigEntries) leaves the
+	// destination populated and the archived copy gone; re-running must finish
+	// that work rather than reporting "restore destination already exists"
+	// forever. The four states are distinguished structurally, so recovery
+	// does not depend on a marker that could itself have failed to be written.
+	switch {
+	case payloadPresent && destPresent:
+		return fmt.Errorf("restore destination already exists: %s — the archived copy is still safe at %s; move or delete the existing skill and restore again, or purge archive entry %s", entry.OriginalLocation, archivedPath, id)
+	case !payloadPresent && !destPresent:
+		return fmt.Errorf("archive entry %s has no stored copy at %s and nothing at its original location %s — the archive record is incomplete; purge it from the Archive view", id, archivedPath, entry.OriginalLocation)
+	case payloadPresent && !destPresent:
+		if err := os.MkdirAll(filepath.Dir(entry.OriginalLocation), 0o700); err != nil {
+			return fmt.Errorf("create restore parent: %w", err)
 		}
-		if err := os.Remove(archivedPath); err != nil {
-			return fmt.Errorf("remove archived symlink: %w", err)
+		if entry.IsSymlink {
+			if err := os.Symlink(entry.SymlinkTarget, entry.OriginalLocation); err != nil {
+				return fmt.Errorf("restore symlink: %w", err)
+			}
+			if err := os.Remove(archivedPath); err != nil {
+				return fmt.Errorf("remove archived symlink: %w", err)
+			}
+		} else {
+			if err := moveArchivedPayload(archivedPath, entry.OriginalLocation); err != nil {
+				return fmt.Errorf("restore skill directory: %w", err)
+			}
 		}
-	} else {
-		if err := os.Rename(archivedPath, entry.OriginalLocation); err != nil {
-			return fmt.Errorf("restore skill directory: %w", err)
-		}
+	default:
+		// !payloadPresent && destPresent: a previous Restore already put the
+		// skill back; only the config reinstatement and cleanup remain. Both
+		// remaining steps are idempotent, so simply falling through completes
+		// the restore.
 	}
 
 	if len(entry.RemovedConfigEntries) > 0 {
 		if err := reinstateCodexConfigEntries(e.roots.CodexHome, entry.RemovedConfigEntries); err != nil {
-			return err
+			return fmt.Errorf("%w — the skill itself is restored at %s; fix the Codex config problem and run Restore on %s again to finish reinstating its config.toml entries", err, entry.OriginalLocation, id)
 		}
 	}
 
@@ -310,7 +368,37 @@ func sanitizeIDPart(value string) string {
 	return result
 }
 
+// pathExists reports whether path exists, without following a symlink at the
+// final component. A non-IsNotExist error is returned rather than swallowed so
+// callers can distinguish "absent" from "unreadable".
+func pathExists(path string) (bool, error) {
+	if _, err := os.Lstat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// moveArchivedPayload moves an archived skill directory or prompt file back to
+// dest, tolerating a cross-device archive directory the way moveDirectory and
+// moveFile already do on the way in.
+func moveArchivedPayload(src, dest string) error {
+	info, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		return moveDirectory(src, dest)
+	}
+	return moveFile(src, dest, info.Mode().Perm())
+}
+
 func moveSymlink(oldPath, newPath, target string) error {
+	if err := injectedFault("move", newPath); err != nil {
+		return err
+	}
 	if err := os.Rename(oldPath, newPath); err == nil {
 		return nil
 	} else if !errors.Is(err, syscall.EXDEV) {
@@ -328,6 +416,9 @@ func moveSymlink(oldPath, newPath, target string) error {
 }
 
 func moveDirectory(oldPath, newPath string) error {
+	if err := injectedFault("move", newPath); err != nil {
+		return err
+	}
 	if err := os.Rename(oldPath, newPath); err == nil {
 		return nil
 	} else if !errors.Is(err, syscall.EXDEV) {
@@ -341,6 +432,9 @@ func moveDirectory(oldPath, newPath string) error {
 }
 
 func moveFile(oldPath, newPath string, perm os.FileMode) error {
+	if err := injectedFault("move", newPath); err != nil {
+		return err
+	}
 	if err := os.Rename(oldPath, newPath); err == nil {
 		return nil
 	} else if !errors.Is(err, syscall.EXDEV) {
@@ -374,34 +468,6 @@ func readArchiveEntry(archiveDir string) (ArchiveEntry, error) {
 		return ArchiveEntry{}, fmt.Errorf("parse provenance: %w", err)
 	}
 	return entry, nil
-}
-
-func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, ".tmp-*")
-	if err != nil {
-		return fmt.Errorf("create temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("write temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("close temp file: %w", err)
-	}
-	if err := os.Chmod(tmpPath, perm); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("chmod temp file: %w", err)
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("rename temp file: %w", err)
-	}
-	return nil
 }
 
 func validateArchiveID(id string) error {

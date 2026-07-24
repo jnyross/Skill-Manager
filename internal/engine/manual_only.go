@@ -34,6 +34,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -45,15 +46,23 @@ const (
 // SetManualOnly turns skill's Auto-activation off (manualOnly = true), so it
 // only runs on explicit invocation, or back on (manualOnly = false).
 func (e *Engine) SetManualOnly(skill Skill, manualOnly bool) error {
+	action := "set manual-only"
+	if !manualOnly {
+		action = "unset manual-only"
+	}
 	switch {
-	case skill.Source == SourcePersonal && skill.Kind == KindSkill:
+	case skill.Source == SourcePersonal && skill.Kind == KindSkill,
+		skill.Source == SourceProject && skill.Tool == ToolClaudeCode && skill.Kind == KindSkill:
+		if err := revalidateSkillLocation(skill, action); err != nil {
+			return err
+		}
 		return setPersonalManualOnly(skill, manualOnly)
-	case skill.Source == SourceCodex && skill.Kind == KindSkill:
-		return setCodexManualOnlyForSkill(skill, manualOnly)
-	case skill.Source == SourceProject && skill.Tool == ToolClaudeCode && skill.Kind == KindSkill:
-		return setPersonalManualOnly(skill, manualOnly)
-	case skill.Source == SourceProject && skill.Tool == ToolCodex && skill.Kind == KindSkill:
-		return setCodexManualOnlyForSkill(skill, manualOnly)
+	case skill.Source == SourceCodex && skill.Kind == KindSkill,
+		skill.Source == SourceProject && skill.Tool == ToolCodex && skill.Kind == KindSkill:
+		if err := revalidateSkillLocation(skill, action); err != nil {
+			return err
+		}
+		return e.setCodexManualOnlyForSkill(skill, manualOnly)
 	default:
 		return fmt.Errorf("manual-only toggle: not supported for %s %s %q", skill.Source, skill.Kind, skill.Name)
 	}
@@ -79,15 +88,25 @@ func setPersonalManualOnly(skill Skill, manualOnly bool) error {
 	return nil
 }
 
-func setCodexManualOnlyForSkill(skill Skill, manualOnly bool) error {
+func (e *Engine) setCodexManualOnlyForSkill(skill Skill, manualOnly bool) error {
 	path := filepath.Join(skill.Location, "agents", "openai.yaml")
+	// The Codex policy file gets the same symlink protection SKILL.md edits
+	// have always had (guardSkillFilePath, suppress.go): a symlinked
+	// agents/openai.yaml — or a symlinked agents/ directory, when the file
+	// does not exist yet — must not be followed out of the skill tree.
+	if err := guardSkillFilePath(skill.Location, path); err != nil {
+		if manualOnly {
+			return fmt.Errorf("set manual-only: %w", err)
+		}
+		return fmt.Errorf("unset manual-only: %w", err)
+	}
 	if manualOnly {
-		if err := setCodexManualOnly(path); err != nil {
+		if err := e.setCodexManualOnly(skill, path); err != nil {
 			return fmt.Errorf("set manual-only: %w", err)
 		}
 		return nil
 	}
-	if err := unsetCodexManualOnly(path); err != nil {
+	if err := e.unsetCodexManualOnly(skill, path); err != nil {
 		return fmt.Errorf("unset manual-only: %w", err)
 	}
 	return nil
@@ -115,7 +134,11 @@ func setCodexManualOnlyForSkill(skill Skill, manualOnly bool) error {
 //     then collapses any parent block left with no remaining children — an
 //     emptied `policy:` line is removed, and if that was nested under
 //     `interface:`, an now-empty `interface:` line is removed too. If
-//     nothing is left in the file at all, the file itself is deleted. This
+//     nothing is left in the file at all, the file itself is deleted — but
+//     only when Skillet created it, which is recorded at set time (see
+//     ownership.go); a policy file the user already had is left in place,
+//     empty if that is all that remains, because Skillet does not delete
+//     files it did not create. This
 //     is what makes the round trip exact for the two cases the acceptance
 //     criteria calls out: a file Skillet created from scratch disappears
 //     again; a file that already had unrelated content (or other keys
@@ -132,7 +155,7 @@ func setCodexManualOnlyForSkill(skill Skill, manualOnly bool) error {
 // result in a second `policy:` key being appended rather than edited. This
 // matches every shape verified locally in skill-mechanisms.md.
 
-func setCodexManualOnly(path string) error {
+func (e *Engine) setCodexManualOnly(skill Skill, path string) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -141,7 +164,18 @@ func setCodexManualOnly(path string) error {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			return fmt.Errorf("create policy directory: %w", err)
 		}
-		return writeFilePreservingMode(path, "policy:\n  allow_implicit_invocation: false\n")
+		if err := writeFilePreservingMode(path, "policy:\n  allow_implicit_invocation: false\n"); err != nil {
+			return err
+		}
+		// Record that this file is Skillet's own creation, so unsetting
+		// Manual-only later may delete it again — and so a policy file the
+		// user already had never can be.
+		return saveCodexPolicyRecord(e.roots.DataDir, codexPolicyRecord{
+			SkillName:   skill.Name,
+			PolicyPath:  absolutePath(path),
+			CreatedFile: true,
+			AppliedAt:   time.Now().UTC(),
+		})
 	}
 
 	newContent, err := setYAMLBoolField(string(content), codexAllowImplicitKey, false)
@@ -151,7 +185,7 @@ func setCodexManualOnly(path string) error {
 	return writeFilePreservingMode(path, newContent)
 }
 
-func unsetCodexManualOnly(path string) error {
+func (e *Engine) unsetCodexManualOnly(skill Skill, path string) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -168,12 +202,35 @@ func unsetCodexManualOnly(path string) error {
 		return nil
 	}
 	if strings.TrimSpace(newContent) == "" {
-		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("remove empty policy file: %w", err)
+		// Same ownership rule as Codex config.toml (codex_suppress.go): an
+		// emptied policy file is deleted only when Skillet created it. One the
+		// user already had is left in place, empty, rather than deleted.
+		record, owned, recErr := loadCodexPolicyRecord(e.roots.DataDir, skill.Name, absolutePath(path))
+		if recErr != nil {
+			return recErr
 		}
-		return nil
+		if owned && record.CreatedFile {
+			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("remove empty policy file: %w", err)
+			}
+			removeEmptyAgentsDir(filepath.Dir(path))
+			return deleteCodexPolicyRecord(e.roots.DataDir, skill.Name, absolutePath(path))
+		}
+		return writeFilePreservingMode(path, newContent)
 	}
-	return writeFilePreservingMode(path, newContent)
+	if err := writeFilePreservingMode(path, newContent); err != nil {
+		return err
+	}
+	return deleteCodexPolicyRecord(e.roots.DataDir, skill.Name, absolutePath(path))
+}
+
+// removeEmptyAgentsDir removes the agents/ directory Skillet created for a
+// policy file it has just deleted. os.Remove only succeeds on an empty
+// directory, so a user's own agents/ content is never touched.
+func removeEmptyAgentsDir(dir string) {
+	if filepath.Base(dir) == "agents" {
+		_ = os.Remove(dir)
+	}
 }
 
 // findYAMLPolicyBlock locates the line opening the `policy:` mapping within

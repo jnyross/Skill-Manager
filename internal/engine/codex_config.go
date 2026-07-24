@@ -59,13 +59,56 @@ func planCodexConfigRemoval(codexHome, skillMDPath, skillName string) (newConten
 	return kept.String(), removed, true, nil
 }
 
+// planCodexConfigOwnedRemoval is planCodexConfigRemoval narrowed to the blocks
+// Skillet itself wrote: only a block whose bytes match ownedBlock exactly (the
+// text recorded at Suppress time, see ownership.go) is removed. remaining
+// counts blocks that reference the same skill but were authored elsewhere — a
+// human, Codex, or a plugin — and are therefore left untouched, so hand-tuned
+// keys inside them are never silently discarded.
+func planCodexConfigOwnedRemoval(codexHome, skillMDPath, skillName, ownedBlock string) (newContent string, changed bool, remaining int, err error) {
+	configPath := filepath.Join(codexHome, "config.toml")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", false, 0, nil
+		}
+		return "", false, 0, fmt.Errorf("read codex config: %w", err)
+	}
+	content := string(data)
+
+	want := strings.TrimRight(ownedBlock, "\n")
+	var owned []byteSpan
+	for _, span := range matchingSkillsConfigBlockSpans(content, absolutePath(skillMDPath), skillName) {
+		if strings.TrimRight(content[span.start:span.end], "\n") == want {
+			owned = append(owned, span)
+			continue
+		}
+		remaining++
+	}
+	if len(owned) == 0 {
+		return "", false, remaining, nil
+	}
+
+	var kept strings.Builder
+	prev := 0
+	for _, span := range owned {
+		kept.WriteString(content[prev:span.start])
+		prev = span.end
+	}
+	kept.WriteString(content[prev:])
+	return kept.String(), true, remaining, nil
+}
+
+// writeCodexConfig replaces <codexHome>/config.toml atomically (temp file plus
+// rename, see atomic.go), keeping the file's existing mode. config.toml is a
+// file Skillet edits but does not own, so a half-written config — which Codex
+// would refuse to parse — must not be a reachable state.
 func writeCodexConfig(codexHome, content string) error {
 	configPath := filepath.Join(codexHome, "config.toml")
-	mode := os.FileMode(0o644)
-	if info, err := os.Stat(configPath); err == nil {
-		mode = info.Mode()
+	if err := os.MkdirAll(codexHome, 0o700); err != nil {
+		return fmt.Errorf("write codex config: %w", err)
 	}
-	if err := os.WriteFile(configPath, []byte(content), mode); err != nil {
+	if err := writeFilePreservingMode(configPath, content); err != nil {
 		return fmt.Errorf("write codex config: %w", err)
 	}
 	return nil
@@ -115,12 +158,24 @@ func reinstateCodexConfigEntries(codexHome string, entries []RemovedConfigEntry)
 		return err
 	}
 
+	changed := false
 	for _, e := range entries {
+		// Skip a block that is already present verbatim. Restore is resumable
+		// (see archive.go), so this function can legitimately run twice for
+		// the same entry after a partial restore; without this check the
+		// second run would duplicate every block it had already reinstated.
+		if strings.Contains(content, strings.TrimRight(e.Raw, "\n")) {
+			continue
+		}
 		pos, err := filePositionForSkeletonOffset(content, e.Offset)
 		if err != nil {
 			return err
 		}
 		content = content[:pos] + e.Raw + content[pos:]
+		changed = true
+	}
+	if !changed {
+		return nil
 	}
 
 	return writeCodexConfig(codexHome, content)

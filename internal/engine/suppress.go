@@ -42,14 +42,44 @@ var suppressionFieldKeys = []string{"disable-model-invocation", "user-invocable"
 func (e *Engine) Suppress(skill Skill) error {
 	switch {
 	case skill.Source == SourcePlugin && skill.Plugin != nil:
+		if err := revalidateSkillLocation(skill, "suppress skill"); err != nil {
+			return err
+		}
 		return e.suppressPlugin(skill)
 	case skill.Source == SourceCodex && skill.Kind == KindSkill:
-		return suppressCodex(e.roots.CodexHome, skill)
+		if err := revalidateSkillLocation(skill, "suppress skill"); err != nil {
+			return err
+		}
+		return e.suppressCodex(skill)
 	case skill.Source == SourceProject && skill.Tool == ToolCodex && skill.Kind == KindSkill:
-		return suppressCodex(e.roots.CodexHome, skill)
+		if err := revalidateSkillLocation(skill, "suppress skill"); err != nil {
+			return err
+		}
+		return e.suppressCodex(skill)
 	default:
 		return fmt.Errorf("suppress skill: not supported for %s %s %q", skill.Source, skill.Kind, skill.Name)
 	}
+}
+
+// revalidateSkillLocation re-stats the Location captured by the Inventory()
+// call the caller is acting on. Skills move between a scan and a confirmed
+// action more often than it sounds: Claude Code replaces a plugin's cache
+// directory wholesale on update, and any skill can be deleted outside Skillet
+// while the TUI sits on a confirmation prompt. Writing into the stale path
+// would either recreate a dead directory or edit a file nothing reads, both
+// silently; failing here says what happened instead.
+func revalidateSkillLocation(skill Skill, action string) error {
+	info, err := os.Lstat(skill.Location)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%s: %q is no longer at %s — it was moved, updated, or removed since the list was loaded; refresh and try again", action, skill.Name, skill.Location)
+		}
+		return fmt.Errorf("%s: inspect %s: %w", action, skill.Location, err)
+	}
+	if skill.Kind == KindSkill && !info.IsDir() && info.Mode()&os.ModeSymlink == 0 {
+		return fmt.Errorf("%s: %s is no longer a skill directory", action, skill.Location)
+	}
+	return nil
 }
 
 // Unsuppress reverses Suppress; see Suppress for the dispatch rationale.
@@ -58,9 +88,9 @@ func (e *Engine) Unsuppress(skill Skill) error {
 	case skill.Source == SourcePlugin && skill.Plugin != nil:
 		return e.unsuppressPlugin(skill)
 	case skill.Source == SourceCodex && skill.Kind == KindSkill:
-		return unsuppressCodex(e.roots.CodexHome, skill)
+		return e.unsuppressCodex(skill)
 	case skill.Source == SourceProject && skill.Tool == ToolCodex && skill.Kind == KindSkill:
-		return unsuppressCodex(e.roots.CodexHome, skill)
+		return e.unsuppressCodex(skill)
 	default:
 		return fmt.Errorf("unsuppress skill: not supported for %s %s %q", skill.Source, skill.Kind, skill.Name)
 	}
@@ -95,8 +125,18 @@ func (e *Engine) suppressPlugin(skill Skill) error {
 // successfully applied) — reverting is a no-op in that case, not an error.
 func (e *Engine) unsuppressPlugin(skill Skill) error {
 	skillMDPath := filepath.Join(skill.Location, "SKILL.md")
-	if err := revertSuppressionEdit(skillMDPath); err != nil {
+	// Unlike Suppress, Unsuppress deliberately does not revalidate the
+	// location: when the cached copy has gone (plugin uninstalled or updated
+	// outside Skillet) the record is exactly what the user still needs to
+	// clear, so a vanished SKILL.md skips the revert instead of failing.
+	exists, err := pathExists(skillMDPath)
+	if err != nil {
 		return fmt.Errorf("unsuppress skill: %w", err)
+	}
+	if exists {
+		if err := revertSuppressionEdit(skillMDPath); err != nil {
+			return fmt.Errorf("unsuppress skill: %w", err)
+		}
 	}
 	if err := removeSuppressionRecord(e.roots.DataDir, skill.Plugin.Marketplace, skill.Plugin.Plugin, skill.Name); err != nil {
 		return fmt.Errorf("unsuppress skill: %w", err)
@@ -226,7 +266,7 @@ func writeSuppressionRecord(dataDir string, record SuppressionRecord) error {
 		return fmt.Errorf("marshal suppression: %w", err)
 	}
 	path := suppressionPath(dataDir, record.Marketplace, record.Plugin, record.SkillName)
-	if err := os.WriteFile(path, append(data, '\n'), 0o600); err != nil {
+	if err := writeFileAtomic(path, append(data, '\n'), 0o600); err != nil {
 		return fmt.Errorf("write suppression: %w", err)
 	}
 	return nil
@@ -275,7 +315,39 @@ func isSuppressionApplied(fm skillFrontmatter) bool {
 // error path can report it; a dangling symlink is still refused because
 // os.Lstat reports the symlink mode.
 func guardSkillMDPath(skillDir, path string) error {
+	return guardSkillFilePath(skillDir, path)
+}
+
+// guardSkillFilePath is guardSkillMDPath generalized to any file Skillet edits
+// inside a skill directory — SKILL.md, and (manual_only.go) a Codex skill's
+// agents/openai.yaml. When the file itself is absent it also checks the
+// containing directory, because the file will be created there: an
+// agents/ symlink pointing outside the skill tree would otherwise be followed
+// by the very first write.
+func guardSkillFilePath(skillDir, path string) error {
 	info, err := os.Lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return guardSkillDirPath(skillDir, filepath.Dir(path))
+		}
+		return fmt.Errorf("check skill path: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("skill %s is a symlink", filepath.Base(path))
+	}
+
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return fmt.Errorf("resolve skill path: %w", err)
+	}
+	return pathUnderRoot(skillDir, resolved)
+}
+
+// guardSkillDirPath refuses a directory inside a skill tree that is a symlink
+// or that resolves outside the tree. A missing directory is allowed through:
+// it will be created under skillDir by MkdirAll, which cannot escape.
+func guardSkillDirPath(skillDir, dir string) error {
+	info, err := os.Lstat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -283,10 +355,9 @@ func guardSkillMDPath(skillDir, path string) error {
 		return fmt.Errorf("check skill path: %w", err)
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("skill SKILL.md is a symlink")
+		return fmt.Errorf("skill %s directory is a symlink", filepath.Base(dir))
 	}
-
-	resolved, err := filepath.EvalSymlinks(path)
+	resolved, err := filepath.EvalSymlinks(dir)
 	if err != nil {
 		return fmt.Errorf("resolve skill path: %w", err)
 	}
@@ -423,19 +494,4 @@ func removeFrontmatterFields(path string, keys []string) error {
 
 	newContent := string(content)[:yamlStart] + strings.Join(kept, "") + string(content)[yamlEnd:]
 	return writeFilePreservingMode(path, newContent)
-}
-
-// writeFilePreservingMode writes content to path, keeping path's existing
-// file mode if it already exists (falling back to 0o644 for a new file).
-// Shared by suppress.go's frontmatter edits and manual_only.go's
-// agents/openai.yaml edits.
-func writeFilePreservingMode(path, content string) error {
-	mode := os.FileMode(0o644)
-	if info, err := os.Stat(path); err == nil {
-		mode = info.Mode()
-	}
-	if err := os.WriteFile(path, []byte(content), mode); err != nil {
-		return fmt.Errorf("write file: %w", err)
-	}
-	return nil
 }

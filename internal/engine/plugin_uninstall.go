@@ -60,28 +60,48 @@ import (
 // has ever scanned or shown the user; deleting a project-scoped path
 // Skillet has never represented would be a surprising, undocumented side
 // effect for a scope v1 doesn't otherwise support.
+// Ordering and rollback: the four steps are ordered so that every reachable
+// failure state is one Claude Code can still make sense of. Everything that
+// can fail without touching disk (reading and re-serializing the manifest,
+// validating each cache path against the cache root) happens first. Then the
+// two config files are written — settings.json before the manifest, so a
+// failure in between leaves the plugin installed but not listed as enabled,
+// never the inverse — with the manifest failure rolling settings.json back to
+// its original bytes. Only once both config files agree that the plugin is
+// gone are its cache directories deleted, so no failure can leave cache files
+// deleted while settings.json still lists the plugin enabled.
 func (e *Engine) UninstallPlugin(plugin PluginInfo) error {
 	if plugin.Plugin == "" || plugin.Marketplace == "" {
 		return fmt.Errorf("uninstall plugin: marketplace and plugin name are required")
 	}
 	key := plugin.Plugin + "@" + plugin.Marketplace
 
-	userInstallPaths, err := e.removePluginManifestEntry(key)
+	manifestPlan, err := e.planPluginManifestRemoval(key)
+	if err != nil {
+		return fmt.Errorf("uninstall plugin: %w", err)
+	}
+	for _, installPath := range manifestPlan.userInstallPaths {
+		if err := validatePluginCachePath(e.roots.ClaudeHome, installPath); err != nil {
+			return fmt.Errorf("uninstall plugin: %w", err)
+		}
+	}
+
+	settingsRollback, err := e.removeEnabledPluginsEntry(key)
 	if err != nil {
 		return fmt.Errorf("uninstall plugin: %w", err)
 	}
 
-	for _, installPath := range userInstallPaths {
-		if err := validatePluginCachePath(e.roots.ClaudeHome, installPath); err != nil {
-			return fmt.Errorf("uninstall plugin: %w", err)
+	if err := writeFilePreservingMode(manifestPlan.path, manifestPlan.content); err != nil {
+		if rollbackErr := settingsRollback(); rollbackErr != nil {
+			return fmt.Errorf("uninstall plugin: write plugin manifest: %w (settings.json rollback also failed: %v — %s no longer appears in enabledPlugins but is still installed; re-enable it in Claude Code or re-run uninstall)", err, rollbackErr, key)
 		}
-		if err := os.RemoveAll(installPath); err != nil {
-			return fmt.Errorf("uninstall plugin: remove cache directory %s: %w", installPath, err)
-		}
+		return fmt.Errorf("uninstall plugin: write plugin manifest: %w", err)
 	}
 
-	if err := e.removeEnabledPluginsEntry(key); err != nil {
-		return fmt.Errorf("uninstall plugin: %w", err)
+	for _, installPath := range manifestPlan.userInstallPaths {
+		if err := removeAllChecked(installPath); err != nil {
+			return fmt.Errorf("uninstall plugin: remove cache directory %s: %w (the plugin is already removed from settings.json and the manifest; delete the directory by hand to finish)", installPath, err)
+		}
 	}
 
 	if err := e.removePluginSuppressionRecords(plugin.Marketplace, plugin.Plugin); err != nil {
@@ -117,44 +137,55 @@ func validatePluginCachePath(claudeHome, installPath string) error {
 	return nil
 }
 
-// removePluginManifestEntry deletes key from installed_plugins.json's
-// "plugins" map, leaving every other entry (and every other top-level
-// field, e.g. "version") byte-identical apart from JSON re-indentation —
-// see the package doc comment above for why a plain unmarshal/delete/
-// remarshal is safe here (plain JSON, no comments to preserve, unlike
-// codex_config.go's TOML byte-surgery). It returns the InstallPath of every
-// scope=="user" entry in the deleted array, for the caller to remove from
-// disk.
-func (e *Engine) removePluginManifestEntry(key string) ([]string, error) {
+// pluginManifestPlan is the computed result of removing one key from
+// installed_plugins.json, before anything is written: the file to write, the
+// content to write to it, and the cache directories the removed entry owned.
+type pluginManifestPlan struct {
+	path             string
+	content          string
+	userInstallPaths []string
+}
+
+// planPluginManifestRemoval computes installed_plugins.json with key deleted
+// from its "plugins" map, leaving every other entry (and every other top-level
+// field, e.g. "version") byte-identical apart from JSON re-indentation — see
+// the package doc comment above for why a plain unmarshal/delete/remarshal is
+// safe here (plain JSON, no comments to preserve, unlike codex_config.go's
+// TOML byte-surgery). Nothing is written: every way this can fail (missing
+// file, unparseable JSON, unknown key) is discovered before UninstallPlugin
+// mutates anything. The plan also carries the InstallPath of every
+// scope=="user" entry in the deleted array, for the caller to remove from disk
+// once the config files are consistent.
+func (e *Engine) planPluginManifestRemoval(key string) (pluginManifestPlan, error) {
 	manifestPath := filepath.Join(e.roots.ClaudeHome, "plugins", "installed_plugins.json")
 	data, err := os.ReadFile(manifestPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("plugin manifest not found: %s", manifestPath)
+			return pluginManifestPlan{}, fmt.Errorf("plugin manifest not found: %s", manifestPath)
 		}
-		return nil, fmt.Errorf("read plugin manifest: %w", err)
+		return pluginManifestPlan{}, fmt.Errorf("read plugin manifest: %w", err)
 	}
 
 	var root map[string]json.RawMessage
 	if err := json.Unmarshal(data, &root); err != nil {
-		return nil, fmt.Errorf("parse plugin manifest: %w", err)
+		return pluginManifestPlan{}, fmt.Errorf("parse plugin manifest: %w", err)
 	}
 	pluginsRaw, ok := root["plugins"]
 	if !ok {
-		return nil, fmt.Errorf("plugin manifest has no plugins map: %s", manifestPath)
+		return pluginManifestPlan{}, fmt.Errorf("plugin manifest has no plugins map: %s", manifestPath)
 	}
 	var plugins map[string]json.RawMessage
 	if err := json.Unmarshal(pluginsRaw, &plugins); err != nil {
-		return nil, fmt.Errorf("parse plugin manifest plugins map: %w", err)
+		return pluginManifestPlan{}, fmt.Errorf("parse plugin manifest plugins map: %w", err)
 	}
 	entryRaw, ok := plugins[key]
 	if !ok {
-		return nil, fmt.Errorf("plugin not found in manifest: %s", key)
+		return pluginManifestPlan{}, fmt.Errorf("plugin not found in manifest: %s", key)
 	}
 
 	var installs []pluginInstall
 	if err := json.Unmarshal(entryRaw, &installs); err != nil {
-		return nil, fmt.Errorf("parse plugin manifest entry %s: %w", key, err)
+		return pluginManifestPlan{}, fmt.Errorf("parse plugin manifest entry %s: %w", key, err)
 	}
 	var userInstallPaths []string
 	for _, install := range installs {
@@ -166,18 +197,15 @@ func (e *Engine) removePluginManifestEntry(key string) ([]string, error) {
 	delete(plugins, key)
 	newPluginsRaw, err := json.Marshal(plugins)
 	if err != nil {
-		return nil, fmt.Errorf("marshal plugin manifest plugins map: %w", err)
+		return pluginManifestPlan{}, fmt.Errorf("marshal plugin manifest plugins map: %w", err)
 	}
 	root["plugins"] = newPluginsRaw
 
 	newData, err := json.MarshalIndent(root, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("marshal plugin manifest: %w", err)
+		return pluginManifestPlan{}, fmt.Errorf("marshal plugin manifest: %w", err)
 	}
-	if err := writeFilePreservingMode(manifestPath, string(newData)+"\n"); err != nil {
-		return nil, fmt.Errorf("write plugin manifest: %w", err)
-	}
-	return userInstallPaths, nil
+	return pluginManifestPlan{path: manifestPath, content: string(newData) + "\n", userInstallPaths: userInstallPaths}, nil
 }
 
 // removeEnabledPluginsEntry deletes key from settings.json's "enabledPlugins"
@@ -198,47 +226,54 @@ func (e *Engine) removePluginManifestEntry(key string) ([]string, error) {
 // (and therefore uninstallable) without ever having an enabledPlugins entry
 // (e.g. plugins are enabled by default unless explicitly disabled), so
 // "no entry to remove" is an entirely expected, non-error outcome.
-func (e *Engine) removeEnabledPluginsEntry(key string) error {
+//
+// It returns a rollback function restoring settings.json to exactly the bytes
+// it held before the edit (a no-op when nothing was written), so a later
+// failure in the same uninstall can undo this step rather than leaving the two
+// config files disagreeing.
+func (e *Engine) removeEnabledPluginsEntry(key string) (func() error, error) {
+	noRollback := func() error { return nil }
 	settingsPath := filepath.Join(e.roots.ClaudeHome, "settings.json")
 	data, err := os.ReadFile(settingsPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return noRollback, nil
 		}
-		return fmt.Errorf("read settings.json: %w", err)
+		return noRollback, fmt.Errorf("read settings.json: %w", err)
 	}
 
 	var root map[string]json.RawMessage
 	if err := json.Unmarshal(data, &root); err != nil {
-		return fmt.Errorf("parse settings.json: %w", err)
+		return noRollback, fmt.Errorf("parse settings.json: %w", err)
 	}
 	enabledRaw, ok := root["enabledPlugins"]
 	if !ok {
-		return nil
+		return noRollback, nil
 	}
 	var enabled map[string]json.RawMessage
 	if err := json.Unmarshal(enabledRaw, &enabled); err != nil {
-		return fmt.Errorf("parse settings.json enabledPlugins: %w", err)
+		return noRollback, fmt.Errorf("parse settings.json enabledPlugins: %w", err)
 	}
 	if _, ok := enabled[key]; !ok {
-		return nil
+		return noRollback, nil
 	}
 
 	delete(enabled, key)
 	newEnabledRaw, err := json.Marshal(enabled)
 	if err != nil {
-		return fmt.Errorf("marshal settings.json enabledPlugins: %w", err)
+		return noRollback, fmt.Errorf("marshal settings.json enabledPlugins: %w", err)
 	}
 	root["enabledPlugins"] = newEnabledRaw
 
 	newData, err := json.MarshalIndent(root, "", "  ")
 	if err != nil {
-		return fmt.Errorf("marshal settings.json: %w", err)
+		return noRollback, fmt.Errorf("marshal settings.json: %w", err)
 	}
 	if err := writeFilePreservingMode(settingsPath, string(newData)+"\n"); err != nil {
-		return fmt.Errorf("write settings.json: %w", err)
+		return noRollback, fmt.Errorf("write settings.json: %w", err)
 	}
-	return nil
+	original := string(data)
+	return func() error { return writeFilePreservingMode(settingsPath, original) }, nil
 }
 
 // removePluginSuppressionRecords deletes every Skillet-owned Suppress

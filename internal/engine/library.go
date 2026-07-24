@@ -182,7 +182,7 @@ func writeLibraryEntry(dataDir string, entry LibraryEntry) error {
 		return fmt.Errorf("marshal library entry: %w", err)
 	}
 	path := libraryEntryPath(dataDir, entry.ID)
-	if err := os.WriteFile(path, append(data, '\n'), 0o600); err != nil {
+	if err := writeFileAtomic(path, append(data, '\n'), 0o600); err != nil {
 		return fmt.Errorf("write library entry: %w", err)
 	}
 	return nil
