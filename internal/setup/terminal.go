@@ -48,6 +48,12 @@ func RunTerminal(ctx context.Context, input io.Reader, output io.Writer, options
 	if resolver == nil {
 		resolver = GitResolver{}
 	}
+	// Resolution clones one repository per distinct Source, sequentially and
+	// blocking. Route its steps through the wizard's own writer so the wait is
+	// never silent, rather than printing from inside the resolver.
+	if receiver, ok := resolver.(ProgressReceiver); ok {
+		resolver = receiver.WithProgress(func(line string) { fmt.Fprintln(output, line) })
+	}
 	service := options.Service
 	if service == nil {
 		service = NewLiveService()

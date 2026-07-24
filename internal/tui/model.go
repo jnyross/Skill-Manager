@@ -1,11 +1,15 @@
 package tui
 
 import (
+	"context"
 	"fmt"
+	"regexp"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -73,6 +77,10 @@ const (
 
 type installStartedMsg struct {
 	desc string
+	// step names the phase the TUI is about to dispatch. The engine reports no
+	// intermediate progress, so every step label is Skillet's own knowledge of
+	// what it asked for, never a reading of the child process.
+	step string
 }
 
 type installFinishedMsg struct {
@@ -107,9 +115,25 @@ type Model struct {
 	statusLevel    statusLevel
 	installing     string
 	installWork    func() tea.Msg
-	width          int
-	height         int
-	detail         detailPane
+	spinner        spinner.Model
+	// installStep is the phase label rendered beside the spinner; see
+	// installStartedMsg.step for why it is TUI-derived.
+	installStep string
+	// installStarted is when the work command was dispatched, so a timeout can
+	// be reported with the elapsed time the user actually waited.
+	installStarted time.Time
+	// installCancel cancels the context handed to the engine's *Context install
+	// entry points, which is what makes esc and quit stop a running clone.
+	installCancel context.CancelFunc
+	// installCanceled records that the cancellation was the user's, so the
+	// resulting engine error is reported as "cancelled" rather than a failure.
+	installCanceled bool
+	// quitAfterInstall defers the quit until the cancelled install has actually
+	// returned, so Skillet never exits leaving an orphaned child process.
+	quitAfterInstall bool
+	width            int
+	height           int
+	detail           detailPane
 	// filtering is true while keystrokes are being routed into the active
 	// list's filter input. Once the filter is accepted the flag clears but the
 	// list stays in list.FilterApplied until esc.
@@ -121,6 +145,8 @@ type Model struct {
 }
 
 func NewModel(e *engine.Engine) *Model {
+	install := spinner.New()
+	install.Spinner = spinner.Dot
 	m := &Model{
 		engine:         e,
 		list:           newSkillList(nil),
@@ -130,12 +156,27 @@ func NewModel(e *engine.Engine) *Model {
 		help:           help.New(),
 		detail:         newDetailPane(),
 		bundleExpanded: make(map[string]bool),
+		spinner:        install,
 	}
 	m.refreshInventory()
 	return m
 }
 
 func (m *Model) SetupRequested() bool { return m.setupRequested }
+
+// SetInitialStatus seeds the status line the TUI opens with. The setup
+// round-trip uses it to report the Setup outcome when the wizard hands control
+// back to the inventory.
+func (m *Model) SetInitialStatus(text string, isError bool) {
+	if text == "" {
+		return
+	}
+	if isError {
+		m.setError(text)
+		return
+	}
+	m.setStatus(text)
+}
 
 func (m *Model) Init() tea.Cmd {
 	return tea.EnterAltScreen
@@ -205,30 +246,27 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		m.afterFilterChange()
 		m.resizeList()
 		return cmd
+	case spinner.TickMsg:
+		// Ticking stops the moment nothing is in flight, so an idle TUI does no
+		// work per frame.
+		if m.installing == "" {
+			return nil
+		}
+		updated, cmd := m.spinner.Update(msg)
+		m.spinner = updated
+		return cmd
 	case installStartedMsg:
 		m.installing = msg.desc
+		m.installStep = msg.step
+		m.installStarted = time.Now()
 		m.setStatus("Installing " + msg.desc + "…")
 		work := m.installWork
 		m.installWork = nil
-		return work
+		// The spinner tick and the work run together: the tick is what keeps the
+		// screen visibly alive through a multi-second clone.
+		return tea.Batch(m.spinner.Tick, work)
 	case installFinishedMsg:
-		m.installing = ""
-		if msg.err != nil {
-			prefix := "Install"
-			if msg.isBundle {
-				prefix = "Install Bundle"
-			}
-			m.setError(formatActionError(prefix+" failed: ", msg.err))
-		} else if msg.isBundle {
-			m.setStatus(fmt.Sprintf("Installed Bundle %q.", msg.desc))
-		} else {
-			where := "Personal"
-			if msg.target.Kind == engine.InstallTargetProject {
-				where = msg.target.RepoRoot
-			}
-			m.setStatus(fmt.Sprintf("Installed %q → %s.", msg.desc, where))
-		}
-		return nil
+		return m.finishInstall(msg)
 	}
 
 	key, ok := msg.(tea.KeyMsg)
@@ -253,7 +291,7 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 	// Everywhere else ctrl+c quits, including inside the pickers and the text
 	// form, which previously swallowed it.
 	if key.String() == "ctrl+c" {
-		return tea.Quit
+		return m.quitOrCancelInstall()
 	}
 
 	if m.installPicker != nil {
@@ -285,12 +323,18 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 
 	switch key.String() {
 	case "q":
-		return tea.Quit
+		return m.quitOrCancelInstall()
 	case "?":
 		m.help.ShowAll = !m.help.ShowAll
 	case "/":
 		m.beginFilter()
 	case "esc":
+		// While an install is in flight esc is the cancel key; it only falls
+		// through to filter-clearing and view navigation once nothing is running.
+		if m.installing != "" {
+			m.cancelInstall()
+			break
+		}
 		// esc first clears an applied filter; only once the list is unfiltered
 		// does it fall through to the per-view meaning (back to main view).
 		if m.clearActiveFilter() {
@@ -326,6 +370,10 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 			m.jumpMainCursor(true)
 		}
 	default:
+		if m.installing != "" && installBlocksKey(m.view, key.String()) {
+			m.setError("Install in progress — press esc to cancel it first.")
+			break
+		}
 		m.dispatchViewKey(key.String())
 		if m.setupRequested {
 			return tea.Quit
@@ -763,15 +811,15 @@ func (m *Model) confirmOrRunBundleInstall(bundle engine.Bundle, target engine.In
 		m.pending = &pendingConfirm{description: fmt.Sprintf("Install Bundle %q will replace: %s. y to confirm, any other key to cancel.", bundle.Name, strings.Join(collisions, ", ")), action: pendingInstallBundle, bundle: bundle, target: target}
 		return nil
 	}
-	return m.startInstall(bundle.Name, target, true, func() error {
-		return m.engine.InstallBundle(bundle.ID, target)
+	return m.startInstall(bundle.Name, target, true, installStepBundle, func(ctx context.Context) error {
+		return m.engine.InstallBundleContext(ctx, bundle.ID, target)
 	})
 }
 
 func (m *Model) confirmOrRunInstall(entry engine.LibraryEntry, target engine.InstallTarget) tea.Cmd {
 	if entry.Source.Kind == engine.LibrarySourceMarketplace {
-		return m.startInstall(entry.Name, target, false, func() error {
-			return m.engine.InstallLibraryEntry(entry, target, engine.ActivationAuto)
+		return m.startInstall(entry.Name, target, false, installStepFor(entry), func(ctx context.Context) error {
+			return m.engine.InstallLibraryEntryContext(ctx, entry, target, engine.ActivationAuto)
 		})
 	}
 	dest, exists, err := m.engine.InstallDestination(entry, target)
@@ -792,8 +840,8 @@ func (m *Model) confirmOrRunInstall(entry engine.LibraryEntry, target engine.Ins
 		}
 		return nil
 	}
-	return m.startInstall(entry.Name, target, false, func() error {
-		return m.engine.InstallLibraryEntry(entry, target, engine.ActivationAuto)
+	return m.startInstall(entry.Name, target, false, installStepFor(entry), func(ctx context.Context) error {
+		return m.engine.InstallLibraryEntryContext(ctx, entry, target, engine.ActivationAuto)
 	})
 }
 
@@ -913,17 +961,156 @@ func (m *Model) updateMemberPicker(key tea.KeyMsg) {
 	}
 }
 
-func (m *Model) startInstall(desc string, target engine.InstallTarget, isBundle bool, work func() error) tea.Cmd {
+// startInstall stages an install: the returned command announces the start (so
+// the spinner and status appear on the very next frame) and the work itself
+// runs against a cancellable context handed to the engine's *Context entry
+// points.
+//
+// step is the phase the work dispatches. The engine reports no intermediate
+// progress, so Skillet shows the two phases it genuinely knows about —
+// "resolving" while the target and destination are settled here, then step
+// once the child process is running.
+func (m *Model) startInstall(desc string, target engine.InstallTarget, isBundle bool, step string, work func(context.Context) error) tea.Cmd {
 	if m.installing != "" {
 		m.setError("Install already in progress.")
 		return nil
 	}
 	m.installing = desc
+	m.installStep = installStepResolving
+	m.installCanceled = false
+	ctx, cancel := context.WithCancel(context.Background())
+	m.installCancel = cancel
 	m.installWork = func() tea.Msg {
-		err := work()
+		err := work(ctx)
+		cancel()
 		return installFinishedMsg{err: err, desc: desc, target: target, isBundle: isBundle}
 	}
-	return func() tea.Msg { return installStartedMsg{desc: desc} }
+	return func() tea.Msg { return installStartedMsg{desc: desc, step: step} }
+}
+
+const (
+	installStepResolving = "resolving"
+	installStepCloning   = "cloning source"
+	installStepCopying   = "copying files"
+	installStepPlugin    = "configuring plugin"
+	installStepBundle    = "installing Bundle members"
+)
+
+// installStepFor names the phase a Library entry's Install dispatches, derived
+// from the entry's Source kind rather than from engine progress reporting.
+func installStepFor(entry engine.LibraryEntry) string {
+	switch entry.Source.Kind {
+	case engine.LibrarySourceMarketplace:
+		return installStepPlugin
+	case engine.LibrarySourceGit, engine.LibrarySourceSkillsSh:
+		return installStepCloning
+	default:
+		return installStepCopying
+	}
+}
+
+// cancelInstall cancels the running install through the engine's context seam.
+// The status is only provisional: the outcome is reported once the work
+// actually returns, in finishInstall.
+func (m *Model) cancelInstall() {
+	if m.installing == "" {
+		return
+	}
+	m.installCanceled = true
+	if m.installCancel != nil {
+		m.installCancel()
+	}
+	m.setStatus(fmt.Sprintf("Cancelling Install of %q…", m.installing))
+}
+
+// quitOrCancelInstall makes quitting safe mid-install: instead of exiting and
+// orphaning the child process, it cancels and waits for the work to return.
+func (m *Model) quitOrCancelInstall() tea.Cmd {
+	if m.installing == "" {
+		return tea.Quit
+	}
+	m.quitAfterInstall = true
+	m.cancelInstall()
+	return nil
+}
+
+func (m *Model) finishInstall(msg installFinishedMsg) tea.Cmd {
+	elapsed := time.Since(m.installStarted)
+	if m.installStarted.IsZero() {
+		elapsed = 0
+	}
+	canceled := m.installCanceled
+	quit := m.quitAfterInstall
+	if m.installCancel != nil {
+		m.installCancel()
+	}
+	m.installing = ""
+	m.installStep = ""
+	m.installCancel = nil
+	m.installCanceled = false
+	m.installStarted = time.Time{}
+	m.quitAfterInstall = false
+
+	prefix := "Install"
+	if msg.isBundle {
+		prefix = "Install Bundle"
+	}
+	switch {
+	case canceled:
+		m.setStatus(fmt.Sprintf("%s of %q cancelled.", prefix, msg.desc))
+	case msg.err != nil && isTimeoutError(msg.err):
+		m.setError(fmt.Sprintf("%s of %q timed out after %s: %v", prefix, msg.desc, elapsed.Round(time.Second), msg.err))
+	case msg.err != nil:
+		m.setError(formatActionError(prefix+" failed: ", msg.err))
+	case msg.isBundle:
+		m.setStatus(fmt.Sprintf("Installed Bundle %q.", msg.desc))
+	default:
+		where := "Personal"
+		if msg.target.Kind == engine.InstallTargetProject {
+			where = msg.target.RepoRoot
+		}
+		m.setStatus(fmt.Sprintf("Installed %q → %s.", msg.desc, where))
+	}
+	if quit {
+		return tea.Quit
+	}
+	return nil
+}
+
+// isTimeoutError recognizes the engine's rewritten deadline message
+// ("<program> timed out after <limit>: …") so the status line can name the
+// operation and how long the user waited.
+func isTimeoutError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "timed out after")
+}
+
+// installBlocksKey lists the disk-mutating keys refused while an install is in
+// flight. Navigation, filtering, and view switching stay live; anything that
+// would archive, purge, delete, or start a second write does not.
+func installBlocksKey(view viewState, key string) bool {
+	switch view {
+	case mainView:
+		switch key {
+		case "u", "s", "m", "x", "l":
+			return true
+		}
+	case archiveView:
+		switch key {
+		case "r", "p":
+			return true
+		}
+	case libraryView:
+		switch key {
+		case "d", "i":
+			return true
+		}
+	case bundleView:
+		switch key {
+		case "d", "i", "a", "r", "m":
+			return true
+		}
+	}
+	return false
 }
 
 // libraryMembership describes what pressing `l` on a skill would do, so the
@@ -1115,14 +1302,14 @@ func (m *Model) executePending() tea.Cmd {
 	case pendingInstall:
 		entry := m.pending.entry
 		target := m.pending.target
-		return m.startInstall(entry.Name, target, false, func() error {
-			return m.engine.InstallLibraryEntry(entry, target, engine.ActivationAuto)
+		return m.startInstall(entry.Name, target, false, installStepFor(entry), func(ctx context.Context) error {
+			return m.engine.InstallLibraryEntryContext(ctx, entry, target, engine.ActivationAuto)
 		})
 	case pendingInstallBundle:
 		bundle := m.pending.bundle
 		target := m.pending.target
-		return m.startInstall(bundle.Name, target, true, func() error {
-			return m.engine.InstallBundle(bundle.ID, target)
+		return m.startInstall(bundle.Name, target, true, installStepBundle, func(ctx context.Context) error {
+			return m.engine.InstallBundleContext(ctx, bundle.ID, target)
 		})
 	case pendingRemoveLibraryEntry:
 		entry := m.pending.entry
@@ -1440,6 +1627,23 @@ func (m *Model) renderView() string {
 
 	m.renderFilterLine(&b)
 
+	// While an install runs the spinner line replaces the informational status
+	// (which says the same thing, without the live step, elapsed time, or the
+	// cancel key). An error still renders above it — that is where a refused
+	// destructive key reports itself.
+	if m.installing != "" {
+		if m.statusLevel == statusError && m.status != "" {
+			b.WriteString("\n")
+			b.WriteString(statusErrorStyle.Render(m.status))
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+		b.WriteString(m.spinner.View())
+		b.WriteString(m.installLine())
+		b.WriteString("\n")
+		return b.String()
+	}
+
 	if m.status != "" {
 		b.WriteString("\n")
 		if m.statusLevel == statusError {
@@ -1449,6 +1653,21 @@ func (m *Model) renderView() string {
 		}
 		b.WriteString("\n")
 	}
+	return b.String()
+}
+
+// installLine is the text beside the spinner. spinner.View() already ends in a
+// space, so this starts at the message.
+func (m *Model) installLine() string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Installing %s…", m.installing)
+	if m.installStep != "" {
+		b.WriteString(" " + m.installStep)
+	}
+	if !m.installStarted.IsZero() {
+		fmt.Fprintf(&b, " (%s)", time.Since(m.installStarted).Round(time.Second))
+	}
+	b.WriteString("  esc cancels")
 	return b.String()
 }
 
@@ -1491,20 +1710,52 @@ func (m *Model) renderMain(b *strings.Builder) {
 	case m.filterFoundNothing():
 		b.WriteString(m.zeroMatchLine())
 	case len(m.inv.Skills) == 0:
-		b.WriteString("No skills found. Press S to set up a workspace.\n")
+		// The first screen on a fresh machine. It has to read as a starting
+		// point, not a failure, so it points at the two ways in: guided Setup
+		// and the Library.
+		b.WriteString("No skills yet.\n")
+		b.WriteString("Press S for guided Setup, or L to open the Library and Install one.\n")
 	default:
 		b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), " ", m.detail.render()))
 		b.WriteString("\n")
 	}
 
-	if len(m.inv.Notices) > 0 {
+	notices := m.visibleInventoryNotices()
+	if len(notices) > 0 {
 		b.WriteString("\nNotices\n")
-		for _, notice := range m.inv.Notices {
+		for _, notice := range notices {
 			b.WriteString("- ")
 			b.WriteString(notice.Message)
 			b.WriteString("\n")
 		}
 	}
+}
+
+// missingStandardDirNotice matches the skill scanners' "the standard directory
+// simply is not there" notice. On a fresh machine that is the normal state, not
+// an anomaly: the plugin scanner and the Codex prompt scanner already stay
+// quiet about it, and these two do not.
+//
+// This filter lives in the TUI rather than in the scanners only because of the
+// file ownership split in this work package; the cleaner fix is for
+// engine/personal.go and engine/codex.go to not raise the notice at all.
+// Everything else — an unreadable directory, a dangling plugin path, a
+// malformed skill — still reaches the Notices section.
+var missingStandardDirNotice = regexp.MustCompile(`^(Personal skills|Project Claude skills|Codex skills) directory not found: `)
+
+func visibleNotices(notices []engine.Notice) []engine.Notice {
+	var visible []engine.Notice
+	for _, notice := range notices {
+		if missingStandardDirNotice.MatchString(notice.Message) {
+			continue
+		}
+		visible = append(visible, notice)
+	}
+	return visible
+}
+
+func (m *Model) visibleInventoryNotices() []engine.Notice {
+	return visibleNotices(m.inv.Notices)
 }
 
 func (m *Model) renderArchive(b *strings.Builder) {
@@ -1671,11 +1922,14 @@ func (m *Model) resizeList() {
 	m.help.Width = width
 
 	reserved := 3 + renderedLineCount(m.helpView()) // title, help, blank line, trailing newline after the list
-	if m.view == mainView && len(m.inv.Notices) > 0 {
-		reserved += 2 + len(m.inv.Notices) // blank line, "Notices" line, one per notice
+	if notices := m.visibleInventoryNotices(); m.view == mainView && len(notices) > 0 {
+		reserved += 2 + len(notices) // blank line, "Notices" line, one per notice
 	}
 	if m.status != "" {
 		reserved += 2 // blank line, status line
+	}
+	if m.installing != "" {
+		reserved += 2 // blank line, install-progress line (below any error)
 	}
 	if m.filterActive() {
 		reserved += 2 // blank line, filter line

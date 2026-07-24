@@ -106,8 +106,36 @@ func CompareDrift(member catalog.Member, resolved BoundaryEvidence) DriftReview 
 	return review
 }
 
+// Progress receives one user-facing line per setup step. It is the narrow seam
+// that lets a resolver report what it is doing without knowing where the
+// wizard's output goes; RunTerminal wires it to the wizard's output writer.
+type Progress func(line string)
+
+// ProgressReceiver is implemented by a MemberResolver that can report progress.
+// RunTerminal offers every resolver a Progress and uses whatever it returns, so
+// a resolver that does not report stays unchanged.
+type ProgressReceiver interface {
+	WithProgress(Progress) MemberResolver
+}
+
 type GitResolver struct {
 	TempParent string
+	progress   Progress
+}
+
+// WithProgress returns a copy of the resolver that reports one line per Source
+// as it clones and inspects it, so a multi-second sequence of clones is never
+// silent.
+func (resolver GitResolver) WithProgress(progress Progress) MemberResolver {
+	resolver.progress = progress
+	return resolver
+}
+
+func (resolver GitResolver) report(format string, args ...any) {
+	if resolver.progress == nil {
+		return
+	}
+	resolver.progress(fmt.Sprintf(format, args...))
 }
 
 func (resolver GitResolver) ResolveMembers(ctx context.Context, members []catalog.Member) ([]ResolvedMember, func(), error) {
@@ -126,13 +154,15 @@ func (resolver GitResolver) ResolveMembers(ctx context.Context, members []catalo
 			cleanup()
 		}
 	}
-	for _, repository := range order {
+	for index, repository := range order {
+		resolver.report("Source %d/%d %s — cloning", index+1, len(order), repository)
 		repoDir, revision, cleanup, err := resolver.cloneLatest(ctx, repository)
 		if err != nil {
 			cleanupAll()
 			return nil, func() {}, err
 		}
 		cleanups = append(cleanups, cleanup)
+		resolver.report("Source %d/%d %s — inspecting %d member(s) at %s", index+1, len(order), repository, len(groups[repository]), shortRevision(revision))
 		for _, member := range groups[repository] {
 			item, err := InspectBoundary(member, repoDir, revision)
 			if err != nil {

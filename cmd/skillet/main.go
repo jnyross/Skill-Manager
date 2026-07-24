@@ -83,33 +83,83 @@ func runWithInput(args []string, stdin io.Reader, stdout, stderr io.Writer) int 
 		return 2
 	}
 
+	return runInteractive(stdin, stdout, stderr)
+}
+
+// runTUISession and runSetupWizard are the two halves of the interactive
+// round-trip, kept as variables so the seam is testable without a real
+// terminal.
+var (
+	runTUISession  = defaultTUISession
+	runSetupWizard = defaultSetupWizard
+)
+
+func defaultTUISession(stdout io.Writer, status string, statusIsError bool) (bool, error) {
 	e, err := newEngineForCWD()
 	if err != nil {
-		fmt.Fprintln(stderr, err)
-		return 1
+		return false, err
 	}
 	model := tui.NewModel(e)
+	model.SetInitialStatus(status, statusIsError)
 	p := tea.NewProgram(model, tea.WithAltScreen(), tea.WithOutput(stdout))
 	if _, err := p.Run(); err != nil {
-		fmt.Fprintln(stderr, err)
-		return 1
+		return false, err
 	}
-	if model.SetupRequested() {
-		result, err := workspaceSetup.RunTerminal(context.Background(), stdin, stdout, workspaceSetup.TerminalOptions{UseNativePicker: true})
+	return model.SetupRequested(), nil
+}
+
+func defaultSetupWizard(stdin io.Reader, stdout io.Writer) (workspaceSetup.Result, error) {
+	return workspaceSetup.RunTerminal(context.Background(), stdin, stdout, workspaceSetup.TerminalOptions{UseNativePicker: true})
+}
+
+// runInteractive is the no-argument entry point: the TUI, and — when `S` asks
+// for it — the line-oriented Setup wizard, after which the TUI comes back with
+// the Setup outcome on its status line. The wizard itself is unchanged and
+// still runs on the raw terminal: tea.Program.Run has already left the
+// alternate screen by the time it returns, and the next loop iteration enters a
+// fresh one.
+func runInteractive(stdin io.Reader, stdout, stderr io.Writer) int {
+	var status string
+	var statusIsError bool
+	for {
+		setupRequested, err := runTUISession(stdout, status, statusIsError)
 		if err != nil {
 			fmt.Fprintln(stderr, err)
 			return 1
 		}
-		if result.Outcome == workspaceSetup.OutcomeCanceled {
-			fmt.Fprintln(stdout, "Setup canceled.")
+		if !setupRequested {
 			return 0
 		}
-		if result.Outcome == workspaceSetup.OutcomeBlocked {
-			fmt.Fprintf(stderr, "Blocked: %s\n", result.NextAction)
+		result, err := runSetupWizard(stdin, stdout)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
 			return 1
 		}
+		status, statusIsError = setupStatusLine(result)
 	}
-	return 0
+}
+
+// setupStatusLine summarizes a finished wizard run for the status line of the
+// relaunched TUI, using CONTEXT.md's Setup outcome words verbatim. The second
+// return value is whether it should read as an error.
+func setupStatusLine(result workspaceSetup.Result) (string, bool) {
+	switch result.Outcome {
+	case workspaceSetup.OutcomeCanceled:
+		return "Setup canceled — nothing was changed.", false
+	case "":
+		return "Setup returned no outcome.", true
+	case workspaceSetup.OutcomeBlocked, workspaceSetup.OutcomePartial:
+		return withNextAction("Setup outcome: "+string(result.Outcome)+".", result.NextAction), true
+	default:
+		return withNextAction("Setup outcome: "+string(result.Outcome)+".", result.NextAction), false
+	}
+}
+
+func withNextAction(line, nextAction string) string {
+	if strings.TrimSpace(nextAction) == "" {
+		return line
+	}
+	return line + " Next: " + nextAction
 }
 
 func printVersion(stdout io.Writer) {
